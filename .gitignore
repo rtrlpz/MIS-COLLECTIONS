@@ -4,10 +4,11 @@
 docs/*
 !docs/.keep
 
-unused/*
-!unused/.keep
+unused/
 
 screenshots/*
 !screenshots/.keep
+
+scripts/
 
 .idea
