@@ -1,0 +1,13 @@
+01_Data_Sources/sql_schema_data/*
+!01_Data_Sources/sql_schema_data/.keep
+
+docs/*
+!docs/.keep
+
+unused/*
+!unused/.keep
+
+screenshots/*
+!screenshots/.keep
+
+.idea
