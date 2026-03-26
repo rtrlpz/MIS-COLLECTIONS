@@ -1,18 +1,19 @@
-01_Data_Sources/sql_schema_data/*
-!01_Data_Sources/sql_schema_data/.keep
+# Ignore dashboards, and show screenshots
+.pbix
 
-docs/*
-!docs/.keep
+# Ignore personal files
+07_interview_prep/
 
-unused/
+05_excel_reports/sample_output_*.xlsx
 
-screenshots/*
-!screenshots/.keep
+pgdata/
 
-scripts/
+02_database/.env
+
+01_data_sources/raw_csv/*.csv
+
+06_docs/unused
+
+02_database/data/
 
 .idea
-
-
-
-04_MIS_Reports/dashboard_templates

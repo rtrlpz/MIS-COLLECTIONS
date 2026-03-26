@@ -1,23 +1,43 @@
 from io import StringIO
+import os
 import pandas as pd
 import psycopg2
 from pathlib import Path
+from dotenv import load_dotenv
 
 """
 Antes de correr este script, asegurarse que la base de datos y sus tablas han sido creadas. 
-
 """
+
+# Agrega esta línea para que Python lea el archivo .env
+load_dotenv()
+
+# Obtenemos las variables. Si no existen en el .env, retornarán None.
+DB_USER = os.getenv('POSTGRES_USER')
+DB_PASSWORD = os.getenv('POSTGRES_PASSWORD')
+DB_NAME = os.getenv('POSTGRES_DB')
+DB_PORT = os.getenv('POSTGRES_PORT', '5433') # El puerto no es sensible, puede tener default
+DB_HOST = os.getenv('POSTGRES_HOST', 'localhost')
+
+# Validación de seguridad: Si falta alguna clave, detenemos el script de inmediato.
+if not all([DB_USER, DB_PASSWORD, DB_NAME]):
+    raise ValueError("🔒 ERROR: Faltan credenciales. Asegúrate de que el archivo .env existe y contiene POSTGRES_USER, POSTGRES_PASSWORD y POSTGRES_DB.")
+
+
 # --- 1. CONFIGURACION DE CONEXION A DB Y DATOS ---#
 DB_CONFIG = {
-    'host': 'localhost',
-    'database': 'MSI_CollectionsDB',
-    'user': 'airflow',
-    'password': 'airflow',
-    'port': 5432
+    'host': DB_HOST,
+    'database': DB_NAME,
+    'user': DB_USER,
+    'password': DB_PASSWORD,
+    'port': DB_PORT
 }
 
-# Ruta absoluta de la carpeta de datos
-DATA_DIR = Path(r'C:\Users\Leand\Desktop\MIS-COLLECTIONS\01_Data_Sources\sql_schema_data')
+# Ruta RELATIVA: Sube un nivel desde 02_database/ y entra a 01_data_sources/
+# Esto asegura que funcione en cualquier computadora donde se clone el repositorio
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / '01_data_sources' / 'raw_csv'
+
 
 # Orden de ingesta para respetar las dependencias de claves foraneas
 TABLE_ORDER = [

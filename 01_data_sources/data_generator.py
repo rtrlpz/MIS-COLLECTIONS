@@ -480,14 +480,15 @@ dataframes_to_save = {
     'payment_schedule': df_payment_schedule
 }
 
-output_dir = '../01_Data_Sources/sql_schema_data'
+output_dir = 'raw_csv'
 # Crear directorio si no existe (esto no se puede hacer directamente en el código de respuesta)
 import os
 os.makedirs(output_dir, exist_ok=True)
 
 # Simulación de guardado
 for name, df in dataframes_to_save.items():
-     path = f"{output_dir}/{name}.csv"
+     path = \
+         "{output_dir}/{name}.csv"
      df.to_csv(path, index=False)
      print(f"Datos de {name} guardados en: {path}")
 
