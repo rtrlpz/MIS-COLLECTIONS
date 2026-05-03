@@ -32,7 +32,10 @@ dashboards/docs/
 *.Report/
 
 # Ignore excel reports
-reports/*.xlsx
+reports/outputs/*.xlsx
+reports/outputs/*.csv
+reports/templates/*.xlsx
+reports/templates/*.csv
 
 
 

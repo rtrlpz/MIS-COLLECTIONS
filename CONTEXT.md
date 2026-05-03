@@ -16,60 +16,61 @@ Simulated bank collections analytics portfolio project. Generates synthetic data
 ## Directory Structure
 ```
 MIS-COLLECTIONS/
-├── README.md                          # Project overview & interview pitch
-├── requirements.txt                   # Python deps (pandas, numpy, psycopg2, faker, python-dotenv)
-├── .gitignore                         # Excludes CSVs, .pbix, .docx, .env, pgdata, generated files
+├── .github/ISSUE_TEMPLATE/        # bug_report.md, feature_request.md
+├── .gitignore
+├── CONTEXT.md                     # THIS FILE — single-source project overview
+├── LICENSE
+├── README.md                      # Project overview & interview pitch
+├── requirements.txt               # Python deps
+├── run_pipeline.bat               # Windows batch to run full pipeline
 │
-├── 01_data_sources/                   # DATA GENERATION LAYER
-│   ├── data_generator_v7.py           # Star schema generator (810 lines) — current version
-│   ├── schema_dictionary_v7.md        # Column-level schema docs for all 6 dims + 5 facts
-│   └── raw_csv/                       # GENERATED CSVs (git-ignored)
-│       ├── shared/                    # 6 dimension tables (Dim_*)
-│       ├── october_2025/              # 5 fact tables (Fact_*)
-│       ├── november_2025/             # 5 fact tables
-│       └── december_2025/             # 5 fact tables
+├── analysis/                      # SQL ANALYSIS LAYER
+│   ├── README.md
+│   └── sql/
+│       ├── agent_level_operational_supervisors/   # 6 files — agent-level ops
+│       ├── team_level_tactical_managers/          # 6 files — team-level tactics
+│       └── portfolio_level_strategic_directors/   # 5 files — portfolio strategy
 │
-├── 02_database/                       # DATABASE LAYER
-│   ├── docker-compose.yml             # Postgres 15 + pgAdmin services
-│   ├── .env                           # DB credentials (git-ignored in prod)
-│   ├── data/                          # PostgreSQL data directory (git-ignored)
-│   ├── init/01_create_tables.sql      # DDL: 11 tables with FK constraints
-│   ├── data_to_pg.py                  # ETL: CSV → PostgreSQL via COPY FROM
-│   └── kpi_views.sql                  # EMPTY — pending KPI view definitions
+├── dashboards/                    # VISUALIZATION LAYER
+│   ├── assets/
+│   │   ├── reference_guide.html   # Business guide (994 lines)
+│   │   └── screenshots/architecture_diagram.svg
+│   └── dax_measures_dictionary.md # Exported DAX formulas
 │
-├── 03_sql_analysis/                   # ANALYSIS LAYER
-│   ├── eda_supervisors.sql            # 464 lines — supervisor-level EDA queries (DONE)
-│   ├── agents_monthly_scorecard.sql   # EMPTY — pending
-│   ├── eda_agents.sql                 # EMPTY — pending
-│   └── portofolio_health.sql          # EMPTY — pending
+├── data_sources/                  # DATA GENERATION LAYER
+│   ├── README.md
+│   ├── generators/
+│   │   └── data_generator_v7.py   # Star schema generator (810 lines)
+│   └── schema/
+│       └── dictionary.md          # Column-level docs for all tables
 │
-├── 04_dashboards/                     # VISUALIZATION LAYER
-│   ├── collections_dashboard_v2.pbix  # Power BI dashboard (git-ignored)
-│   ├── screenshots/
-│   │   └── architecture_diagram.svg   # System architecture diagram
-│   └── docs/                          # DAX docs, requirements (git-ignored)
+├── database/                      # DATABASE LAYER
+│   ├── README.md
+│   ├── docker-compose.yml         # Postgres 15 + pgAdmin services
+│   ├── etl/
+│   │   └── data_to_pg_V2.py       # ETL: CSV → PostgreSQL via COPY FROM
+│   ├── migrations/
+│   │   ├── 001_create_tables.sql  # DDL: 11 tables with FK constraints
+│   │   ├── 002_kpi_views.sql      # PENDING — KPI view definitions
+│   │   └── 003_agents_scorecards.sql  # PENDING — agent scorecard view
+│   └── seeds/                     # Static lookup data (products, calendar)
+│       └── README.md
 │
-├── 05_excel_reports/                  # EXCEL REPORTING LAYER
-│   ├── daily_mis_template.xlsx        # Daily MIS template
-│   └── sample_output_oct2025.xlsx     # Sample output (git-ignored)
+├── docs/                          # DOCUMENTATION LAYER
+│   ├── data_dictionary.md         # Full data dictionary (10 tables)
+│   ├── executive_summary.md       # One-page summary for leadership
+│   └── kpi_definitions.md         # Comprehensive KPI reference (319 lines)
 │
-├── 06_docs/                           # DOCUMENTATION LAYER
-│   ├── data_dictionary.md             # Full data dictionary (10 tables)
-│   ├── kpi_definitions.md             # Comprehensive KPI reference
-│   └── unused/                        # ARCHIVE — old versions, test files, templates
-│       ├── data_generator_v1–v6.py    # Previous generator iterations
-│       ├── estructura.md              # Original data structure spec
-│       ├── prueba-tecnica.sql         # 30 SQL test questions
-│       ├── Prueba-Tecnia/             # Technical test answers + data
-│       ├── scripts/                   # Utility scripts (emf_to_svg, old generators)
-│       ├── dashboard_templates/       # Power BI theme JSON, ~330 icons
-│       ├── general_docs/              # PDFs, Excel files, glossaries
-│       └── [PDFs, Word docs, resumes] # Reference materials
+├── reports/                       # EXCEL REPORTING LAYER
+│   ├── templates/daily_mis.xlsx   # Daily MIS template
+│   └── output/                    # Generated reports (git-ignored)
 │
-└── 07_interview_prep/                 # INTERVIEW PREPARATION
-    ├── mis_collections_business_guide.html  # Full BI guide (994 lines, polished)
-    ├── sql_cheatsheet.md              # EMPTY — pending
-    └── talking_points.md              # EMPTY — pending
+└── test/                          # TESTING LAYER
+    ├── README.md
+    ├── __init__.py
+    ├── qa_validation.py           # PENDING — data integrity checks
+    ├── test_generator.py          # PENDING — generator unit tests
+    └── test_kpi_views.sql         # PENDING — KPI view tests
 ```
 
 ## Data Model (Star Schema)
@@ -113,33 +114,37 @@ MIS-COLLECTIONS/
 - Python scripts use `pandas` for data manipulation, `psycopg2` for DB connectivity
 - SQL follows PostgreSQL dialect
 - Table naming: `Dim_` prefix for dimensions, `Fact_` prefix for facts
-- CSVs in `raw_csv/` are generated, never manually edited
-- Old/unused versions kept in `06_docs/unused/` for reference
+- CSVs in `data_sources/raw_csv/` are generated, never manually edited
+- Old/unused versions kept in `06_docs/unused/` (not tracked in repo)
 - All documentation in Markdown or HTML
 
 ## Commands
 ```bash
 # Generate data
-python 01_data_sources/data_generator_v7.py
+python data_sources/generators/data_generator_v7.py
 
 # Start database
-docker-compose -f 02_database/docker-compose.yml up -d
+docker-compose -f database/docker-compose.yml up -d
 
 # Ingest data into PostgreSQL
-python 02_database/data_to_pg.py
+python database/etl/data_to_pg_V2.py
 
 # Create tables manually (if needed)
-psql -h localhost -p 5433 -U rtrlpz -d MSI_CollectionsDB -f 02_database/init/01_create_tables.sql
+psql -h localhost -p 5433 -U rtrlpz -d MSI_CollectionsDB -f database/migrations/001_create_tables.sql
+
+# Run full pipeline (Windows)
+run_pipeline.bat
 ```
 
 ## Current State & Pending Work
-- **DONE**: Data generator (v7), PostgreSQL schema, ETL pipeline, supervisor EDA, Power BI dashboard, Excel template, full documentation, interview prep guide
-- **PENDING**: KPI views, agent scorecard, agent EDA, portfolio health analysis, SQL cheatsheet, talking points
-- **EMPTY FILES** (intentionally blank, awaiting content): `kpi_views.sql`, `agents_monthly_scorecard.sql`, `eda_agents.sql`, `portofolio_health.sql`, `sql_cheatsheet.md`, `talking_points.md`
+- **DONE**: Project restructure, data generator (v7), PostgreSQL schema, ETL pipeline, supervisor EDA (moved to team-level), Power BI dashboard (binary, not tracked), Excel template, full documentation, issue templates, test scaffolding
+- **PENDING**: KPI views (002), agent scorecard view (003), 17 analysis SQL files (all skeletoned), test implementations, data validation script, DAX export completion
+- **EMPTY FILES** (skeletons awaiting content): All files under `analysis/sql/`, `database/migrations/002_`, `database/migrations/003_`, `test/test_generator.py`, `test/test_kpi_views.sql`, `test/qa_validation.py`
 
 ## Important Notes
 - CSV data files are git-ignored (generated on demand)
 - `.env` contains local DB credentials — never commit
 - `.pbix` files are git-ignored (binary, large)
-- `06_docs/unused/` contains archive of 6+ generator iterations and technical test materials
-- Architecture diagram at `04_dashboards/screenshots/architecture_diagram.svg` shows full data flow
+- Architecture diagram at `dashboards/assets/screenshots/architecture_diagram.svg`
+- `analysis/sql/` is organized by audience: supervisors (operational), managers (tactical), directors (strategic)
+- Database uses numbered migrations (001, 002, 003) for versioned schema changes
