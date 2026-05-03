@@ -1,19 +1,40 @@
-# Ignore dashboards, and show screenshots
-.pbix
+# Ignore Power BI files (Dashboards)
+*.pbix
 
-# Ignore personal files
-07_interview_prep/
+# Ignore all CSV files (everywhere in the repo)
+*.csv
 
-05_excel_reports/sample_output_*.xlsx
+# Ignore personal interview prep folder
+interview_prep/
 
+# Ignore Excel outputs
+reports/outputs/*.xlsx
+
+# Ignore database data/credentials
 pgdata/
+database/.env
+database/data/
 
-02_database/.env
+# Ignore unused documentation and word docs
+docs/*.docx
+docs/unused/*
+docs/TODO/*
+docs/interviews/*
+dashboards/docs/
+*.docx
+*.pdf
 
-01_data_sources/raw_csv/*.csv
+# Ignore IDE files
+.idea/
 
-06_docs/unused
+# Ignore Power BI temporary/model files
+*.SemanticModel/
+*.Report/
 
-02_database/data/
+# Ignore excel reports
+reports/*.xlsx
 
-.idea
+
+
+
+
