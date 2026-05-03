@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIS Collections — DAX Reference & Dashboard Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0B1628;
+    --navy-mid: #152035;
+    --navy-card: #1A2840;
+    --navy-border: #253550;
+    --blue: #3D85E0;
+    --blue-light: #5BA3F5;
+    --teal: #1DB88A;
+    --amber: #F0A030;
+    --red: #E85050;
+    --text: #E8EDF5;
+    --text-muted: #7A90B0;
+    --text-dim: #3D5070;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --serif: 'DM Serif Display', serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--navy);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 52px;
+    background: rgba(11,22,40,0.96);
+    border-bottom: 1px solid var(--navy-border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 0;
+    z-index: 100;
+    backdrop-filter: blur(8px);
+  }
+
+  .nav-brand {
+    font-family: var(--serif);
+    font-size: 16px;
+    color: var(--text);
+    margin-right: 32px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .nav-brand span { color: var(--blue-light); }
+
+  .nav-tabs {
+    display: flex;
+    gap: 2px;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-tabs::-webkit-scrollbar { display: none; }
+
+  .nav-tab {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 6px;
+    white-space: nowrap;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    background: none;
+    font-family: var(--sans);
+  }
+
+  .nav-tab:hover { color: var(--text); background: var(--navy-card); }
+  .nav-tab.active {
+    color: var(--blue-light);
+    background: rgba(61,133,224,0.12);
+    border-color: rgba(61,133,224,0.3);
+  }
+
+  /* ── PAGES ── */
+  .page { display: none; padding: 80px 0 48px; min-height: 100vh; }
+  .page.active { display: block; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── COVER PAGE ── */
+  .cover {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 52px);
+    text-align: center;
+    padding: 80px 24px 48px;
+  }
+
+  .cover-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(61,133,224,0.12);
+    border: 1px solid rgba(61,133,224,0.3);
+    border-radius: 20px;
+    padding: 5px 16px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--blue-light);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+
+  .cover h1 {
+    font-family: var(--serif);
+    font-size: clamp(36px, 6vw, 64px);
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+
+  .cover h1 em {
+    font-style: normal;
+    color: var(--blue-light);
+  }
+
+  .cover-sub {
+    font-size: 16px;
+    color: var(--text-muted);
+    max-width: 540px;
+    line-height: 1.6;
+    margin-bottom: 48px;
+  }
+
+  .cover-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    max-width: 640px;
+    width: 100%;
+  }
+
+  .cover-card {
+    background: var(--navy-card);
+    border: 1px solid var(--navy-border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .cover-card:hover {
+    border-color: var(--blue);
+    background: rgba(61,133,224,0.08);
+    transform: translateY(-2px);
+  }
+
+  .cover-card-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--blue-light);
+    margin-bottom: 6px;
+  }
+
+  .cover-card-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+
+  .cover-card-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* ── SECTION HEADERS ── */
+  .section-header {
+    border-bottom: 1px solid var(--navy-border);
+    padding-bottom: 20px;
+    margin-bottom: 32px;
+  }
+
+  .section-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--blue-light);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .section-title {
+    font-family: var(--serif);
+    font-size: 32px;
+    color: var(--text);
+  }
+
+  .section-desc {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    max-width: 640px;
+    line-height: 1.6;
+  }
+
+  /* ── DAX MEASURES ── */
+  .dax-group { margin-bottom: 40px; }
+
+  .dax-group-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .dax-group-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--navy-border);
+  }
+
+  .dax-table {
+    background: var(--navy-card);
+    border: 1px solid var(--navy-border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .dax-table-header {
+    display: grid;
+    grid-template-columns: 200px 1fr 130px;
+    padding: 8px 16px;
+    background: rgba(37,53,80,0.6);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--navy-border);
+  }
+
+  .dax-row {
+    display: grid;
+    grid-template-columns: 200px 1fr 130px;
+    padding: 0;
+    border-bottom: 1px solid var(--navy-border);
+    align-items: stretch;
+  }
+
+  .dax-row:last-child { border-bottom: none; }
+
+  .dax-name {
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    border-right: 1px solid var(--navy-border);
+    display: flex;
+    align-items: flex-start;
+    padding-top: 14px;
+  }
+
+  .dax-code {
+    padding: 10px 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #A8C8F0;
+    line-height: 1.7;
+    border-right: 1px solid var(--navy-border);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .dax-code .kw { color: #7DBFFF; }
+  .dax-code .fn { color: #FFD580; }
+  .dax-code .str { color: #98D8A0; }
+  .dax-code .cmt { color: var(--text-dim); font-style: italic; }
+
+  .dax-table-tag {
+    padding: 14px 16px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 15px;
+  }
+
+  .tag-contact { color: #5BA3F5; }
+  .tag-promise { color: #1DB88A; }
+  .tag-recovery { color: #F0A030; }
+  .tag-portfolio { color: #C070F0; }
+  .tag-time { color: #F08050; }
+  .tag-trend { color: #60D8D8; }
+
+  .measures-info {
+    background: rgba(61,133,224,0.06);
+    border: 1px solid rgba(61,133,224,0.2);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+  }
+
+  .measures-info-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--blue-light);
+    margin-bottom: 10px;
+  }
+
+  .measures-info p {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: 8px;
+  }
+
+  .measures-info p:last-child { margin-bottom: 0; }
+
+  .tables-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .measure-table-card {
+    background: var(--navy-card);
+    border: 1px solid var(--navy-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+
+  .mt-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--blue-light);
+    margin-bottom: 4px;
+  }
+
+  .mt-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+  .mt-dax {
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 5px;
+    padding: 8px 10px;
+    color: #A8C8F0;
+    line-height: 1.6;
+  }
+
+  /* ── DASHBOARD PAGES ── */
+  .dash-meta {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    align-items: start;
+    margin-bottom: 28px;
+  }
+
+  .dash-purpose {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+
+  .dash-specs {
+    background: var(--navy-card);
+    border: 1px solid var(--navy-border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    min-width: 220px;
+  }
+
+  .dash-spec-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 11px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--navy-border);
+  }
+
+  .dash-spec-row:last-child { border-bottom: none; }
+  .dash-spec-key { color: var(--text-muted); }
+  .dash-spec-val { color: var(--text); font-weight: 500; }
+
+  .dash-frame {
+    background: #F0F2F5;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+
+  .visuals-guide {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .visual-card {
+    background: var(--navy-card);
+    border: 1px solid var(--navy-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+
+  .visual-card-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .visual-type {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--amber);
+    background: rgba(240,160,48,0.12);
+    border-radius: 3px;
+    padding: 2px 6px;
+  }
+
+  .visual-card p {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  /* ── DASHBOARD MOCKUPS (light bg) ── */
+  .db { font-family: var(--sans); background: #ECEEF2; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .dbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+  .dbar-t { font-size: 13px; font-weight: 600; color: #1A2840; }
+  .dnav { display: flex; gap: 4px; }
+  .dp { font-size: 10px; padding: 3px 9px; border-radius: 12px; background: #fff; color: #7A90B0; border: 1px solid #D0D8E8; cursor: pointer; }
+  .dp.on { background: #1A5CB0; color: #fff; border-color: #1A5CB0; }
+  .dkrow { display: grid; gap: 6px; }
+  .dk { background: #fff; border-radius: 7px; padding: 10px 12px; border: 1px solid #D8E0EE; }
+  .dkl { font-size: 9px; color: #7A90B0; margin-bottom: 3px; }
+  .dkv { font-size: 18px; font-weight: 600; color: #1A2840; line-height: 1; }
+  .dks { font-size: 9px; margin-top: 3px; }
+  .up { color: #1A7A50; } .dn { color: #A03030; } .fl { color: #7A90B0; }
+  .d2 { display: grid; gap: 8px; }
+  .dcard { background: #fff; border-radius: 7px; padding: 12px; border: 1px solid #D8E0EE; }
+  .dct { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #7A90B0; margin-bottom: 8px; }
+  .brow { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .blbl { font-size: 9px; color: #7A90B0; width: 56px; text-align: right; flex-shrink: 0; }
+  .btrk { flex: 1; height: 6px; background: #ECEEF2; border-radius: 3px; overflow: hidden; }
+  .bfill { height: 100%; border-radius: 3px; }
+  .bval { font-size: 9px; color: #1A2840; width: 30px; text-align: right; flex-shrink: 0; }
+  .badge { display: inline-block; font-size: 9px; font-weight: 600; padding: 2px 5px; border-radius: 3px; }
+  .bg { background: #D8F0E0; color: #1A6040; }
+  .ba { background: #FFF0CC; color: #8B5000; }
+  .br { background: #FFE0E0; color: #8B2020; }
+  .bb { background: #D8EAFF; color: #1A4080; }
+  .wrow { display: flex; align-items: flex-end; gap: 4px; height: 70px; }
+  .wcol { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+  .wbar { width: 100%; border-radius: 2px 2px 0 0; }
+  .wlbl { font-size: 7px; color: #7A90B0; text-align: center; line-height: 1.2; }
+  .srow { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .slbl { font-size: 9px; color: #7A90B0; width: 62px; text-align: right; flex-shrink: 0; }
+  .strk { flex: 1; height: 6px; background: #ECEEF2; border-radius: 3px; overflow: hidden; }
+  .sfil { height: 100%; border-radius: 3px; }
+  .sval { font-size: 9px; width: 36px; text-align: right; flex-shrink: 0; }
+  .fstep { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .fbar { height: 16px; border-radius: 2px; display: flex; align-items: center; padding: 0 6px; font-size: 9px; font-weight: 600; color: #fff; min-width: 50px; }
+  .flbl { font-size: 9px; color: #7A90B0; white-space: nowrap; }
+  .trow { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #ECEEF2; font-size: 10px; }
+  .trow:last-child { border-bottom: none; }
+  .sc-tbl { width: 100%; border-collapse: collapse; font-size: 9px; }
+  .sc-tbl th { text-align: left; padding: 5px 6px; font-size: 8px; text-transform: uppercase; letter-spacing: .04em; color: #7A90B0; background: #F4F6FA; border-bottom: 1px solid #D8E0EE; }
+  .sc-tbl td { padding: 5px 6px; border-bottom: 1px solid #ECEEF2; color: #1A2840; }
+  .sc-tbl tr:hover td { background: #F8FAFF; }
+  .hcell { height: 22px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; }
+  .rrow { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .rnum { font-size: 10px; font-weight: 600; color: #7A90B0; width: 14px; text-align: right; flex-shrink: 0; }
+  .rname { font-size: 10px; color: #1A2840; width: 78px; flex-shrink: 0; }
+  .rtrk { flex: 1; height: 16px; background: #ECEEF2; border-radius: 3px; overflow: hidden; }
+  .rfil { height: 100%; border-radius: 3px; display: flex; align-items: center; padding-left: 6px; font-size: 9px; font-weight: 600; color: #fff; }
+  .rmeta { font-size: 9px; color: #7A90B0; width: 44px; text-align: right; flex-shrink: 0; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .cover-grid { grid-template-columns: 1fr; }
+    .dax-table-header, .dax-row { grid-template-columns: 150px 1fr; }
+    .dax-table-tag { display: none; }
+    .tables-grid { grid-template-columns: 1fr; }
+    .dash-meta { grid-template-columns: 1fr; }
+    .visuals-guide { grid-template-columns: 1fr; }
+    .dkrow { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">MIS <span>Collections</span></span>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="show('cover')">Overview</button>
+    <button class="nav-tab" onclick="show('storage')">DAX Storage</button>
+    <button class="nav-tab" onclick="show('dax-contact')">Contact KPIs</button>
+    <button class="nav-tab" onclick="show('dax-promise')">Promise KPIs</button>
+    <button class="nav-tab" onclick="show('dax-recovery')">Recovery KPIs</button>
+    <button class="nav-tab" onclick="show('dax-portfolio')">Portfolio KPIs</button>
+    <button class="nav-tab" onclick="show('dax-trend')">Trends & Time</button>
+    <button class="nav-tab" onclick="show('dash1')">Dashboard 1</button>
+    <button class="nav-tab" onclick="show('dash2')">Dashboard 2</button>
+    <button class="nav-tab" onclick="show('dash3')">Dashboard 3</button>
+    <button class="nav-tab" onclick="show('dash4')">Dashboard 4</button>
+    <button class="nav-tab" onclick="show('dash5')">Dashboard 5</button>
+  </div>
+</nav>
+
+<!-- ══ COVER ══ -->
+<div id="cover" class="page active">
+  <div class="cover">
+    <div class="cover-badge">Portfolio Project · MIS_CollectionsDB</div>
+    <h1>Collections <em>Analytics</em><br>Reference Guide</h1>
+    <p class="cover-sub">Complete DAX measure library and Power BI dashboard blueprints for a collections department MIS environment. Built on PostgreSQL with 10 normalized tables across 3 months of synthetic operational data.</p>
+    <div class="cover-grid">
+      <div class="cover-card" onclick="show('storage')">
+        <div class="cover-card-num">01</div>
+        <div class="cover-card-title">DAX Storage</div>
+        <div class="cover-card-sub">How to organize measures tables in Power BI</div>
+      </div>
+      <div class="cover-card" onclick="show('dax-contact')">
+        <div class="cover-card-num">02–06</div>
+        <div class="cover-card-title">All DAX Measures</div>
+        <div class="cover-card-sub">40+ measures across 5 KPI categories</div>
+      </div>
+      <div class="cover-card" onclick="show('dash1')">
+        <div class="cover-card-num">07–11</div>
+        <div class="cover-card-title">Dashboard Blueprints</div>
+        <div class="cover-card-sub">5 Power BI pages with layout & visual guide</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DAX STORAGE ══ -->
+<div id="storage" class="page">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Setup</div>
+      <div class="section-title">DAX Measure Storage</div>
+      <div class="section-desc">Where and how to store DAX measures in Power BI for a professional, maintainable project structure.</div>
+    </div>
+
+    <div class="measures-info">
+      <div class="measures-info-title">The correct approach: empty measure tables</div>
+      <p>Never store measures inside your data tables. When a table is renamed, refreshed, or replaced, orphaned measures break silently. Create dedicated empty tables using a single-row DAX expression — no data loads, no relationships needed.</p>
+      <p>Use an underscore prefix on measure table names. Power BI sorts the field list alphabetically, so <code style="font-family:var(--mono);color:var(--blue-light)">_Contact & Volume</code> pins above <code style="font-family:var(--mono);color:var(--blue-light)">accounts</code>, keeping your measures always visible at the top.</p>
+      <p>Three tables is the right split for this project — it keeps each group under 15 measures, which is the threshold where a collapsed folder in the field list stops being scannable.</p>
+    </div>
+
+    <div class="dax-group">
+      <div class="dax-group-title">Create these three tables in Power BI (Modeling → New Table)</div>
+      <div class="tables-grid">
+        <div class="measure-table-card">
+          <div class="mt-name">_Contact & Volume</div>
+          <div class="mt-desc">Calls, RPCs, connections, AHT, ACW, utilization, THT. Everything about how agents spend their time and reach clients.</div>
+          <div class="mt-dax">_Contact & Volume =<br>ROW("x", BLANK())</div>
+        </div>
+        <div class="measure-table-card">
+          <div class="mt-name">_Promise & Recovery</div>
+          <div class="mt-desc">PTPs, KP%, Kept, Broken, BB Conversion, Capped KP$, Cured Amount, Cures/THT, payment schedule outcomes.</div>
+          <div class="mt-dax">_Promise & Recovery =<br>ROW("x", BLANK())</div>
+        </div>
+        <div class="measure-table-card">
+          <div class="mt-name">_Portfolio & Trends</div>
+          <div class="mt-desc">Account counts, mora rate, total balance, arrears, MoM comparisons, rolling averages, and period-over-period calculations.</div>
+          <div class="mt-dax">_Portfolio & Trends =<br>ROW("x", BLANK())</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dax-group">
+      <div class="dax-group-title">After creating each table, hide the auto-generated column</div>
+      <div class="dax-table">
+        <div class="dax-table-header">
+          <span>Step</span><span>Action</span><span>Result</span>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">1. Create table</div>
+          <div class="dax-code"><span class="fn">ROW</span>(<span class="str">"x"</span>, <span class="fn">BLANK</span>())</div>
+          <div class="dax-table-tag tag-contact">Empty table</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">2. Hide the x column</div>
+          <div class="dax-code">Right-click column → Hide in report view</div>
+          <div class="dax-table-tag tag-promise">Clean field list</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">3. Add measures</div>
+          <div class="dax-code">Right-click table → New measure</div>
+          <div class="dax-table-tag tag-recovery">Organized</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">4. Mark as date table</div>
+          <div class="dax-code">Calendar table → Table tools → Mark as date table → Date column</div>
+          <div class="dax-table-tag tag-portfolio">Time intel enabled</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DAX: CONTACT ══ -->
+<div id="dax-contact" class="page">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">_Contact & Volume</div>
+      <div class="section-title">Contact & Efficiency KPIs</div>
+      <div class="section-desc">Measures from <code style="font-family:var(--mono);color:var(--blue-light)">dialer_interactions</code> and <code style="font-family:var(--mono);color:var(--blue-light)">agent_time_log</code>. These tell you how productively agents are spending their time.</div>
+    </div>
+    <div class="dax-group">
+      <div class="dax-group-title">Volume</div>
+      <div class="dax-table">
+        <div class="dax-table-header"><span>Measure name</span><span>DAX</span><span>Table</span></div>
+        <div class="dax-row">
+          <div class="dax-name">Calls Attempted</div>
+          <div class="dax-code"><span class="fn">SUM</span>(dialer_interactions[calls_attempted])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Calls Connected</div>
+          <div class="dax-code"><span class="fn">SUM</span>(dialer_interactions[calls_connected])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Connection Rate</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Calls Connected], [Calls Attempted])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Total RPCs</div>
+          <div class="dax-code"><span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(dialer_interactions,
+  dialer_interactions[rpc_flag] = <span class="str">"true"</span>))</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">RPC%</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Total RPCs], [Calls Connected])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Non-RPC Connections</div>
+          <div class="dax-code">[Calls Connected] - [Total RPCs]</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Total RPC Arrears</div>
+          <div class="dax-code"><span class="fn">SUMX</span>(
+  <span class="fn">FILTER</span>(dialer_interactions,
+    dialer_interactions[rpc_flag] = <span class="str">"true"</span>),
+  dialer_interactions[rpc_arrears])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">RPC per Op Hr</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Total RPCs],
+  <span class="fn">SUM</span>(agent_time_log[operational_hours]))</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">RPC per THT Hr</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Total RPCs],
+  <span class="fn">SUM</span>(agent_time_log[tht_hours]))</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+      </div>
+    </div>
+    <div class="dax-group">
+      <div class="dax-group-title">Handle time</div>
+      <div class="dax-table">
+        <div class="dax-table-header"><span>Measure name</span><span>DAX</span><span>Table</span></div>
+        <div class="dax-row">
+          <div class="dax-name">AHT RPC (sec)</div>
+          <div class="dax-code"><span class="fn">AVERAGEX</span>(
+  <span class="fn">FILTER</span>(dialer_interactions,
+    dialer_interactions[rpc_flag] = <span class="str">"true"</span>),
+  dialer_interactions[aht_seconds])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">AHT Non-RPC (sec)</div>
+          <div class="dax-code"><span class="fn">AVERAGEX</span>(
+  <span class="fn">FILTER</span>(dialer_interactions,
+    dialer_interactions[rpc_flag] = <span class="str">"false"</span>),
+  dialer_interactions[aht_seconds])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">ACW RPC (sec)</div>
+          <div class="dax-code"><span class="fn">AVERAGEX</span>(
+  <span class="fn">FILTER</span>(dialer_interactions,
+    dialer_interactions[rpc_flag] = <span class="str">"true"</span>),
+  dialer_interactions[acw_seconds])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">ACW Non-RPC (sec)</div>
+          <div class="dax-code"><span class="fn">AVERAGEX</span>(
+  <span class="fn">FILTER</span>(dialer_interactions,
+    dialer_interactions[rpc_flag] = <span class="str">"false"</span>),
+  dialer_interactions[acw_seconds])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Total THT Hours</div>
+          <div class="dax-code"><span class="fn">SUM</span>(agent_time_log[tht_hours])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Total Op Hours</div>
+          <div class="dax-code"><span class="fn">SUM</span>(agent_time_log[operational_hours])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Avg Utilization</div>
+          <div class="dax-code"><span class="fn">AVERAGE</span>(agent_time_log[utilization])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">THT Alignment</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Total THT Hours], [Total Op Hours])</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Agents Below Util Target</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>(
+  <span class="fn">DISTINCTCOUNT</span>(agent_time_log[agent_id]),
+  agent_time_log[utilization] < 0.70)</div>
+          <div class="dax-table-tag tag-contact">_Contact & Volume</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DAX: PROMISE ══ -->
+<div id="dax-promise" class="page">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">_Promise & Recovery</div>
+      <div class="section-title">Promise KPIs</div>
+      <div class="section-desc">Measures from <code style="font-family:var(--mono);color:var(--blue-light)">ptp_log</code>. The core of collections performance measurement. Note: KP% always excludes Pending promises from the denominator.</div>
+    </div>
+    <div class="dax-group">
+      <div class="dax-group-title">Promise counts and rates</div>
+      <div class="dax-table">
+        <div class="dax-table-header"><span>Measure name</span><span>DAX</span><span>Table</span></div>
+        <div class="dax-row">
+          <div class="dax-name">Total PTPs</div>
+          <div class="dax-code"><span class="fn">COUNTROWS</span>(ptp_log)</div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Kept</div>
+          <div class="dax-code"><span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(ptp_log, ptp_log[status] = <span class="str">"Kept"</span>))</div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Broken</div>
+          <div class="dax-code"><span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(ptp_log, ptp_log[status] = <span class="str">"Broken"</span>))</div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Pending</div>
+          <div class="dax-code"><span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(ptp_log, ptp_log[status] = <span class="str">"Pending"</span>))</div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Evaluated PTPs</div>
+          <div class="dax-code">[Kept] + [Broken]
+<span class="cmt">-- Pending excluded from denominator</span></div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">PTP%</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Total PTPs], [Total RPCs])</div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">KP%</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Kept], [Evaluated PTPs])
+<span class="cmt">-- Uses result date, not taken date</span></div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Broken Rate</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Broken], [Evaluated PTPs])</div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">BB Conversion Rate</div>
+          <div class="dax-code">[PTP%] * [KP%]</div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Amount Promised</div>
+          <div class="dax-code"><span class="fn">SUM</span>(ptp_log[amount_promised])</div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Capped KP$</div>
+          <div class="dax-code"><span class="fn">SUMX</span>(
+  <span class="fn">FILTER</span>(ptp_log, ptp_log[status] = <span class="str">"Kept"</span>),
+  <span class="fn">MIN</span>(ptp_log[amount_promised],
+       ptp_log[rpc_arrears_at_contact]))</div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Capped KP / RPC Arrears</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Capped KP$], [Total RPC Arrears])</div>
+          <div class="dax-table-tag tag-promise">_Promise & Recovery</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DAX: RECOVERY ══ -->
+<div id="dax-recovery" class="page">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">_Promise & Recovery</div>
+      <div class="section-title">Recovery & Cure KPIs</div>
+      <div class="section-desc">Measures from <code style="font-family:var(--mono);color:var(--blue-light)">cures_log</code> and <code style="font-family:var(--mono);color:var(--blue-light)">payment_schedule</code>. These measure actual cash movement, not just promises.</div>
+    </div>
+    <div class="dax-group">
+      <div class="dax-group-title">Cures</div>
+      <div class="dax-table">
+        <div class="dax-table-header"><span>Measure name</span><span>DAX</span><span>Table</span></div>
+        <div class="dax-row">
+          <div class="dax-name">Total Cures</div>
+          <div class="dax-code"><span class="fn">DISTINCTCOUNT</span>(cures_log[account_id])</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Cured Amount</div>
+          <div class="dax-code"><span class="fn">SUM</span>(cures_log[amount_paid])</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Avg Cure Amount</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Cured Amount], [Total Cures])</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Cures per THT</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Total Cures],
+  <span class="fn">SUM</span>(agent_time_log[tht_hours]))</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Cures per Op Hr</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Total Cures],
+  <span class="fn">SUM</span>(agent_time_log[operational_hours]))</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Collection Efficiency</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Cured Amount], [Total RPC Arrears])</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Online Cures%</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>(
+  <span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(cures_log,
+    cures_log[payment_method] = <span class="str">"Online"</span>)),
+  <span class="fn">COUNTROWS</span>(cures_log))</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Branch/ATM Cures%</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>(
+  <span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(cures_log,
+    cures_log[payment_method] = <span class="str">"Branch/ATM"</span>)),
+  <span class="fn">COUNTROWS</span>(cures_log))</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">OFI Cures%</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>(
+  <span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(cures_log,
+    cures_log[payment_method] = <span class="str">"OFI"</span>)),
+  <span class="fn">COUNTROWS</span>(cures_log))</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+      </div>
+    </div>
+    <div class="dax-group">
+      <div class="dax-group-title">Payment schedule</div>
+      <div class="dax-table">
+        <div class="dax-table-header"><span>Measure name</span><span>DAX</span><span>Table</span></div>
+        <div class="dax-row">
+          <div class="dax-name">Schedule Paid Full</div>
+          <div class="dax-code"><span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(payment_schedule,
+  payment_schedule[status] = <span class="str">"Paid_Full"</span>))</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Schedule Paid Partial</div>
+          <div class="dax-code"><span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(payment_schedule,
+  payment_schedule[status] = <span class="str">"Paid_Partial"</span>))</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Schedule Overdue</div>
+          <div class="dax-code"><span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(payment_schedule,
+  payment_schedule[status] = <span class="str">"Overdue"</span>))</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Schedule Broken</div>
+          <div class="dax-code"><span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(payment_schedule,
+  payment_schedule[status] = <span class="str">"Broken"</span>))</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Total Expected</div>
+          <div class="dax-code"><span class="fn">SUM</span>(payment_schedule[expected_amount])</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Total Paid on Schedule</div>
+          <div class="dax-code"><span class="fn">SUM</span>(payment_schedule[amount_paid])</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Schedule Fulfillment Rate</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Total Paid on Schedule], [Total Expected])</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Total Schedule Arrears</div>
+          <div class="dax-code"><span class="fn">SUMX</span>(
+  <span class="fn">FILTER</span>(payment_schedule,
+    payment_schedule[status] <span class="kw">IN</span> {<span class="str">"Overdue"</span>, <span class="str">"Broken"</span>}),
+  payment_schedule[expected_amount]
+    - payment_schedule[amount_paid])</div>
+          <div class="dax-table-tag tag-recovery">_Promise & Recovery</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DAX: PORTFOLIO ══ -->
+<div id="dax-portfolio" class="page">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">_Portfolio & Trends</div>
+      <div class="section-title">Portfolio KPIs</div>
+      <div class="section-desc">Measures from <code style="font-family:var(--mono);color:var(--blue-light)">accounts</code>, <code style="font-family:var(--mono);color:var(--blue-light)">clients</code>, and <code style="font-family:var(--mono);color:var(--blue-light)">products</code>. Portfolio health and risk exposure metrics.</div>
+    </div>
+    <div class="dax-group">
+      <div class="dax-group-title">Account counts and status</div>
+      <div class="dax-table">
+        <div class="dax-table-header"><span>Measure name</span><span>DAX</span><span>Table</span></div>
+        <div class="dax-row">
+          <div class="dax-name">Total Accounts</div>
+          <div class="dax-code"><span class="fn">COUNTROWS</span>(accounts)</div>
+          <div class="dax-table-tag tag-portfolio">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Mora Accounts</div>
+          <div class="dax-code"><span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(accounts,
+  accounts[status] = <span class="str">"Mora"</span>))</div>
+          <div class="dax-table-tag tag-portfolio">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Mora Rate</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>([Mora Accounts], [Total Accounts])</div>
+          <div class="dax-table-tag tag-portfolio">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Activo Rate</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>(
+  <span class="fn">COUNTROWS</span>(<span class="fn">FILTER</span>(accounts,
+    accounts[status] = <span class="str">"Activo"</span>)),
+  [Total Accounts])</div>
+          <div class="dax-table-tag tag-portfolio">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Total Balance</div>
+          <div class="dax-code"><span class="fn">SUM</span>(accounts[balance])</div>
+          <div class="dax-table-tag tag-portfolio">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Avg Balance</div>
+          <div class="dax-code"><span class="fn">AVERAGE</span>(accounts[balance])</div>
+          <div class="dax-table-tag tag-portfolio">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Tarjeta Accounts</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>([Total Accounts],
+  products[product_type] = <span class="str">"Tarjeta"</span>)</div>
+          <div class="dax-table-tag tag-portfolio">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Prestamo Accounts</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>([Total Accounts],
+  products[product_type] = <span class="str">"Prestamo"</span>)</div>
+          <div class="dax-table-tag tag-portfolio">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Hipoteca Accounts</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>([Total Accounts],
+  products[product_type] = <span class="str">"Hipoteca"</span>)</div>
+          <div class="dax-table-tag tag-portfolio">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Accounts Cured</div>
+          <div class="dax-code"><span class="fn">DISTINCTCOUNT</span>(cures_log[account_id])</div>
+          <div class="dax-table-tag tag-portfolio">_Portfolio & Trends</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DAX: TRENDS ══ -->
+<div id="dax-trend" class="page">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">_Portfolio & Trends</div>
+      <div class="section-title">Time Intelligence & MoM Trends</div>
+      <div class="section-desc">Requires Calendar table marked as date table. These measures enable month-over-month comparisons and rolling analysis across the 3-month simulation period.</div>
+    </div>
+    <div class="dax-group">
+      <div class="dax-group-title">Month-over-month comparisons</div>
+      <div class="dax-table">
+        <div class="dax-table-header"><span>Measure name</span><span>DAX</span><span>Table</span></div>
+        <div class="dax-row">
+          <div class="dax-name">KP% Prior Month</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>([KP%],
+  <span class="fn">DATEADD</span>(Calendar[Date], -1, <span class="kw">MONTH</span>))</div>
+          <div class="dax-table-tag tag-trend">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">KP% MoM Change (pp)</div>
+          <div class="dax-code">[KP%] - [KP% Prior Month]</div>
+          <div class="dax-table-tag tag-trend">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">RPC% Prior Month</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>([RPC%],
+  <span class="fn">DATEADD</span>(Calendar[Date], -1, <span class="kw">MONTH</span>))</div>
+          <div class="dax-table-tag tag-trend">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Cured Amount Prior Month</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>([Cured Amount],
+  <span class="fn">DATEADD</span>(Calendar[Date], -1, <span class="kw">MONTH</span>))</div>
+          <div class="dax-table-tag tag-trend">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Cured Amount MoM%</div>
+          <div class="dax-code"><span class="fn">DIVIDE</span>(
+  [Cured Amount] - [Cured Amount Prior Month],
+  [Cured Amount Prior Month])</div>
+          <div class="dax-table-tag tag-trend">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">BB Conversion Prior Month</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>([BB Conversion Rate],
+  <span class="fn">DATEADD</span>(Calendar[Date], -1, <span class="kw">MONTH</span>))</div>
+          <div class="dax-table-tag tag-trend">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Total Cures Prior Month</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>([Total Cures],
+  <span class="fn">DATEADD</span>(Calendar[Date], -1, <span class="kw">MONTH</span>))</div>
+          <div class="dax-table-tag tag-trend">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Cures MoM Change</div>
+          <div class="dax-code">[Total Cures] - [Total Cures Prior Month]</div>
+          <div class="dax-table-tag tag-trend">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Utilization YTD</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>([Avg Utilization],
+  <span class="fn">DATESYTD</span>(Calendar[Date]))</div>
+          <div class="dax-table-tag tag-trend">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Cured Amount YTD</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>([Cured Amount],
+  <span class="fn">DATESYTD</span>(Calendar[Date]))</div>
+          <div class="dax-table-tag tag-trend">_Portfolio & Trends</div>
+        </div>
+        <div class="dax-row">
+          <div class="dax-name">Rolling 3M KP%</div>
+          <div class="dax-code"><span class="fn">CALCULATE</span>([KP%],
+  <span class="fn">DATESINPERIOD</span>(Calendar[Date],
+    <span class="fn">LASTDATE</span>(Calendar[Date]),
+    -3, <span class="kw">MONTH</span>))</div>
+          <div class="dax-table-tag tag-trend">_Portfolio & Trends</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD PAGES ══ -->
+
+<script>
+function makeDash1() {
+  return `<div class="db">
+    <div class="dbar"><span class="dbar-t">Executive overview</span><div class="dnav"><span class="dp on">Executive</span><span class="dp">Scorecard</span><span class="dp">Leaderboard</span><span class="dp">Portfolio</span><span class="dp">Promise intel</span></div></div>
+    <div class="dkrow" style="grid-template-columns:repeat(5,1fr)">
+      <div class="dk"><div class="dkl">RPC%</div><div class="dkv">51.3%</div><div class="dks up">+2.1pp vs Oct</div></div>
+      <div class="dk"><div class="dkl">KP%</div><div class="dkv">68.7%</div><div class="dks up">+1.4pp vs Oct</div></div>
+      <div class="dk"><div class="dkl">BB Conversion</div><div class="dkv">35.2%</div><div class="dks fl">Flat</div></div>
+      <div class="dk"><div class="dkl">Cured Amount</div><div class="dkv">$1.4M</div><div class="dks up">+8.3% vs Oct</div></div>
+      <div class="dk"><div class="dkl">Capped KP/Arrears</div><div class="dkv">0.31</div><div class="dks dn">−0.02 vs Oct</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:8px">
+      <div class="dcard">
+        <div class="dct">Monthly KPI trends — Oct–Dec 2025</div>
+        <svg width="100%" viewBox="0 0 340 90" style="overflow:visible">
+          <line x1="20" y1="8" x2="20" y2="75" stroke="#D0D8E8" stroke-width="0.5"/>
+          <line x1="20" y1="75" x2="335" y2="75" stroke="#D0D8E8" stroke-width="0.5"/>
+          <line x1="20" y1="40" x2="335" y2="40" stroke="#D0D8E8" stroke-width="0.5" stroke-dasharray="3 3"/>
+          <polyline points="110,46 215,40 320,35" fill="none" stroke="#1A5CB0" stroke-width="2"/>
+          <polyline points="110,55 215,48 320,42" fill="none" stroke="#1A7A50" stroke-width="2"/>
+          <polyline points="110,60 215,58 320,54" fill="none" stroke="#8B5000" stroke-width="2"/>
+          <circle cx="110" cy="46" r="3" fill="#1A5CB0"/><circle cx="215" cy="40" r="3" fill="#1A5CB0"/><circle cx="320" cy="35" r="3" fill="#1A5CB0"/>
+          <circle cx="110" cy="55" r="3" fill="#1A7A50"/><circle cx="215" cy="48" r="3" fill="#1A7A50"/><circle cx="320" cy="42" r="3" fill="#1A7A50"/>
+          <circle cx="110" cy="60" r="3" fill="#8B5000"/><circle cx="215" cy="58" r="3" fill="#8B5000"/><circle cx="320" cy="54" r="3" fill="#8B5000"/>
+          <text x="110" y="85" text-anchor="middle" font-size="8" fill="#7A90B0">October</text>
+          <text x="215" y="85" text-anchor="middle" font-size="8" fill="#7A90B0">November</text>
+          <text x="320" y="85" text-anchor="middle" font-size="8" fill="#7A90B0">December</text>
+          <rect x="22" y="10" width="7" height="2" fill="#1A5CB0" rx="1"/><text x="33" y="13" font-size="7" fill="#7A90B0">KP%</text>
+          <rect x="58" y="10" width="7" height="2" fill="#1A7A50" rx="1"/><text x="69" y="13" font-size="7" fill="#7A90B0">RPC%</text>
+          <rect x="98" y="10" width="7" height="2" fill="#8B5000" rx="1"/><text x="109" y="13" font-size="7" fill="#7A90B0">BB Conv</text>
+        </svg>
+      </div>
+      <div class="dcard">
+        <div class="dct">Arrears waterfall — Dec</div>
+        <div class="wrow">
+          <div class="wcol"><div class="wbar" style="height:62px;background:#E24B4A"></div><div class="wlbl">Gross<br>$2.1M</div></div>
+          <div class="wcol"><div class="wbar" style="height:22px;background:#3D85E0"></div><div class="wlbl">PTPs<br>−$720K</div></div>
+          <div class="wcol"><div class="wbar" style="height:16px;background:#1DB88A"></div><div class="wlbl">Cures<br>−$495K</div></div>
+          <div class="wcol"><div class="wbar" style="height:8px;background:#F0A030"></div><div class="wlbl">Broken<br>+$210K</div></div>
+          <div class="wcol"><div class="wbar" style="height:34px;background:#888780"></div><div class="wlbl">Net<br>$1.1M</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div class="dcard"><div class="dct">Utilization by team</div>
+        <div class="brow"><span class="blbl">Alpha</span><div class="btrk"><div class="bfill" style="width:91%;background:#1A5CB0"></div></div><span class="bval">91%</span></div>
+        <div class="brow"><span class="blbl">Team 3</span><div class="btrk"><div class="bfill" style="width:85%;background:#1A5CB0"></div></div><span class="bval">85%</span></div>
+        <div class="brow"><span class="blbl">Team 4</span><div class="btrk"><div class="bfill" style="width:79%;background:#F0A030"></div></div><span class="bval">79%</span></div>
+        <div class="brow"><span class="blbl">Team 5</span><div class="btrk"><div class="bfill" style="width:72%;background:#E85050"></div></div><span class="bval">72%</span></div>
+      </div>
+      <div class="dcard"><div class="dct">Payment method split</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <svg width="60" height="60" viewBox="0 0 60 60">
+            <circle cx="30" cy="30" r="22" fill="none" stroke="#1A5CB0" stroke-width="10" stroke-dasharray="62 76"/>
+            <circle cx="30" cy="30" r="22" fill="none" stroke="#1A7A50" stroke-width="10" stroke-dasharray="36 102" stroke-dashoffset="-62"/>
+            <circle cx="30" cy="30" r="22" fill="none" stroke="#F0A030" stroke-width="10" stroke-dasharray="40 98" stroke-dashoffset="-98"/>
+            <circle cx="30" cy="30" r="20" fill="#fff"/>
+          </svg>
+          <div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#7A90B0;margin-bottom:3px"><span style="width:8px;height:8px;border-radius:50%;background:#1A5CB0;display:inline-block"></span>Online 45%</div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#7A90B0;margin-bottom:3px"><span style="width:8px;height:8px;border-radius:50%;background:#1A7A50;display:inline-block"></span>Branch 25%</div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#7A90B0"><span style="width:8px;height:8px;border-radius:50%;background:#F0A030;display:inline-block"></span>OFI 30%</div>
+          </div>
+        </div>
+      </div>
+      <div class="dcard"><div class="dct">PTP → cure funnel</div>
+        <div class="fstep"><div class="fbar" style="width:100%;background:#1A5CB0">58K PTPs</div></div>
+        <div class="fstep"><div class="fbar" style="width:72%;background:#1A7A50">42K eval</div><span class="flbl">72%</span></div>
+        <div class="fstep"><div class="fbar" style="width:50%;background:#0F5038">29K kept</div><span class="flbl">69% KP%</span></div>
+        <div class="fstep"><div class="fbar" style="width:32%;background:#0A3828">18K cures</div><span class="flbl">paid</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function makeDash2() {
+  return `<div class="db">
+    <div class="dbar"><span class="dbar-t">Agent scorecard</span><div class="dnav"><span class="dp">Executive</span><span class="dp on">Scorecard</span><span class="dp">Leaderboard</span></div></div>
+    <div class="dkrow" style="grid-template-columns:repeat(4,1fr)">
+      <div class="dk"><div class="dkl">Agents reporting</div><div class="dkv">80</div></div>
+      <div class="dk"><div class="dkl">Team avg KP%</div><div class="dkv">68.7%</div></div>
+      <div class="dk"><div class="dkl">Team avg RPC%</div><div class="dkv">51.3%</div></div>
+      <div class="dk"><div class="dkl">Below util target</div><div class="dkv" style="color:#A03030">6</div></div>
+    </div>
+    <div class="dcard" style="overflow-x:auto">
+      <table class="sc-tbl">
+        <tr><th>Agent</th><th>Team</th><th>RPC%</th><th>PTP%</th><th>KP%</th><th>BB Conv</th><th>Util</th><th>Capped KP$</th><th>Cures/THT</th><th>AHT</th></tr>
+        <tr><td>Paredes, L.</td><td style="color:#7A90B0">Alpha</td><td><span class="badge bg">54.1%</span></td><td><span class="badge bg">70.3%</span></td><td><span class="badge bg">81.0%</span></td><td><span class="badge bg">38.0%</span></td><td><span class="badge bg">92%</span></td><td>$195K</td><td><span class="badge bg">2.39</span></td><td>3:18</td></tr>
+        <tr><td>Rodriguez, A.</td><td style="color:#7A90B0">Alpha</td><td><span class="badge bg">49.8%</span></td><td><span class="badge bg">72.8%</span></td><td><span class="badge bg">72.8%</span></td><td><span class="badge bg">36.2%</span></td><td><span class="badge ba">87%</span></td><td>$149K</td><td><span class="badge bg">2.72</span></td><td>3:09</td></tr>
+        <tr><td>Castillo, K.</td><td style="color:#7A90B0">Team 3</td><td><span class="badge bg">43.1%</span></td><td><span class="badge bg">65.5%</span></td><td><span class="badge bg">80.9%</span></td><td><span class="badge bg">35.5%</span></td><td><span class="badge bg">93%</span></td><td>$159K</td><td><span class="badge bg">2.25</span></td><td>5:28</td></tr>
+        <tr><td>Santana, J.</td><td style="color:#7A90B0">Team 2</td><td><span class="badge bg">56.2%</span></td><td><span class="badge ba">62.4%</span></td><td><span class="badge ba">67.8%</span></td><td><span class="badge ba">32.1%</span></td><td><span class="badge bg">94%</span></td><td>$181K</td><td><span class="badge bg">3.02</span></td><td>4:33</td></tr>
+        <tr><td>Martinez, J.</td><td style="color:#7A90B0">Team 4</td><td><span class="badge bg">62.6%</span></td><td><span class="badge bg">78.4%</span></td><td><span class="badge ba">67.4%</span></td><td><span class="badge ba">31.2%</span></td><td><span class="badge bg">92%</span></td><td>$114K</td><td><span class="badge ba">1.64</span></td><td>7:14</td></tr>
+        <tr><td>Dominguez, S.</td><td style="color:#7A90B0">Team 5</td><td><span class="badge ba">45.7%</span></td><td><span class="badge ba">58.8%</span></td><td><span class="badge ba">63.4%</span></td><td><span class="badge br">27.4%</span></td><td><span class="badge bg">96%</span></td><td>$18K</td><td><span class="badge br">0.95</span></td><td>4:51</td></tr>
+        <tr><td>Rubio, R.</td><td style="color:#7A90B0">Team 5</td><td><span class="badge bg">55.3%</span></td><td><span class="badge bg">72.2%</span></td><td><span class="badge br">55.2%</span></td><td><span class="badge br">28.8%</span></td><td><span class="badge bg">96%</span></td><td>$44K</td><td><span class="badge br">0.73</span></td><td>3:41</td></tr>
+      </table>
+    </div>
+    <div style="font-size:9px;color:#7A90B0;padding:2px 4px">Green = at/above target · Amber = within 5pp · Red = below threshold · Showing 7 of 80 agents</div>
+  </div>`;
+}
+
+function makeDash3() {
+  return `<div class="db">
+    <div class="dbar"><span class="dbar-t">Team leaderboard</span><div class="dnav"><span class="dp">Executive</span><span class="dp">Scorecard</span><span class="dp on">Leaderboard</span><span class="dp">Portfolio</span></div></div>
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:8px">
+      <div class="dcard"><div class="dct">KP% ranking by supervisor</div>
+        <div class="rrow"><span class="rnum">1</span><span class="rname">Team Alpha</span><div class="rtrk"><div class="rfil" style="width:81%;background:#1A5CB0">81.0%</div></div><span class="rmeta">12 agents</span></div>
+        <div class="rrow"><span class="rnum">2</span><span class="rname">Team 3</span><div class="rtrk"><div class="rfil" style="width:76%;background:#1A5CB0">76.4%</div></div><span class="rmeta">10 agents</span></div>
+        <div class="rrow"><span class="rnum">3</span><span class="rname">Team 6</span><div class="rtrk"><div class="rfil" style="width:72%;background:#1A5CB0">72.1%</div></div><span class="rmeta">9 agents</span></div>
+        <div class="rrow"><span class="rnum">4</span><span class="rname">Team 2</span><div class="rtrk"><div class="rfil" style="width:68%;background:#3D85E0">68.8%</div></div><span class="rmeta">10 agents</span></div>
+        <div class="rrow"><span class="rnum">5</span><span class="rname">Team 4</span><div class="rtrk"><div class="rfil" style="width:65%;background:#3D85E0">65.3%</div></div><span class="rmeta">11 agents</span></div>
+        <div class="rrow"><span class="rnum">6</span><span class="rname">Team 7</span><div class="rtrk"><div class="rfil" style="width:62%;background:#F0A030">62.0%</div></div><span class="rmeta">9 agents</span></div>
+        <div class="rrow"><span class="rnum">7</span><span class="rname">Team 8</span><div class="rtrk"><div class="rfil" style="width:59%;background:#F0A030">59.2%</div></div><span class="rmeta">10 agents</span></div>
+        <div class="rrow"><span class="rnum">8</span><span class="rname">Team 5</span><div class="rtrk"><div class="rfil" style="width:54%;background:#E24B4A">54.1%</div></div><span class="rmeta">9 agents</span></div>
+      </div>
+      <div class="dcard"><div class="dct">RPC% vs KP% — supervisor scatter</div>
+        <svg width="100%" viewBox="0 0 200 160">
+          <line x1="25" y1="8" x2="25" y2="130" stroke="#D0D8E8" stroke-width="0.5"/>
+          <line x1="25" y1="130" x2="195" y2="130" stroke="#D0D8E8" stroke-width="0.5"/>
+          <line x1="25" y1="69" x2="195" y2="69" stroke="#D0D8E8" stroke-width="0.5" stroke-dasharray="2 2"/>
+          <line x1="110" y1="8" x2="110" y2="130" stroke="#D0D8E8" stroke-width="0.5" stroke-dasharray="2 2"/>
+          <text x="18" y="11" text-anchor="end" font-size="7" fill="#7A90B0">85%</text>
+          <text x="18" y="72" text-anchor="end" font-size="7" fill="#7A90B0">65%</text>
+          <text x="18" y="133" text-anchor="end" font-size="7" fill="#7A90B0">45%</text>
+          <text x="110" y="143" text-anchor="middle" font-size="7" fill="#7A90B0">51% RPC%</text>
+          <text x="70" y="153" text-anchor="middle" font-size="7" fill="#7A90B0">contact vol →</text>
+          <circle cx="175" cy="20" r="7" fill="#1A5CB0" opacity=".8"/><text x="184" y="23" font-size="7" fill="#7A90B0">Alpha</text>
+          <circle cx="150" cy="35" r="6" fill="#1A5CB0" opacity=".7"/><text x="158" y="38" font-size="7" fill="#7A90B0">T3</text>
+          <circle cx="125" cy="48" r="6" fill="#3D85E0" opacity=".7"/><text x="133" y="51" font-size="7" fill="#7A90B0">T6</text>
+          <circle cx="100" cy="62" r="6" fill="#3D85E0" opacity=".7"/><text x="108" y="65" font-size="7" fill="#7A90B0">T2</text>
+          <circle cx="75" cy="76" r="6" fill="#F0A030" opacity=".8"/><text x="83" y="79" font-size="7" fill="#7A90B0">T4</text>
+          <circle cx="145" cy="88" r="5" fill="#F0A030" opacity=".7"/><text x="152" y="91" font-size="7" fill="#7A90B0">T7</text>
+          <circle cx="60" cy="100" r="5" fill="#E24B4A" opacity=".8"/><text x="67" y="103" font-size="7" fill="#7A90B0">T8</text>
+          <circle cx="40" cy="116" r="5" fill="#E24B4A" opacity=".8"/><text x="47" y="119" font-size="7" fill="#7A90B0">T5</text>
+        </svg>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div class="dcard"><div class="dct">Capped KP / RPC Arrears</div>
+        <div class="trow"><span style="color:#7A90B0">Team Alpha</span><span class="badge bg">0.37</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team 3</span><span class="badge bg">0.34</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team 6</span><span class="badge bg">0.32</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team 2</span><span class="badge ba">0.28</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team 5</span><span class="badge br">0.11</span></div>
+      </div>
+      <div class="dcard"><div class="dct">Cures / THT by team</div>
+        <div class="trow"><span style="color:#7A90B0">Team Alpha</span><span class="badge bg">2.48</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team 6</span><span class="badge bg">2.31</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team 3</span><span class="badge bg">2.19</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team 4</span><span class="badge ba">1.72</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team 5</span><span class="badge br">0.88</span></div>
+      </div>
+      <div class="dcard"><div class="dct">Avg utilization by team</div>
+        <div class="trow"><span style="color:#7A90B0">Team 5</span><span class="badge bg">96%</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team Alpha</span><span class="badge bg">91%</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team 3</span><span class="badge bg">91%</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team 7</span><span class="badge br">72%</span></div>
+        <div class="trow"><span style="color:#7A90B0">Team 8</span><span class="badge ba">87%</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function makeDash4() {
+  return `<div class="db">
+    <div class="dbar"><span class="dbar-t">Portfolio health</span><div class="dnav"><span class="dp">Executive</span><span class="dp">Scorecard</span><span class="dp on">Portfolio</span><span class="dp">Promise</span></div></div>
+    <div class="dkrow" style="grid-template-columns:repeat(4,1fr)">
+      <div class="dk"><div class="dkl">Total accounts</div><div class="dkv">15,500</div></div>
+      <div class="dk"><div class="dkl">Mora rate</div><div class="dkv" style="color:#A03030">24.8%</div></div>
+      <div class="dk"><div class="dkl">Total arrears</div><div class="dkv">$6.1M</div></div>
+      <div class="dk"><div class="dkl">Accounts cured</div><div class="dkv" style="color:#1A6040">1,841</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="dcard"><div class="dct">Arrears by product type</div>
+        <div class="srow"><span class="slbl">Hipoteca</span><div class="strk"><div class="sfil" style="width:58%;background:#E24B4A"></div></div><span class="sval" style="color:#1A2840">58%</span></div>
+        <div class="srow"><span class="slbl">Prestamo</span><div class="strk"><div class="sfil" style="width:28%;background:#F0A030"></div></div><span class="sval" style="color:#1A2840">28%</span></div>
+        <div class="srow"><span class="slbl">Tarjeta</span><div class="strk"><div class="sfil" style="width:14%;background:#3D85E0"></div></div><span class="sval" style="color:#1A2840">14%</span></div>
+        <div style="margin-top:10px"><div class="dct">Mora rate by product</div></div>
+        <div class="srow"><span class="slbl">Hipoteca</span><div class="strk"><div class="sfil" style="width:31%;background:#A03030"></div></div><span class="sval" style="color:#A03030">31%</span></div>
+        <div class="srow"><span class="slbl">Prestamo</span><div class="strk"><div class="sfil" style="width:22%;background:#F0A030"></div></div><span class="sval" style="color:#8B5000">22%</span></div>
+        <div class="srow"><span class="slbl">Tarjeta</span><div class="strk"><div class="sfil" style="width:18%;background:#3D85E0"></div></div><span class="sval" style="color:#1A4080">18%</span></div>
+      </div>
+      <div class="dcard"><div class="dct">Risk score vs mora — heat map</div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px">
+          <div class="hcell" style="background:#A03030;color:#FFE0E0">42%</div><div class="hcell" style="background:#E24B4A;color:#FFE8E8">35%</div><div class="hcell" style="background:#F0A030;color:#FFF0CC">28%</div><div class="hcell" style="background:#FAC775;color:#8B5000">18%</div><div class="hcell" style="background:#D8F0E0;color:#1A6040">9%</div>
+          <div class="hcell" style="background:#E24B4A;color:#FFE8E8">38%</div><div class="hcell" style="background:#F0A030;color:#FFF0CC">30%</div><div class="hcell" style="background:#FAC775;color:#8B5000">22%</div><div class="hcell" style="background:#D8F0E0;color:#1A6040">14%</div><div class="hcell" style="background:#D8F0E0;color:#1A6040">7%</div>
+          <div class="hcell" style="background:#F0A030;color:#FFF0CC">29%</div><div class="hcell" style="background:#FAC775;color:#8B5000">22%</div><div class="hcell" style="background:#D8F0E0;color:#1A6040">15%</div><div class="hcell" style="background:#D8F0E0;color:#1A6040">9%</div><div class="hcell" style="background:#EAF3DE;color:#1A6040">4%</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:7px;color:#7A90B0;margin-top:3px"><span>400</span><span>500</span><span>600</span><span>700</span><span>800+ risk</span></div>
+        <div style="font-size:8px;color:#7A90B0;margin-top:4px">Row: Hipoteca / Prestamo / Tarjeta · Darker = higher mora%</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:8px">
+      <div class="dcard"><div class="dct">Mora aging distribution</div>
+        <div style="display:flex;align-items:flex-end;gap:6px;height:60px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1"><div style="width:100%;border-radius:2px 2px 0 0;background:#F0A030;height:56px"></div><span style="font-size:7px;color:#7A90B0">1–30d</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1"><div style="width:100%;border-radius:2px 2px 0 0;background:#F0A030;height:40px"></div><span style="font-size:7px;color:#7A90B0">31–60d</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1"><div style="width:100%;border-radius:2px 2px 0 0;background:#E24B4A;height:30px"></div><span style="font-size:7px;color:#7A90B0">61–90d</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1"><div style="width:100%;border-radius:2px 2px 0 0;background:#A03030;height:20px"></div><span style="font-size:7px;color:#7A90B0">91–120d</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1"><div style="width:100%;border-radius:2px 2px 0 0;background:#701010;height:12px"></div><span style="font-size:7px;color:#7A90B0">120d+</span></div>
+        </div>
+      </div>
+      <div class="dcard"><div class="dct">Payment schedule outcomes</div>
+        <div class="srow"><span class="slbl" style="width:72px">Paid full</span><div class="strk"><div class="sfil" style="width:38%;background:#1A7A50"></div></div><span class="sval" style="color:#1A6040">38%</span></div>
+        <div class="srow"><span class="slbl" style="width:72px">Paid partial</span><div class="strk"><div class="sfil" style="width:14%;background:#1DB88A"></div></div><span class="sval" style="color:#1A6040">14%</span></div>
+        <div class="srow"><span class="slbl" style="width:72px">Pending</span><div class="strk"><div class="sfil" style="width:12%;background:#3D85E0"></div></div><span class="sval" style="color:#1A4080">12%</span></div>
+        <div class="srow"><span class="slbl" style="width:72px">Overdue</span><div class="strk"><div class="sfil" style="width:22%;background:#F0A030"></div></div><span class="sval" style="color:#8B5000">22%</span></div>
+        <div class="srow"><span class="slbl" style="width:72px">Broken</span><div class="strk"><div class="sfil" style="width:14%;background:#E24B4A"></div></div><span class="sval" style="color:#A03030">14%</span></div>
+        <div style="font-size:9px;color:#7A90B0;margin-top:6px">Fulfillment: 52% · Target: 60%</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function makeDash5() {
+  return `<div class="db">
+    <div class="dbar"><span class="dbar-t">Promise intelligence</span><div class="dnav"><span class="dp">Portfolio</span><span class="dp on">Promise intel</span></div></div>
+    <div class="dkrow" style="grid-template-columns:repeat(5,1fr)">
+      <div class="dk"><div class="dkl">Total PTPs</div><div class="dkv">19,612</div></div>
+      <div class="dk"><div class="dkl">Kept</div><div class="dkv" style="color:#1A6040">13,481</div></div>
+      <div class="dk"><div class="dkl">Broken</div><div class="dkv" style="color:#A03030">4,872</div></div>
+      <div class="dk"><div class="dkl">Pending</div><div class="dkv" style="color:#1A4080">1,259</div></div>
+      <div class="dk"><div class="dkl">KP% (excl. pending)</div><div class="dkv" style="color:#1A6040">73.5%</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:8px">
+      <div class="dcard"><div class="dct">KP% by days mora bucket</div>
+        <div class="srow"><span class="slbl" style="width:48px">1–30d</span><div class="strk"><div class="sfil" style="width:78%;background:#1A7A50"></div></div><span class="sval"><span class="badge bg">78%</span></span></div>
+        <div class="srow"><span class="slbl" style="width:48px">31–60d</span><div class="strk"><div class="sfil" style="width:72%;background:#1A7A50"></div></div><span class="sval"><span class="badge bg">72%</span></span></div>
+        <div class="srow"><span class="slbl" style="width:48px">61–90d</span><div class="strk"><div class="sfil" style="width:65%;background:#F0A030"></div></div><span class="sval"><span class="badge ba">65%</span></span></div>
+        <div class="srow"><span class="slbl" style="width:48px">91–120d</span><div class="strk"><div class="sfil" style="width:52%;background:#F0A030"></div></div><span class="sval"><span class="badge ba">52%</span></span></div>
+        <div class="srow"><span class="slbl" style="width:48px">120d+</span><div class="strk"><div class="sfil" style="width:38%;background:#E24B4A"></div></div><span class="sval"><span class="badge br">38%</span></span></div>
+        <div style="font-size:8px;color:#7A90B0;margin-top:4px">−10pp KP% per 30d deeper in mora</div>
+      </div>
+      <div class="dcard"><div class="dct">PTP% &amp; KP% by product</div>
+        <div style="font-size:8px;color:#7A90B0;margin-bottom:4px">PTP%</div>
+        <div class="srow"><span class="slbl" style="width:52px">Tarjeta</span><div class="strk"><div class="sfil" style="width:68%;background:#3D85E0"></div></div><span class="sval">68%</span></div>
+        <div class="srow"><span class="slbl" style="width:52px">Prestamo</span><div class="strk"><div class="sfil" style="width:61%;background:#3D85E0"></div></div><span class="sval">61%</span></div>
+        <div class="srow"><span class="slbl" style="width:52px">Hipoteca</span><div class="strk"><div class="sfil" style="width:54%;background:#85B7EB"></div></div><span class="sval">54%</span></div>
+        <div style="font-size:8px;color:#7A90B0;margin:6px 0 4px">KP%</div>
+        <div class="srow"><span class="slbl" style="width:52px">Prestamo</span><div class="strk"><div class="sfil" style="width:75%;background:#1A7A50"></div></div><span class="sval"><span class="badge bg">75%</span></span></div>
+        <div class="srow"><span class="slbl" style="width:52px">Tarjeta</span><div class="strk"><div class="sfil" style="width:71%;background:#1A7A50"></div></div><span class="sval"><span class="badge bg">71%</span></span></div>
+        <div class="srow"><span class="slbl" style="width:52px">Hipoteca</span><div class="strk"><div class="sfil" style="width:62%;background:#F0A030"></div></div><span class="sval"><span class="badge ba">62%</span></span></div>
+      </div>
+      <div class="dcard"><div class="dct">Key promise ratios</div>
+        <div class="trow"><span style="color:#7A90B0;font-size:9px">Avg amount promised</span><span style="font-size:10px;font-weight:500">$1,284</span></div>
+        <div class="trow"><span style="color:#7A90B0;font-size:9px">Avg capped KP$ (Kept)</span><span style="font-size:10px;font-weight:500">$1,108</span></div>
+        <div class="trow"><span style="color:#7A90B0;font-size:9px">Promise fulfillment ratio</span><span class="badge bg">86.3%</span></div>
+        <div class="trow"><span style="color:#7A90B0;font-size:9px">Avg days to payment</span><span style="font-size:10px">4.8 days</span></div>
+        <div class="trow"><span style="color:#7A90B0;font-size:9px">Capped KP / RPC arrears</span><span class="badge ba">0.31</span></div>
+        <div class="trow"><span style="color:#7A90B0;font-size:9px">Collection efficiency</span><span class="badge ba">0.28</span></div>
+        <div class="trow"><span style="color:#7A90B0;font-size:9px">Partial payments</span><span class="badge bb">11.4%</span></div>
+        <div class="trow"><span style="color:#7A90B0;font-size:9px">Broken on 1st PTP</span><span class="badge br">22.1%</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+</script>
+
+<!-- Dashboard page template -->
+<div id="dash1" class="page">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Page 1 of 5</div>
+      <div class="section-title">Executive Overview</div>
+    </div>
+    <div class="dash-meta">
+      <div>
+        <p class="dash-purpose">Landing page for senior management. The five KPI cards give the daily pulse. The trend line shows 3-month trajectory — leadership cares about direction, not just today's number. The waterfall explains where arrears went: exposed vs promised vs received vs broken vs net remaining.</p>
+        <div class="visuals-guide" style="margin-top:16px">
+          <div class="visual-card"><div class="visual-card-title">KPI card row <span class="visual-type">Card</span></div><p>5 cards: RPC%, KP%, BB Conversion, Cured Amount, Capped KP/Arrears. Include MoM delta below each value. Green/red delta arrows.</p></div>
+          <div class="visual-card"><div class="visual-card-title">Monthly trend line <span class="visual-type">Line chart</span></div><p>KP%, RPC%, BB Conversion on one axis. Date on X. 3 lines, 3 data points per month. Use secondary Y-axis if scale differs.</p></div>
+          <div class="visual-card"><div class="visual-card-title">Arrears waterfall <span class="visual-type">Waterfall chart</span></div><p>Gross arrears → PTP reductions → Cures received → Broken PTPs added back → Net arrears. Native waterfall visual in Power BI.</p></div>
+          <div class="visual-card"><div class="visual-card-title">PTP → Cure funnel <span class="visual-type">Funnel chart</span></div><p>Stages: Total PTPs → Evaluated → Kept → Cured. Shows conversion at each stage. Place bottom-left so it reads like a narrative.</p></div>
+        </div>
+      </div>
+      <div class="dash-specs">
+        <div class="dash-spec-row"><span class="dash-spec-key">Audience</span><span class="dash-spec-val">Senior management</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Refresh</span><span class="dash-spec-val">Daily</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Slicer</span><span class="dash-spec-val">Month, Region</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Key tables</span><span class="dash-spec-val">All 10</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Primary measure</span><span class="dash-spec-val">Capped KP / RPC Arrears</span></div>
+      </div>
+    </div>
+    <div class="dash-frame" id="df1"></div>
+  </div>
+</div>
+
+<div id="dash2" class="page">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Page 2 of 5</div>
+      <div class="section-title">Agent Scorecard</div>
+    </div>
+    <div class="dash-meta">
+      <div>
+        <p class="dash-purpose">The table supervisors open every morning. Color-coded thresholds let a team lead scan 80 rows in seconds. The sparkline column shows 3-day trend — an agent red but trending up is a different coaching conversation than an agent flat-red all week.</p>
+        <div class="visuals-guide" style="margin-top:16px">
+          <div class="visual-card"><div class="visual-card-title">KPI summary row <span class="visual-type">Card</span></div><p>4 cards above the table: agents reporting, team avg KP%, team avg RPC%, agents below util target (red if &gt;0).</p></div>
+          <div class="visual-card"><div class="visual-card-title">Agent table <span class="visual-type">Table visual</span></div><p>One row per agent. Conditional formatting on KP%, RPC%, BB Conversion, Cures/THT, Utilization. Green/amber/red background per threshold. Sort by KP% desc by default.</p></div>
+          <div class="visual-card"><div class="visual-card-title">Filters <span class="visual-type">Slicer</span></div><p>Team slicer (supervisor_id), Month slicer (Calendar), Status toggle (Mora only vs all accounts). Position top-right so table takes full width.</p></div>
+          <div class="visual-card"><div class="visual-card-title">Threshold legend <span class="visual-type">Text box</span></div><p>Small legend below table: Green = at/above target, Amber = within 5pp, Red = below threshold. Doubles as documentation for new viewers.</p></div>
+        </div>
+      </div>
+      <div class="dash-specs">
+        <div class="dash-spec-row"><span class="dash-spec-key">Audience</span><span class="dash-spec-val">Supervisors</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Refresh</span><span class="dash-spec-val">Daily</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Slicer</span><span class="dash-spec-val">Team, Month, Mora filter</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Key tables</span><span class="dash-spec-val">agents, dialer, ptp, cures, time_log</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Primary measure</span><span class="dash-spec-val">KP% · Cures/THT</span></div>
+      </div>
+    </div>
+    <div class="dash-frame" id="df2"></div>
+  </div>
+</div>
+
+<div id="dash3" class="page">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Page 3 of 5</div>
+      <div class="section-title">Team Leaderboard</div>
+    </div>
+    <div class="dash-meta">
+      <div>
+        <p class="dash-purpose">Supervisor-level rollup for manager review. The scatter plot of RPC% vs KP% is the standout analytical visual — teams in the top-right quadrant are benchmark, top-left needs dialer strategy, bottom-right needs coaching, bottom-left needs both.</p>
+        <div class="visuals-guide" style="margin-top:16px">
+          <div class="visual-card"><div class="visual-card-title">KP% ranked bar <span class="visual-type">Bar chart</span></div><p>Horizontal bars, one per team, sorted descending. Color-coded: top 3 blue, middle amber, bottom red. Show agent count as data label on right end.</p></div>
+          <div class="visual-card"><div class="visual-card-title">RPC% vs KP% scatter <span class="visual-type">Scatter chart</span></div><p>Each bubble = one supervisor. X = RPC%, Y = KP%, size = Cured Amount. Quadrant lines at team averages. Tooltip shows all KPIs on hover.</p></div>
+          <div class="visual-card"><div class="visual-card-title">Capped KP/Arrears rank <span class="visual-type">Table</span></div><p>Simple 2-column table: team name, ratio value with conditional formatting. Best measure of actual financial recovery per team.</p></div>
+          <div class="visual-card"><div class="visual-card-title">Utilization rank <span class="visual-type">Table</span></div><p>Note: high utilization with low KP% (Team 5 in data) is the flag — they're busy but not productive. These two columns together tell the full story.</p></div>
+        </div>
+      </div>
+      <div class="dash-specs">
+        <div class="dash-spec-row"><span class="dash-spec-key">Audience</span><span class="dash-spec-val">Collections Manager</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Refresh</span><span class="dash-spec-val">Weekly / Monthly</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Slicer</span><span class="dash-spec-val">Month, Region</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Key tables</span><span class="dash-spec-val">supervisors, agents, all transactional</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Primary measure</span><span class="dash-spec-val">Scatter: RPC% × KP%</span></div>
+      </div>
+    </div>
+    <div class="dash-frame" id="df3"></div>
+  </div>
+</div>
+
+<div id="dash4" class="page">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Page 4 of 5</div>
+      <div class="section-title">Portfolio Health</div>
+    </div>
+    <div class="dash-meta">
+      <div>
+        <p class="dash-purpose">Risk management page. The heat map of risk score vs mora rate by product type is the signature visual — it shows exactly which client segments carry the most exposure. The mora aging distribution connects directly to the evasion logic in the data generator.</p>
+        <div class="visuals-guide" style="margin-top:16px">
+          <div class="visual-card"><div class="visual-card-title">Arrears by product <span class="visual-type">Stacked bar</span></div><p>Horizontal stacked bar: Hipoteca (largest), Prestamo, Tarjeta. Use same color family per product throughout all pages for consistency.</p></div>
+          <div class="visual-card"><div class="visual-card-title">Risk score heatmap <span class="visual-type">Matrix visual</span></div><p>Rows = product type, Columns = risk score bucket (400–500, 501–600, etc.), Values = Mora Rate. Conditional formatting on value. Best visual for showing risk concentration.</p></div>
+          <div class="visual-card"><div class="visual-card-title">Mora aging histogram <span class="visual-type">Column chart</span></div><p>X = days_mora bucket (0–30, 31–60, 61–90, 91–120, 120+). Y = account count. Color gradient: yellow → orange → red as aging deepens. Add annotation at 90d mark explaining evasion penalty.</p></div>
+          <div class="visual-card"><div class="visual-card-title">Schedule outcomes <span class="visual-type">Donut chart</span></div><p>5 segments: Paid_Full, Paid_Partial, Pending, Overdue, Broken. Shows payment schedule fulfillment rate as the center label. Connected to payment_schedule table.</p></div>
+        </div>
+      </div>
+      <div class="dash-specs">
+        <div class="dash-spec-row"><span class="dash-spec-key">Audience</span><span class="dash-spec-val">Risk / Finance / Manager</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Refresh</span><span class="dash-spec-val">Monthly</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Slicer</span><span class="dash-spec-val">Month, Product type, Segment</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Key tables</span><span class="dash-spec-val">accounts, clients, products, payment_schedule</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Primary measure</span><span class="dash-spec-val">Mora Rate · Schedule Fulfillment Rate</span></div>
+      </div>
+    </div>
+    <div class="dash-frame" id="df4"></div>
+  </div>
+</div>
+
+<div id="dash5" class="page">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Page 5 of 5</div>
+      <div class="section-title">Promise Intelligence</div>
+    </div>
+    <div class="dash-meta">
+      <div>
+        <p class="dash-purpose">Deepest analytical page. The KP% by days_mora bucket is the standout insight — it shows the collections degradation curve and makes the business case for early intervention. This page is where you prove you understand collections, not just report on it.</p>
+        <div class="visuals-guide" style="margin-top:16px">
+          <div class="visual-card"><div class="visual-card-title">KP% by days mora <span class="visual-type">Bar chart</span></div><p>Horizontal bars by bucket. Color codes from green (fresh mora) to red (deep mora). This visual tells the entire early-intervention story in one glance.</p></div>
+          <div class="visual-card"><div class="visual-card-title">PTP% / KP% by product <span class="visual-type">Clustered bar</span></div><p>Side-by-side bars per product. PTP% shows willingness to commit, KP% shows follow-through. Hipoteca has lowest PTP% but story is nuanced — larger amounts per promise.</p></div>
+          <div class="visual-card"><div class="visual-card-title">Promise vs arrears scatter <span class="visual-type">Scatter chart</span></div><p>X = % of arrears promised, Y = KP% for that cohort. Bubble size = cured amount. Shows: do agents who promise more also collect more? Validates or challenges promise strategy.</p></div>
+          <div class="visual-card"><div class="visual-card-title">Key promise ratios table <span class="visual-type">Table</span></div><p>8-row KPI table: avg amount promised, avg capped KP$, fulfillment ratio, avg days to payment, Capped KP/Arrears, collection efficiency, partial payments %, broken on 1st PTP %.</p></div>
+        </div>
+      </div>
+      <div class="dash-specs">
+        <div class="dash-spec-row"><span class="dash-spec-key">Audience</span><span class="dash-spec-val">Analyst / Manager</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Refresh</span><span class="dash-spec-val">Weekly / Monthly</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Slicer</span><span class="dash-spec-val">Month, Product, Team</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Key tables</span><span class="dash-spec-val">ptp_log, cures_log, payment_schedule, accounts</span></div>
+        <div class="dash-spec-row"><span class="dash-spec-key">Primary measure</span><span class="dash-spec-val">KP% by days_mora · Capped KP$</span></div>
+      </div>
+    </div>
+    <div class="dash-frame" id="df5"></div>
+  </div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const tabs = document.querySelectorAll('.nav-tab');
+  const ids = ['cover','storage','dax-contact','dax-promise','dax-recovery','dax-portfolio','dax-trend','dash1','dash2','dash3','dash4','dash5'];
+  const idx = ids.indexOf(id);
+  if (idx >= 0) tabs[idx].classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// Inject dashboard mockups
+document.getElementById('df1').innerHTML = makeDash1();
+document.getElementById('df2').innerHTML = makeDash2();
+document.getElementById('df3').innerHTML = makeDash3();
+document.getElementById('df4').innerHTML = makeDash4();
+document.getElementById('df5').innerHTML = makeDash5();
+</script>
+</body>
+</html>
