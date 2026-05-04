@@ -14,6 +14,7 @@ Strict Star Schema engine for Power BI:
 import os
 import random
 import calendar
+import argparse
 from datetime import date, datetime, timedelta
 from collections import defaultdict
 from pathlib import Path
@@ -114,13 +115,49 @@ PAY_METHODS = ["Online", "Branch/ATM", "OFI"]
 PAY_WEIGHTS  = [0.45,    0.25, 0.30]
 
 # ═══════════════════════════════════════════════════════════════════════════
-# HELPERS
+# CLI ARGUMENTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+parser = argparse.ArgumentParser(
+    description="MIS Collections Data Generator v7 — Synthetic bank collections data"
+)
+parser.add_argument(
+    "--output-dir", type=str, default=None,
+    help="Output directory for generated CSVs (default: data_sources/generators/raw)"
+)
+parser.add_argument(
+    "--months", type=str, default="10,11,12",
+    help="Comma-separated month numbers to generate (default: 10,11,12)"
+)
+parser.add_argument(
+    "--seed", type=int, default=42,
+    help="Random seed for reproducibility (default: 42)"
+)
+args = parser.parse_args()
+
+# Override CFG based on CLI arguments
+if args.output_dir:
+    CFG["output_dir"] = args.output_dir
+
+if args.months:
+    months = [int(m) for m in args.months.split(",")]
+    year = 2025
+    CFG["start_date"] = date(year, min(months), 1)
+    max_month = max(months)
+    CFG["end_date"] = date(year, max_month, calendar.monthrange(year, max_month)[1])
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SEED (applied after CLI overrides for reproducibility)
 # ═══════════════════════════════════════════════════════════════════════════
 
 fake = Faker("es_ES")
-Faker.seed(42)
-random.seed(42)
-np.random.seed(42)
+Faker.seed(args.seed)
+random.seed(args.seed)
+np.random.seed(args.seed)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# HELPERS
+# ═══════════════════════════════════════════════════════════════════════════
 
 START      = CFG["start_date"]
 END        = CFG["end_date"]

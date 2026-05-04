@@ -21,15 +21,16 @@ MIS-COLLECTIONS/
 ├── CONTEXT.md                     # THIS FILE — single-source project overview
 ├── LICENSE
 ├── README.md                      # Project overview & interview pitch
+├── ROADMAP.md                     # Phase-by-phase task checklist (corrected priority order)
 ├── requirements.txt               # Python deps
-├── run_pipeline.bat               # Windows batch to run full pipeline
+├── run_pipeline.bat               # Windows batch to run full pipeline (empty — Phase 7)
 │
 ├── analysis/                      # SQL ANALYSIS LAYER
 │   ├── README.md
 │   └── sql/
-│       ├── agent_level_operational_supervisors/   # 6 files — agent-level ops
-│       ├── team_level_tactical_managers/          # 6 files — team-level tactics
-│       └── portfolio_level_strategic_directors/   # 5 files — portfolio strategy
+│       ├── agent_level_operational_supervisors/   # 6 files — all EMPTY skeletons
+│       ├── team_level_tactical_managers/          # 6 files — all EMPTY skeletons
+│       └── portfolio_level_strategic_directors/   # 5 files — all EMPTY skeletons
 │
 ├── dashboards/                    # VISUALIZATION LAYER
 │   ├── assets/
@@ -48,17 +49,18 @@ MIS-COLLECTIONS/
 │   ├── README.md
 │   ├── docker-compose.yml         # Postgres 15 + pgAdmin services
 │   ├── etl/
-│   │   └── data_to_pg_V2.py       # ETL: CSV → PostgreSQL via COPY FROM
+│   │   └── data_to_pg.py          # ETL: CSV → PostgreSQL via COPY FROM (needs Phase 2 improvements)
 │   ├── migrations/
 │   │   ├── 001_create_tables.sql  # DDL: 11 tables with FK constraints
-│   │   ├── 002_kpi_views.sql      # PENDING — KPI view definitions
-│   │   └── 003_agents_scorecards.sql  # PENDING — agent scorecard view
+│   │   ├── 002_kpi_views.sql      # EMPTY — placeholder for 7 KPI views (Phase 3/5)
+│   │   └── 003_agents_scorecards.sql  # EMPTY — placeholder for scorecard view (Phase 3/5)
 │   └── seeds/                     # Static lookup data (products, calendar)
 │       └── README.md
 │
 ├── docs/                          # DOCUMENTATION LAYER
 │   ├── data_dictionary.md         # Full data dictionary (10 tables)
 │   ├── executive_summary.md       # One-page summary for leadership
+│   ├── execution_guide.md         # 1,544 lines — granular task instructions for each roadmap item
 │   └── kpi_definitions.md         # Comprehensive KPI reference (319 lines)
 │
 ├── reports/                       # EXCEL REPORTING LAYER
@@ -68,9 +70,9 @@ MIS-COLLECTIONS/
 └── test/                          # TESTING LAYER
     ├── README.md
     ├── __init__.py
-    ├── qa_validation.py           # PENDING — data integrity checks
-    ├── test_generator.py          # PENDING — generator unit tests
-    └── test_kpi_views.sql         # PENDING — KPI view tests
+    ├── qa_validation.py           # EMPTY — data integrity checks (Phase 6)
+    ├── test_generator.py          # EMPTY — generator unit tests (Phase 6)
+    └── test_kpi_views.sql         # EMPTY — KPI view tests (Phase 6)
 ```
 
 ## Data Model (Star Schema)
@@ -127,7 +129,7 @@ python data_sources/generators/data_generator_v7.py
 docker-compose -f database/docker-compose.yml up -d
 
 # Ingest data into PostgreSQL
-python database/etl/data_to_pg_V2.py
+python database/etl/data_to_pg.py
 
 # Create tables manually (if needed)
 psql -h localhost -p 5433 -U rtrlpz -d MSI_CollectionsDB -f database/migrations/001_create_tables.sql
@@ -138,8 +140,16 @@ run_pipeline.bat
 
 ## Current State & Pending Work
 - **DONE**: Project restructure, data generator (v7), PostgreSQL schema, ETL pipeline, supervisor EDA (moved to team-level), Power BI dashboard (binary, not tracked), Excel template, full documentation, issue templates, test scaffolding
-- **PENDING**: KPI views (002), agent scorecard view (003), 17 analysis SQL files (all skeletoned), test implementations, data validation script, DAX export completion
-- **EMPTY FILES** (skeletons awaiting content): All files under `analysis/sql/`, `database/migrations/002_`, `database/migrations/003_`, `test/test_generator.py`, `test/test_kpi_views.sql`, `test/qa_validation.py`
+- **DONE (this session)**: ROADMAP.md corrected priority order, Phase 3+5 merged, `docs/execution_guide.md` created (1,544 lines)
+- **PENDING**: Phase 1 generator improvements (CLI args, logging, validation), KPI views (002 — 7 views total), agent scorecard view (003), 17 analysis SQL files (all skeletoned), test implementations, ETL improvements, automation, BI/reporting, final docs
+- **EMPTY FILES** (skeletons awaiting content): All files under `analysis/sql/`, `database/migrations/002_kpi_views.sql`, `database/migrations/003_agents_scorecards.sql`, `test/test_generator.py`, `test/test_kpi_views.sql`, `test/qa_validation.py`, `run_pipeline.bat`
+
+## Session Notes
+- ROADMAP.md priority table corrected: Phase 1 → Phase 2 → Phase 3(+5) → Phase 4 → Phase 6 → Phase 9 → Phase 7 → Phase 8
+- Phase 3 and Phase 5 merged (same KPI view work was listed in both). 002_kpi_views.sql now contains 7 views (5 KPI + v_daily_mis + v_monthly_summary).
+- `docs/execution_guide.md` is the companion to ROADMAP.md — every task has PURPOSE, WHY, PROMPT, VERIFY, and COMMIT sections.
+- ETL file is `data_to_pg.py` (not V2 — the V2 file doesn't exist, the existing file is already V2).
+- OpenCode interaction pattern: one task per session, review code before committing, run before committing.
 
 ## Important Notes
 - CSV data files are git-ignored (generated on demand)
@@ -148,3 +158,5 @@ run_pipeline.bat
 - Architecture diagram at `dashboards/assets/screenshots/architecture_diagram.svg`
 - `analysis/sql/` is organized by audience: supervisors (operational), managers (tactical), directors (strategic)
 - Database uses numbered migrations (001, 002, 003) for versioned schema changes
+- `ROADMAP.md` links to `docs/execution_guide.md` for granular task instructions
+- Next work to start: Phase 1, Task 1 (CLI arguments for generator)

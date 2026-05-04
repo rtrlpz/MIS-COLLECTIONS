@@ -10,3 +10,6 @@ Seed files are static lookup data you load into tables that never (or rarely) ch
 The idea: you don't run a Python generator for 3 rows of product data. You have a SQL INSERT script or CSV you load directly. seeds/ is where those files live.
 
 It separates "data I generate dynamically" (accounts, clients, interactions) from "data that's just reference tables."
+
+In one sentence: 
+Sample data — INSERT statements to populate dims

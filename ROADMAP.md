@@ -1,6 +1,7 @@
 # Project Roadmap — Collections Analytics Portfolio
 > Current Completeness: **28%** | Target: **100%**
 > Estimated Total: ~18–22 days of focused work
+> **See [EXECUTION_GUIDE.md](docs/execution_guide.md) for detailed task instructions, context, and verification steps.**
 
 ---
 
@@ -11,20 +12,20 @@
 
 ---
 
-## Priority Order (ROI per effort)
-| # | Phase | Est. Time | Impact |
-|---|-------|-----------|--------|
-| 1 | Phase 3 — Database Indexes + Views | 2 days | Unlocks everything |
-| 2 | Phase 4 — Analysis SQL | 5–7 days | Portfolio centerpiece |
-| 3 | Phase 6 — Testing | 2 days | Proves quality |
-| 4 | Phase 2 — ETL Improvements | 2 days | Engineering maturity |
-| 5 | Phase 1 — Generator Improvements | 1 day | Reproducibility |
-| 6 | Phase 5 — KPI Views | 2 days | Depends on Phase 3 |
-| 7 | Phase 7 — Automation | 1 day | Quality of life |
-| 8 | Phase 8 — Documentation | 1 day | Final polish |
-| 9 | Phase 9 — BI/Reporting | 2 days | Dashboard refinement |
+## 🛠️ Execution Strategy: Corrected Priority Order
 
----
+| Priority | Phase | Rationale (Why) |
+| :--- | :--- | :--- |
+| **1** | **Phase 1: Generator Fixes** | Seed/reproducibility is foundational. Data must be consistent. |
+| **2** | **Phase 2: ETL Improvements** | Data must load reliably and catch errors before anything else can be built. |
+| **3** | **Phase 3: DB Indexes & Constraints** | Schema hardening. Prepares the database for heavy querying. |
+| **4** | **Phase 5: KPI Views** *(Merge with Phase 3)* | The single source of truth. Everything downstream queries these views. |
+| **5** | **Phase 4: Analysis SQL** | The portfolio centerpiece. Fully unblocked once the schema and views are stable. |
+| **6** | **Phase 6: Testing** | Prove it works. Validates the integrity of everything built in steps 1-5. |
+| **7** | **Phase 9: BI / Reporting** | Dashboarding. Can be parallelized with Phases 5 and 6. |
+| **8** | **Phase 7: Automation** | Wires the working, tested pipeline together into a single click/command. |
+| **9** | **Phase 8: Documentation** | Ongoing throughout, but gets its final polish here for recruiters. |
+
 
 ## PHASE 1 — Data Generation (Current: 70% → Target: 95%)
 
@@ -58,18 +59,25 @@
 
 ---
 
-## PHASE 3 — Database & Schema (Current: 60% → Target: 90%)
+## PHASE 3 — Database & Schema (Current: 60% → Target: 90%) - Merged with PHASE 5. 
 
 - [ ] Add indexes on FK columns (`Dim_Agents.supervisor_id`, `Dim_Accounts.client_id`, `Dim_Accounts.product_id`, all fact FK columns)
 - [ ] Add indexes on common query columns (`Dim_Calendar.date`, `Fact_Interactions.interaction_date`, `Fact_PTP_Log.ptp_date`)
 - [ ] Add composite indexes (`(product_id, month)`, `(agent_id, interaction_date)`, `(supervisor_id, month)`)
-- [ ] Populate `002_kpi_views.sql` (5 views: v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics)
+- [ ] Populate `002_kpi_views.sql` (7 views: v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics, v_daily_mis, v_monthly_summary)
 - [ ] Populate `003_agents_scorecards.sql` (agent composite score view)
 - [ ] Create seed SQL scripts (`seeds/001_dim_products.sql`, `seeds/002_dim_calendar.sql`)
 - [ ] Add CHECK constraints (DPD >= 0, utilization BETWEEN 0 AND 100, call_duration > 0)
 - [ ] Add COMMENT ON TABLE/COLUMN for all tables
 - [ ] Create `v_etl_load_summary` view
 - [ ] Add data freshness query
+- [ ] `v_contact_metrics` — RPC, RPC%, RPC/OpHr, RPC Arrears by agent/day/team/month
+- [ ] `v_promise_metrics` — PTP count, PTP%, kept/broken count, kept%, BB conversion
+- [ ] `v_recovery_metrics` — cures, cured amount, cure rate, agent vs self-cure
+- [ ] `v_productivity_metrics` — utilization%, No Touch Letter rate, contacts/agent/hour
+- [ ] `v_handle_time_metrics` — AHT-RPC, AHT-NonRPC, ACW-RPC, ACW-NonRPC
+- [ ] `v_daily_mis` — consolidated daily view for Excel MIS report
+- [ ] `v_monthly_summary` — month-level rollup for dashboard trend lines
 
 ---
 
@@ -100,18 +108,6 @@
 
 ---
 
-## PHASE 5 — KPI Views (Target: 100%)
-
-- [ ] `v_contact_metrics` — RPC, RPC%, RPC/OpHr, RPC Arrears by agent/day/team/month
-- [ ] `v_promise_metrics` — PTP count, PTP%, kept/broken count, kept%, BB conversion
-- [ ] `v_recovery_metrics` — cures, cured amount, cure rate, agent vs self-cure
-- [ ] `v_productivity_metrics` — utilization%, No Touch Letter rate, contacts/agent/hour
-- [ ] `v_handle_time_metrics` — AHT-RPC, AHT-NonRPC, ACW-RPC, ACW-NonRPC
-- [ ] `v_daily_mis` — consolidated daily view for Excel MIS report
-- [ ] `v_monthly_summary` — month-level rollup for dashboard trend lines
-
----
-
 ## PHASE 6 — Testing (Current: 5% → Target: 100%)
 
 - [ ] `test_row_counts()` — Dim_Agents=80, Dim_Clients=10000, Dim_Accounts≈20000
@@ -126,6 +122,17 @@
 - [ ] `test_kpi_view_output()` — each view returns rows, no nulls, percentages 0–100
 - [ ] `test_etl_idempotency()` — running ETL twice = same row counts, no duplicates
 - [ ] `test_generator_seed()` — same seed produces identical output
+
+---
+
+## PHASE 9 — BI & Reporting (Current: 40% → Target: 90%)
+
+- [ ] Validate DAX formulas in `dax_measures_dictionary.md` against KPI definitions
+- [ ] Document Power BI data model (relationships, cardinality, cross-filter direction)
+- [ ] Add dashboard screenshot (`dashboards/assets/screenshots/dashboard_preview.png`)
+- [ ] Add sample Excel report generation script (Python → `daily_mis.xlsx`)
+- [ ] Add automated report scheduling simulation (generate reports for Oct–Dec 2025)
+- [ ] Validate DAX measures match SQL view outputs
 
 ---
 
@@ -155,15 +162,4 @@
 
 ---
 
-## PHASE 9 — BI & Reporting (Current: 40% → Target: 90%)
-
-- [ ] Validate DAX formulas in `dax_measures_dictionary.md` against KPI definitions
-- [ ] Document Power BI data model (relationships, cardinality, cross-filter direction)
-- [ ] Add dashboard screenshot (`dashboards/assets/screenshots/dashboard_preview.png`)
-- [ ] Add sample Excel report generation script (Python → `daily_mis.xlsx`)
-- [ ] Add automated report scheduling simulation (generate reports for Oct–Dec 2025)
-- [ ] Validate DAX measures match SQL view outputs
-
----
-
-*Last updated: 2026-05-03 | Next milestone: Phase 3 complete*
+*Last updated: 2026-05-04 | Next milestone: Phase 1 complete*
