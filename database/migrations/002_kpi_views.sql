@@ -17,7 +17,7 @@ WITH agent_daily AS (
         fi.interaction_date,
         dc.month_num,
         dc.month_name,
-        COUNT(*) AS total_calls,
+        SUM(fi.calls_attempted) AS total_calls,
         SUM(fi.calls_connected) AS connected_calls,
         SUM(CASE WHEN fi.rpc_flag THEN 1 ELSE 0 END) AS rpc_count,
         SUM(fi.rpc_arrears) AS rpc_arrears_total
@@ -68,10 +68,7 @@ SELECT
     total_calls,
     connected_calls,
     rpc_count,
-    CASE
-        WHEN connected_calls > 0 THEN ROUND(rpc_count * 100.0 / connected_calls, 2)
-        ELSE 0
-    END AS rpc_pct,
+    ROUND(rpc_count * 100.0 / NULLIF(connected_calls, 0), 2) AS rpc_pct,
     ROUND(rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
     CASE
         WHEN operational_hours > 0 THEN ROUND(rpc_count::numeric / operational_hours, 2)
@@ -98,10 +95,7 @@ SELECT
     total_calls,
     connected_calls,
     rpc_count,
-    CASE
-        WHEN connected_calls > 0 THEN ROUND(rpc_count * 100.0 / connected_calls, 2)
-        ELSE 0
-    END AS rpc_pct,
+    ROUND(rpc_count * 100.0 / NULLIF(connected_calls, 0), 2) AS rpc_pct,
     ROUND(rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
     NULL AS rpc_per_operating_hour
 FROM team_daily
@@ -120,10 +114,7 @@ SELECT
     total_calls,
     connected_calls,
     rpc_count,
-    CASE
-        WHEN connected_calls > 0 THEN ROUND(rpc_count * 100.0 / connected_calls, 2)
-        ELSE 0
-    END AS rpc_pct,
+    ROUND(rpc_count * 100.0 / NULLIF(connected_calls, 0), 2) AS rpc_pct,
     ROUND(rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
     NULL AS rpc_per_operating_hour
 FROM monthly;
