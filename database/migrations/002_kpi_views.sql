@@ -793,3 +793,29 @@ UNION ALL
 SELECT 'team' AS granularity, * FROM team_monthly
 UNION ALL
 SELECT 'portfolio' AS granularity, * FROM portfolio_monthly;
+
+-- ========================================================================
+-- 8. v_etl_load_summary
+-- Purpose: Summary of latest ETL load per table from etl_load_log
+-- ========================================================================
+CREATE OR REPLACE VIEW v_etl_load_summary AS
+WITH ranked AS (
+    SELECT
+        table_name,
+        loaded_at AS last_loaded_at,
+        rows_loaded,
+        status,
+        csv_checksum,
+        ROW_NUMBER() OVER (PARTITION BY table_name ORDER BY loaded_at DESC) AS rn
+    FROM etl_load_log
+)
+SELECT
+    table_name,
+    last_loaded_at,
+    rows_loaded,
+    status,
+    csv_checksum,
+    NOW() - last_loaded_at AS data_freshness
+FROM ranked
+WHERE rn = 1
+ORDER BY last_loaded_at DESC;
