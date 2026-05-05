@@ -739,13 +739,26 @@ if len(df_ptp) > 0:
     df_ptp["status"] = df_ptp["ptp_id"].map(status_map)
 
 # Anomaly injection: escalation AHT spikes in interactions
+anomalies_tracking = []
 if len(df_interactions) > 0:
     n_anom   = int(len(df_interactions) * CFG["anomaly_prob"])
     anom_idx = df_interactions.sample(n=n_anom, random_state=99).index
-    mul      = random.uniform(*CFG["anomaly_mul"])
-    df_interactions.loc[anom_idx, "aht_seconds"] = (
-        df_interactions.loc[anom_idx, "aht_seconds"].fillna(200) * mul
-    ).round(0).astype("Int64")
+    for i, idx in enumerate(anom_idx):
+        original_val = df_interactions.loc[idx, "aht_seconds"]
+        mul = random.uniform(*CFG["anomaly_mul"])
+        new_val = max(5, int(original_val * mul))
+        df_interactions.loc[idx, "aht_seconds"] = new_val
+
+        anomalies_tracking.append({
+            "anomaly_id":    fmt_id("ANM", i + 1, 4),
+            "table":         "Fact_Interactions",
+            "record_id":     df_interactions.loc[idx, "interaction_id"],
+            "anomaly_type":  "AHT_escalation",
+            "value":         new_val,
+            "expected_range": f"{CFG['aht_rpc']['mu']-3*CFG['aht_rpc']['sigma']}:{CFG['aht_rpc']['mu']+3*CFG['aht_rpc']['sigma']}",
+        })
+
+    df_interactions.loc[anom_idx, "aht_seconds"] = df_interactions.loc[anom_idx, "aht_seconds"].astype("Int64")
     logger.info("  Anomalies injected:  %s", f"{n_anom:,}")
 
 # Round financial columns
@@ -846,6 +859,12 @@ for period in pd.date_range(START, END, freq="MS"):
         total   += len(df_month)
 
     logger.info("  [%s]  %s total fact rows", folder, f"{total:,}")
+
+# Export anomaly report
+if anomalies_tracking:
+    df_anomalies = pd.DataFrame(anomalies_tracking)
+    df_anomalies.to_csv(os.path.join(BASE_DIR, "anomaly_report.csv"), index=False)
+    logger.info("  Anomaly report written: %s anomalies tracked", f"{len(df_anomalies):,}")
 
 elapsed = time.time() - t_start
 logger.info("Generation complete. Elapsed time: %.1f seconds", elapsed)
