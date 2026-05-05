@@ -29,9 +29,9 @@
 
 ## PHASE 1 — Data Generation (Current: 70% → Target: 95%)
 
-- [ ] Add `--output-dir` and `--months` CLI parameters
-- [ ] Add `--seed` flag for reproducibility (`python generator.py --seed 42`)
-- [ ] Generate CSVs with headers and explicit dtypes (ISO 8601 dates, consistent decimals)
+- [X] Add `--output-dir` and `--months` CLI parameters
+- [X] Add `--seed` flag for reproducibility (`python generator.py --seed 42`)
+- [X] Generate CSVs with headers and explicit dtypes (ISO 8601 dates, consistent decimals)
 - [ ] Add generator logging (stdout: row counts, generation time, anomalies injected)
 - [ ] Add output validation post-generation (row counts ±5%, no nulls in PKs, FK integrity)
 - [ ] Add `requirements.txt` with pinned hashes (`--require-hashes`)

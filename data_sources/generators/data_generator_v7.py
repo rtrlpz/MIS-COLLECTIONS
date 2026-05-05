@@ -794,6 +794,37 @@ print(f"  Fact_Agent_Time_Log:  {len(df_time_log):>8,}")
 print(f"  Fact_EOM_Snapshot:    {len(df_eom):>8,}")
 
 # ═══════════════════════════════════════════════════════════════════════════
+# SECTION 3B — ENSURE EXPLICIT DTYpes FOR CSV EXPORT
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Currency columns (2 decimal places)
+currency_cols = [
+    "min_payment", "initial_balance", "balance", "arrears",
+    "promised_amount", "amount_paid", "rpc_arrears", "rpc_arrears_at_contact",
+    "annual_rate_pct", "skill_score", "risk_score", "payday_factor",
+]
+
+# Date columns (ISO 8601: YYYY-MM-DD)
+date_cols = [
+    "dob", "open_date", "interaction_date", "payment_date",
+    "ptp_date", "promised_date", "grace_until_date", "snapshot_date",
+    "log_date", "date",
+]
+
+def format_for_export(df):
+    """Apply explicit dtypes to a DataFrame before CSV export."""
+    df = df.copy()
+    # Round currency columns to 2 decimals
+    for col in currency_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="ignore").round(2)
+    # Ensure date columns are string-formatted as ISO 8601
+    for col in date_cols:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%Y-%m-%d")
+    return df
+
+# ═══════════════════════════════════════════════════════════════════════════
 # SECTION 4 — EXPORT (Star Schema, monthly split)
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -815,7 +846,8 @@ dims = {
 
 for name, df in dims.items():
     path = os.path.join(shared_dir, f"{name}.csv")
-    df.to_csv(path, index=False)
+    df_exp = format_for_export(df)
+    df_exp.to_csv(path, index=False, date_format="%Y-%m-%d", float_format="%.2f")
     print(f"  [shared] {name}.csv  ({len(df):,} rows)")
 
 # Fact tables → monthly folders (split by date column)
@@ -835,11 +867,13 @@ for period in pd.date_range(START, END, freq="MS"):
 
     for name, (df, date_col) in facts.items():
         if len(df) == 0:
-            df.to_csv(os.path.join(month_dir, f"{name}.csv"), index=False)
+            df_exp = format_for_export(df)
+            df_exp.to_csv(os.path.join(month_dir, f"{name}.csv"), index=False, date_format="%Y-%m-%d", float_format="%.2f")
             continue
         mask     = pd.to_datetime(df[date_col]).dt.to_period("M") == period.to_period("M")
         df_month = df[mask].copy()
-        df_month.to_csv(os.path.join(month_dir, f"{name}.csv"), index=False)
+        df_exp = format_for_export(df_month)
+        df_exp.to_csv(os.path.join(month_dir, f"{name}.csv"), index=False, date_format="%Y-%m-%d", float_format="%.2f")
         total   += len(df_month)
 
     print(f"  [{folder}]  {total:,} total fact rows")
