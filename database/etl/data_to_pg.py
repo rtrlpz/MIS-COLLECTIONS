@@ -1,14 +1,30 @@
 import os
-import pandas as pd
-import psycopg2
+import logging
 from io import StringIO
 from pathlib import Path
+
+import pandas as pd
+import psycopg2
 from dotenv import load_dotenv
 
 """
 Script de Ingesta V2 - Adaptado para carpetas mensuales (Shared vs Transaccional)
 Antes de correr este script, asegurarse que la base de datos y sus tablas han sido creadas. 
 """
+
+LOG_DIR = Path(__file__).resolve().parent / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+LOG_FILE = LOG_DIR / "logs"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s] %(asctime)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler()
+    ]
+)
 
 # Agrega esta línea para que Python lea el archivo .env
 load_dotenv()
@@ -23,7 +39,7 @@ DB_HOST = os.getenv('POSTGRES_HOST', 'localhost')
 # Validación de seguridad
 if not all([DB_USER, DB_PASSWORD, DB_NAME]):
     raise ValueError(
-        "🔒 ERROR: Faltan credenciales. Asegúrate de que el archivo .env existe y contiene POSTGRES_USER, POSTGRES_PASSWORD y POSTGRES_DB.")
+        "ERROR: Faltan credenciales. Asegúrate de que el archivo .env existe y contiene POSTGRES_USER, POSTGRES_PASSWORD y POSTGRES_DB.")
 
 # --- 1. CONFIGURACIÓN DE CONEXIÓN A DB Y DATOS ---#
 DB_CONFIG = {
@@ -35,9 +51,9 @@ DB_CONFIG = {
 }
 
 # Ruta RELATIVA
-# Sube un nivel desde 02_database para llegar a la raíz del proyecto
-ROOT_PATH = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT_PATH / "01_data_sources" / "raw_csv"
+# Sube tres niveles desde database/etl/ para llegar a la raíz del proyecto
+ROOT_PATH = Path(__file__).resolve().parent.parent.parent
+DATA_DIR = ROOT_PATH / "data_sources" / "generators" / "raw"
 
 # Separamos lógicamente las tablas estáticas de las transaccionales
 SHARED_TABLES = [
@@ -66,7 +82,7 @@ def ingest_data_to_pg(df: pd.DataFrame, table_name: str, conn):
     # Convertimos el nombre a minúsculas para que coincida exactamente con PostgreSQL
     pg_table_name = table_name.lower()
 
-    print(f"  -> Ingesting {pg_table_name}...")
+    logging.info(f"  -> Ingesting {pg_table_name}...")
 
     buffer = StringIO()
     # Usamos na_rep='' para asegurar que los nulos de pandas se pasen limpios a Postgres
@@ -85,10 +101,10 @@ def ingest_data_to_pg(df: pd.DataFrame, table_name: str, conn):
             null=''  # Le dice a Postgres que los strings vacíos son NULL
         )
         conn.commit()
-        print(f"  [OK] {pg_table_name} completed. {len(df):,} records inserted.")
+        logging.info(f"  [OK] {pg_table_name} completed. {len(df):,} records inserted.")
 
     except (Exception, psycopg2.Error) as error:
-        print(f"  [ERROR] while ingesting {pg_table_name}: {error}")
+        logging.error(f"  [ERROR] while ingesting {pg_table_name}: {error}")
         conn.rollback()
     finally:
         cursor.close()
@@ -98,11 +114,11 @@ def ingest_data_to_pg(df: pd.DataFrame, table_name: str, conn):
 def main():
     conn = None
     try:
-        print('🔌 Trying to connect to PostgreSQL...')
+        logging.info("Trying to connect to PostgreSQL...")
         conn = psycopg2.connect(**DB_CONFIG)
-        print('✅ Connected to PostgreSQL')
+        logging.info("Connected to PostgreSQL")
 
-        print('\n--- 🚀 STARTING INGESTION ---')
+        logging.info("--- STARTING INGESTION ---")
 
         for table_name in TABLE_ORDER:
 
@@ -111,7 +127,7 @@ def main():
                 csv_file = DATA_DIR / 'shared' / f'{table_name}.csv'
 
                 if not csv_file.exists():
-                    print(f"⚠️ File {csv_file} not found. Skipping...")
+                    logging.error(f"File {csv_file} not found. Skipping...")
                     continue
 
                 df = pd.read_csv(csv_file)
@@ -122,7 +138,7 @@ def main():
 
             else:
                 # 2. Tablas Transaccionales (Optimizadas para cargar mes a mes sin colapsar la RAM)
-                print(f"\n📂 Processing transactional table: {table_name}")
+                logging.info(f"Processing transactional table: {table_name}")
                 month_dirs = [d for d in DATA_DIR.iterdir() if d.is_dir() and d.name != 'shared']
 
                 records_found = False
@@ -139,22 +155,22 @@ def main():
                             df_temp['rpc_flag'] = df_temp['rpc_flag'].astype(str).str.lower()
 
                         if not df_temp.empty:
-                            print(f"     Loading month: {m_dir.name}...")
+                            logging.info(f"     Loading month: {m_dir.name}...")
                             ingest_data_to_pg(df_temp, table_name, conn)
 
                 if not records_found:
-                    print(f"⚠️ No data found for {table_name} in any month folders.")
+                    logging.error(f"No data found for {table_name} in any month folders.")
 
-        print('\n--- 🎉 INGESTION COMPLETE ---')
+        logging.info("--- INGESTION COMPLETE ---")
 
     except psycopg2.OperationalError as e:
-        print(f"\n❌ FATAL: No se pudo conectar a la base de datos. Error: {e}")
+        logging.error(f"FATAL: No se pudo conectar a la base de datos. Error: {e}")
     except Exception as e:
-        print(f"❌ Ocurrió un error inesperado: {e}")
+        logging.error(f"Ocurrió un error inesperado: {e}")
     finally:
         if conn:
             conn.close()
-            print("🔒 Connection closed.")
+            logging.info("Connection closed.")
 
 
 if __name__ == '__main__':

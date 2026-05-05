@@ -44,7 +44,7 @@
 
 ## PHASE 2 — ETL Pipeline (Current: 35% → Target: 90%)
 
-- [ ] Add logging to `data_to_pg.py` (INFO/ERROR with timestamps)
+- [X] Add logging to `data_to_pg.py` (INFO/ERROR with timestamps)
 - [ ] Add retry logic with backoff (3x retries, 5s intervals)
 - [ ] Add data validation on ingest (file exists, has headers, row count > 0, PK not null)
 - [ ] Add transaction wrapping (ROLLBACK all on any failure)
@@ -162,4 +162,4 @@
 
 ---
 
-*Last updated: 2026-05-04 | Next milestone: Phase 1 complete*
+*Last updated: 2026-05-05 | Next milestone: Phase 2 complete*

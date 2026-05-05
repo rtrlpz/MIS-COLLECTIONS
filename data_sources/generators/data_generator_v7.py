@@ -197,6 +197,7 @@ def calc_min_payment(p_type: str, balance: float) -> float:
 # SECTION 1 — DIMENSION TABLES
 # ═══════════════════════════════════════════════════════════════════════════
 
+t_stage = time.time()
 logger.info("Building dimension tables...")
 
 # ── Dim_Supervisors ──────────────────────────────────────────────────────────
@@ -321,6 +322,7 @@ all_acct_ids = list(account_state.keys())
 
 logger.info("  Accounts:  %s", f"{len(dim_accounts):,}")
 logger.info("  In Mora:   %s", f"{sum(1 for s in account_state.values() if s['status']=='Mora'):,}")
+logger.info("  Dimension tables built in %.1f seconds", time.time() - t_stage)
 
 # ── Dim_Calendar ─────────────────────────────────────────────────────────────
 cal_rows = []
@@ -348,6 +350,7 @@ dim_calendar = pd.DataFrame(cal_rows)
 # ═══════════════════════════════════════════════════════════════════════════
 
 logger.info("Running simulation engine...")
+t_stage = time.time()
 
 # Fact-table row lists
 fact_interactions  = []
@@ -714,12 +717,13 @@ for sim_date in DATE_RANGE:
         f"PAY: {pay_ctr:>5,} | MORA: {sum(1 for s in account_state.values() if s['status']=='Mora'):>5,}"
     )
 
-logger.info("Simulation complete.")
+logger.info("Simulation complete. (%.1f seconds)", time.time() - t_stage)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 3 — BUILD & FINALIZE DATAFRAMES
 # ═══════════════════════════════════════════════════════════════════════════
 
+t_stage = time.time()
 logger.info("Finalizing fact tables...")
 
 df_interactions = pd.DataFrame(fact_interactions)
@@ -774,6 +778,7 @@ logger.info("  Fact_PTP_Log:         %s", f"{len(df_ptp):>8,}")
 logger.info("  Fact_Payments:        %s", f"{len(df_payments):>8,}")
 logger.info("  Fact_Agent_Time_Log:  %s", f"{len(df_time_log):>8,}")
 logger.info("  Fact_EOM_Snapshot:    %s", f"{len(df_eom):>8,}")
+logger.info("  Fact tables finalized in %.1f seconds", time.time() - t_stage)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 3B — ENSURE EXPLICIT DTYpes FOR CSV EXPORT
@@ -811,6 +816,7 @@ def format_for_export(df):
 # ═══════════════════════════════════════════════════════════════════════════
 
 logger.info("Exporting CSVs...")
+t_stage = time.time()
 
 BASE_DIR   = CFG["output_dir"]
 shared_dir = os.path.join(BASE_DIR, "shared")
@@ -860,6 +866,8 @@ for period in pd.date_range(START, END, freq="MS"):
 
     logger.info("  [%s]  %s total fact rows", folder, f"{total:,}")
 
+logger.info("Export complete. (%.1f seconds)", time.time() - t_stage)
+
 # Export anomaly report
 if anomalies_tracking:
     df_anomalies = pd.DataFrame(anomalies_tracking)
@@ -867,12 +875,14 @@ if anomalies_tracking:
     logger.info("  Anomaly report written: %s anomalies tracked", f"{len(df_anomalies):,}")
 
 elapsed = time.time() - t_start
-logger.info("Generation complete. Elapsed time: %.1f seconds", elapsed)
+logger.info("Generation complete. Total elapsed time: %.1f seconds", elapsed)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 5 — POST-GENERATION VALIDATION
 # ═══════════════════════════════════════════════════════════════════════════
+
+t_stage = time.time()
 
 def validate_output(output_dir):
     """Validate generated CSVs for row counts, PK nulls, and FK integrity."""
@@ -1009,6 +1019,7 @@ def validate_output(output_dir):
 
 
 validation_ok = validate_output(CFG["output_dir"])
+logger.info("Validation complete. (%.1f seconds)", time.time() - t_stage)
 if not validation_ok:
     logger.error("Validation failed. Check logs for details.")
     sys.exit(1)

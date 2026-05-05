@@ -31,8 +31,9 @@ dashboards/docs/
 *.SemanticModel/
 *.Report/
 
-# Ignore generator logs
+# Ignore logs
 data_sources/generators/logs/*.log
+database/etl/logs
 
 # Ignore Python cache
 __pycache__/
