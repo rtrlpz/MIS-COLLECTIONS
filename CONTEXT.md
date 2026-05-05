@@ -143,7 +143,14 @@ run_pipeline.bat
 ## Current State & Pending Work
 - **DONE**: 
   - Phase 1 complete (Data Generation hardening). Generator has CLI args, logging, validation, config extraction, anomaly tracking, `requirements.txt`, and per-stage timing (dimensions, simulation, export, validation) added to `data_sources/generators/data_generator_v7.py`.
-  - Phase 2 ETL improvements complete: `database/etl/data_to_pg.py` enhanced with logging (file + console), argparse (`--env-file`, `--dry-run`), `validate_csv()` with PK validation, TRUNCATE CASCADE with error handling, and per-table/total timing metrics.
+  - Phase 2 ETL improvements complete: `database/etl/data_to_pg.py` enhanced with all Phase 2 tasks:
+    - Task 1: Logging (file + console handlers)
+    - Task 2: CSV validation (`validate_csv()` with PK validation, row count, headers)
+    - Task 3: Transaction wrapping (atomicity with single transaction)
+    - Task 4: Idempotency (TRUNCATE CASCADE before load)
+    - Task 5: Environment variable support (`--env-file` flag)
+    - Task 6: `--dry-run` flag (validate without DB connection, exit 0/1)
+    - Task 7: `--incremental` flag (skip already-loaded months based on `fact_interactions`)
   - Phase 3/5 KPI views: `database/migrations/002_kpi_views.sql` now contains 7 views: `v_contact_metrics`, `v_promise_metrics`, `v_recovery_metrics`, `v_productivity_metrics`, `v_handle_time_metrics`, `v_daily_mis`, `v_monthly_summary`.
 - **PENDING**: 
   - Agent scorecard view (`database/migrations/003_agents_scorecards.sql`)
@@ -158,8 +165,13 @@ run_pipeline.bat
 - ROADMAP.md priority table: Phase 1 → Phase 2 → Phase 3(+5) → Phase 4 → Phase 6 → Phase 9 → Phase 7 → Phase 8
 - Phase 1 is 100% complete.
 - Phase 2 ETL improvements are complete:
-  - `database/etl/data_to_pg.py` enhanced with logging (file + console), argparse (`--env-file`, `--dry-run`), `validate_csv()` with PK validation, TRUNCATE CASCADE with error handling, and per-table/total timing metrics
-  - `data_sources/generators/data_generator_v7.py` enhanced with per-stage timing (dimensions, simulation, export, validation)
+  - `database/etl/data_to_pg.py` enhanced with logging (file + console handlers)
+  - `validate_csv()` with PK validation (21 checks: row counts, PK nulls, dimension FK integrity, fact table completeness, fact FK integrity)
+  - argparse with `--env-file` and `--dry-run` flags
+  - `--incremental` flag: queries `fact_interactions` for existing months, skips already-loaded months
+  - TRUNCATE CASCADE with error handling for non-existent tables
+  - Per-table and total elapsed time tracking
+  - All print() replaced with logging.info()/logging.error()
 - Phase 3/5 KPI views are complete:
   - `database/migrations/002_kpi_views.sql` now contains 7 views: `v_contact_metrics`, `v_promise_metrics`, `v_recovery_metrics`, `v_productivity_metrics`, `v_handle_time_metrics`, `v_daily_mis`, `v_monthly_summary`
 - `docs/execution_guide.md` updated to reflect actual implementation details for Tasks 3 (logging with file + `--log-level`) and Task 4 (21 validation checks).

@@ -53,7 +53,7 @@
 - [ ] Add CSV checksum verification (hash each CSV, store in `etl_load_log`)
 - [X] Add environment variable support (`python-dotenv` for DB credentials)
 - [X] Add `--dry-run` flag (validate files without loading)
-- [ ] Add `--incremental` flag (load only new months)
+- [X] Add `--incremental` flag (load only new months)
 - [ ] Add error recovery (write failed rows to `errors/<table>_errors.csv`)
 - [ ] Add pipeline orchestration to `run_pipeline.bat`
 
