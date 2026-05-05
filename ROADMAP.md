@@ -67,8 +67,8 @@
 - [x] Populate `002_kpi_views.sql` (7 views: v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics, v_daily_mis, v_monthly_summary)
 - [X] Populate `003_agents_scorecards.sql` (agent composite score view) ← NEXT TASK
 - [X] Create seed SQL scripts (`seeds/001_dim_products.sql`, `seeds/002_dim_calendar.sql`)
-- [ ] Add CHECK constraints (DPD >= 0, utilization BETWEEN 0 AND 100, call_duration > 0)
-- [ ] Add COMMENT ON TABLE/COLUMN for all tables
+- [X] Add CHECK constraints (DPD >= 0, utilization BETWEEN 0 AND 100, call_duration > 0)
+- [X] Add COMMENT ON TABLE/COLUMN for all tables
 - [ ] Create `v_etl_load_summary` view
 - [ ] Add data freshness query
 - [X] `v_contact_metrics` — RPC, RPC%, RPC/OpHr, RPC Arrears by agent/day/team/month

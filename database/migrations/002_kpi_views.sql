@@ -819,3 +819,19 @@ SELECT
 FROM ranked
 WHERE rn = 1
 ORDER BY last_loaded_at DESC;
+
+-- ========================================================================
+-- 9. v_data_freshness
+-- Purpose: Data freshness check - shows how many days ago each fact table was last updated
+-- ========================================================================
+CREATE OR REPLACE VIEW v_data_freshness AS
+SELECT 'fact_interactions' AS table_name, MAX(interaction_date) AS max_date, CURRENT_DATE - MAX(interaction_date) AS days_ago FROM fact_interactions
+UNION ALL
+SELECT 'fact_ptp_log' AS table_name, MAX(ptp_date) AS max_date, CURRENT_DATE - MAX(ptp_date) AS days_ago FROM fact_ptp_log
+UNION ALL
+SELECT 'fact_payments' AS table_name, MAX(payment_date) AS max_date, CURRENT_DATE - MAX(payment_date) AS days_ago FROM fact_payments
+UNION ALL
+SELECT 'fact_agent_time_log' AS table_name, MAX(log_date) AS max_date, CURRENT_DATE - MAX(log_date) AS days_ago FROM fact_agent_time_log
+UNION ALL
+SELECT 'fact_eom_snapshot' AS table_name, MAX(snapshot_date) AS max_date, CURRENT_DATE - MAX(snapshot_date) AS days_ago FROM fact_eom_snapshot
+ORDER BY days_ago ASC;
