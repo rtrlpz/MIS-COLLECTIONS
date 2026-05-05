@@ -38,7 +38,7 @@
 - [X] Add `data_sources/generators/config.py` (centralize constants)
 - [X] Add anomaly injection report (`anomaly_report.csv`)
 - [X] Add `requirements.txt` with pinned hashes (`--require-hashes`)
-- [ ] Add `data_sources/generators/README.md`
+- [X] Add `data_sources/generators/README.md`
 
 ---
 
