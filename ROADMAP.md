@@ -46,8 +46,8 @@
 
 - [X] Add logging to `data_to_pg.py` (INFO/ERROR with timestamps)
 - [ ] Add retry logic with backoff (3x retries, 5s intervals)
-- [ ] Add data validation on ingest (file exists, has headers, row count > 0, PK not null)
-- [ ] Add transaction wrapping (ROLLBACK all on any failure)
+- [X] Add data validation on ingest (file exists, has headers, row count > 0, PK not null)
+- [X] Add transaction wrapping (ROLLBACK all on any failure)
 - [ ] Add idempotency (TRUNCATE before load or skip if exists)
 - [ ] Add `etl_load_log` metadata table (table_name, rows_loaded, timestamp, status, checksum)
 - [ ] Add CSV checksum verification (hash each CSV, store in `etl_load_log`)

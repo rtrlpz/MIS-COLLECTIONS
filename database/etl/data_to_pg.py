@@ -157,6 +157,14 @@ def ingest_data_to_pg(df: pd.DataFrame, table_name: str, conn):
     cursor = conn.cursor()
 
     try:
+        # Truncate table before loading (ensures clean slate for re-runs)
+        try:
+            cursor.execute(f"TRUNCATE TABLE {pg_table_name} CASCADE")
+            logging.info(f"  [INFO] Truncated {pg_table_name}")
+        except psycopg2.Error as te:
+            # Table may not exist yet; log warning and continue
+            logging.warning(f"  [WARN] Could not truncate {pg_table_name}: {te}")
+
         cursor.copy_from(
             file=buffer,
             table=pg_table_name,  # Usamos el nombre en minúsculas aquí
