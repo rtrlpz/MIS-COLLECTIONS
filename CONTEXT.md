@@ -145,7 +145,7 @@ run_pipeline.bat
 ```
 
 ## Current State & Pending Work
-- **DONE**:
+- **DONE**: 
   - **Phase 1** (Data Generation) — 100% complete:
     - CLI args (--output-dir, --months, --seed, --log-level)
     - Logging (file + console handlers with DEBUG-level daily progress)
@@ -164,15 +164,17 @@ run_pipeline.bat
     - --incremental flag (skip already-loaded months based on fact_interactions)
     - etl_load_log table (creates table, logs each load with SHA256 checksum)
     - Retry logic (up to 3 connection attempts with 5-second sleep)
-    - Per-table and total elapsed time tracking
+    - Error recovery (savepoints per table, writes errors/<table>_errors.csv)
+    - run_pipeline.bat (Docker check → generate → ETL → colored output)
   - **Phase 3/5** (KPI Views) — 100% complete:
     - 7 views in 002_kpi_views.sql: v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics, v_daily_mis, v_monthly_summary
 
-- **PENDING**:
+- **PENDING**: 
   - Agent scorecard view (database/migrations/003_agents_scorecards.sql) — NEXT TASK
   - 17 analysis SQL files (all skeletoned under analysis/sql/)
   - Test implementations (Phase 6)
-  - Automation (Phase 7 — run_pipeline.bat)
+  - Database indexes, constraints, comments (Phase 3 partial)
+  - Automation (Phase 7)
   - BI/reporting (Phase 9)
   - Final docs (Phase 8)
 
@@ -180,7 +182,11 @@ run_pipeline.bat
   - All 17 files under analysis/sql/
   - database/migrations/003_agents_scorecards.sql
   - test/test_generator.py, test/test_kpi_views.sql, test/qa_validation.py
-  - run_pipeline.bat
+  - run_pipeline.bat (now implemented)
+
+- **KNOWN ISSUES**:
+  - `psycopg2` module not installed — run `pip install -r requirements.txt`
+  - .env file at `database/.env` (resolved in code with fallback path)
 
 ## Session Notes
 - ROADMAP.md priority table: Phase 1 → Phase 2 → Phase 3(+5) → Phase 4 → Phase 6 → Phase 9 → Phase 7 → Phase 8
@@ -188,13 +194,25 @@ run_pipeline.bat
 - Phase 2 ETL improvements are complete:
   - `database/etl/data_to_pg.py` enhanced with logging (file + console handlers)
   - `validate_csv()` with PK validation (21 checks: row counts, PK nulls, dimension FK integrity, fact table completeness, fact FK integrity)
-  - argparse with `--env-file`, `--dry-run`, and `--incremental` flags
+  - argparse with `--env-file`, `--dry-run`, `--incremental`, `--log-level` flags
   - `etl_load_log` table: creates table, logs each load with SHA256 checksum
   - Retry logic: up to 3 connection attempts with 5-second sleep between attempts
+  - Error recovery: savepoints per table, writes `errors/<table>_errors.csv`
   - TRUNCATE CASCADE with error handling for non-existent tables
   - Per-table and total elapsed time tracking
   - All print() replaced with logging.info()/logging.error()
 - Phase 3/5 KPI views are complete:
   - `database/migrations/002_kpi_views.sql` now contains 7 views: `v_contact_metrics`, `v_promise_metrics`, `v_recovery_metrics`, `v_productivity_metrics`, `v_handle_time_metrics`, `v_daily_mis`, `v_monthly_summary`
-- `docs/execution_guide.md` updated to reflect actual implementation details for Tasks 3 (logging with file + `--log-level`) and Task 4 (21 validation checks).
+- `run_pipeline.bat` now implemented:
+  - Docker check (`docker info >nul 2>&1`)
+  - Data generation + ETL with exit code checks
+  - Colored output (green=success, red=error, white=info)
+  - Pauses at end for output review
+- `ROADMAP.md` updated to mark completed tasks:
+  - `etl_load_log` table ✓
+  - CSV checksum verification ✓
+  - `002_kpi_views.sql` with 7 views ✓
+- Known issues:
+  - `psycopg2` module not installed — run `pip install -r requirements.txt`
+  - `.env` file at `database/.env` (resolved in code with fallback path)
 - Next work to start: Agent scorecard view (`database/migrations/003_agents_scorecards.sql`)

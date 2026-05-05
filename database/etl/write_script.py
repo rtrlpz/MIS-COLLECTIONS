@@ -91,8 +91,8 @@ def compute_checksum(file_path: Path) -> str:
 def create_etl_load_log_table(conn):
     cursor = conn.cursor()
     try:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS etl_load_log (
+        cursor.execute("
+                CREATE TABLE IF NOT EXISTS etl_load_log (
                 id SERIAL PRIMARY KEY,
                 table_name VARCHAR(100),
                 rows_loaded INT,
@@ -100,7 +100,7 @@ def create_etl_load_log_table(conn):
                 status VARCHAR(20),
                 csv_checksum VARCHAR(64)
             )
-        """)
+        ")
         conn.commit()
         logging.info("  [INFO] Ensured etl_load_log table exists")
     except Exception as e:

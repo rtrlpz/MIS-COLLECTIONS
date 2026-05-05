@@ -45,12 +45,12 @@
 ## PHASE 2 — ETL Pipeline (Current: 35% → Target: 90%)
 
 - [X] Add logging to `data_to_pg.py` (INFO/ERROR with timestamps)
-- [ ] Add retry logic with backoff (3x retries, 5s intervals)
+- [X] Add retry logic with backoff (3x retries, 5s intervals)
 - [X] Add data validation on ingest (file exists, has headers, row count > 0, PK not null)
 - [X] Add transaction wrapping (ROLLBACK all on any failure)
 - [X] Add idempotency (TRUNCATE before load or skip if exists)
-- [ ] Add `etl_load_log` metadata table (table_name, rows_loaded, timestamp, status, checksum)
-- [ ] Add CSV checksum verification (hash each CSV, store in `etl_load_log`)
+- [x] Add `etl_load_log` metadata table (table_name, rows_loaded, timestamp, status, checksum)
+- [x] Add CSV checksum verification (hash each CSV, store in `etl_load_log`)
 - [X] Add environment variable support (`python-dotenv` for DB credentials)
 - [X] Add `--dry-run` flag (validate files without loading)
 - [X] Add `--incremental` flag (load only new months)
@@ -64,8 +64,8 @@
 - [ ] Add indexes on FK columns (`Dim_Agents.supervisor_id`, `Dim_Accounts.client_id`, `Dim_Accounts.product_id`, all fact FK columns)
 - [ ] Add indexes on common query columns (`Dim_Calendar.date`, `Fact_Interactions.interaction_date`, `Fact_PTP_Log.ptp_date`)
 - [ ] Add composite indexes (`(product_id, month)`, `(agent_id, interaction_date)`, `(supervisor_id, month)`)
-- [ ] Populate `002_kpi_views.sql` (7 views: v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics, v_daily_mis, v_monthly_summary)
-- [ ] Populate `003_agents_scorecards.sql` (agent composite score view)
+- [x] Populate `002_kpi_views.sql` (7 views: v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics, v_daily_mis, v_monthly_summary)
+- [ ] Populate `003_agents_scorecards.sql` (agent composite score view) ← NEXT TASK
 - [ ] Create seed SQL scripts (`seeds/001_dim_products.sql`, `seeds/002_dim_calendar.sql`)
 - [ ] Add CHECK constraints (DPD >= 0, utilization BETWEEN 0 AND 100, call_duration > 0)
 - [ ] Add COMMENT ON TABLE/COLUMN for all tables

@@ -208,7 +208,11 @@ def main():
     if args.env_file:
         env_file_path = Path(args.env_file).resolve()
     else:
-        env_file_path = Path(__file__).resolve().parent / ".env"
+        # Default: look for .env in database/ (parent of script's directory)
+        env_file_path = Path(__file__).resolve().parent.parent / ".env"
+        if not env_file_path.exists():
+            # Fallback: look in project root
+            env_file_path = Path(__file__).resolve().parent.parent.parent / ".env"
     load_dotenv(dotenv_path=env_file_path)
     logging.info(f"Loaded env file: {env_file_path}")
 

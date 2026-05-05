@@ -1,64 +1,59 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-:: Color codes: Green=10, Red=12, White=7, Yellow=14
-set "GREEN=10"
-set "RED=12"
-set "YELLOW=14"
-set "WHITE=7"
+:: Color codes: Green=0A, Red=0C, Yellow=0E, White=07
+color 07
 
 echo.
-call :print_color "=== MIS COLLECTIONS PIPELINE ===" %YELLOW%
+echo === MIS COLLECTIONS PIPELINE ===
 echo.
 
-:: Step 1: Check if Docker is running
-call :print_color "[1/3] Checking if Docker is running..." %WHITE%
+:: Step1: Check if Docker is running
+echo [1/3] Checking if Docker is running...
 docker info >nul 2>&1
 if errorlevel 1 (
-    call :print_color "[ERROR] Docker is not running. Please start Docker Desktop first." %RED%
+    color 0C
+    echo [ERROR] Docker is not running. Please start Docker Desktop first.
     goto :end
 )
-call :print_color "[OK] Docker is running." %GREEN%
+color 0A
+echo [OK] Docker is running.
 
-:: Step 2: Generate data
-call :print_color "[2/3] Generating data..." %WHITE%
+:: Step2: Generate data
+color 07
+echo [2/3] Generating data...
 python data_sources/generators/data_generator_v7.py
 if errorlevel 1 (
-    call :print_color "[ERROR] Data generation failed. Check logs for details." %RED%
+    color 0C
+    echo [ERROR] Data generation failed. Check logs for details.
     goto :end
 )
-call :print_color "[OK] Data generated successfully." %GREEN%
+color 0A
+echo [OK] Data generated successfully.
 
-:: Step 3: Run ETL
-call :print_color "[3/3] Loading data into PostgreSQL..." %WHITE%
+:: Step3: Run ETL
+color 07
+echo [3/3] Loading data into PostgreSQL...
 python database/etl/data_to_pg.py
 if errorlevel 1 (
-    call :print_color "[ERROR] ETL failed. Check logs for details." %RED%
+    color 0C
+    echo [ERROR] ETL failed. Check logs for details.
     goto :end
 )
-call :print_color "[OK] Data loaded successfully." %GREEN%
+color 0A
+echo [OK] Data loaded successfully.
 
 :: Success summary
 echo.
-call :print_color "========================================" %GREEN%
-call :print_color "Pipeline complete. Data generated and loaded." %GREEN%
-call :print_color "========================================" %GREEN%
+color 0A
+echo ========================================
+echo Pipeline complete. Data generated and loaded.
+echo ========================================
 goto :end
 
 :end
 echo.
-call :print_color "Press any key to exit..." %WHITE%
+color 07
+echo Press any key to exit...
 pause >nul
 exit /b
-
-:: Function to print colored text
-:print_color
-set "msg=%~1"
-set "color=%~2"
-<nul set /p "=." > "%TEMP%.~color"
-findstr /a:%color% "." "%TEMP%.~color" nul
-<nul set /p "=%msg%" > "%TEMP%.~color"
-findstr /a:%color% "%msg%" "%TEMP%.~color" nul
-echo.
-del "%TEMP%.~color" >nul 2>&1
-goto :eof
