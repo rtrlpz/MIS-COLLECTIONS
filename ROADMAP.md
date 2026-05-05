@@ -55,7 +55,7 @@
 - [X] Add `--dry-run` flag (validate files without loading)
 - [X] Add `--incremental` flag (load only new months)
 - [X] Add error recovery (write failed rows to `errors/<table>_errors.csv`)
-- [ ] Add pipeline orchestration to `run_pipeline.bat`
+- [X] Add pipeline orchestration to `run_pipeline.bat`
 
 ---
 
