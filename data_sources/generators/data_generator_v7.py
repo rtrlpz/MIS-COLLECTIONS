@@ -814,10 +814,10 @@ date_cols = [
 def format_for_export(df):
     """Apply explicit dtypes to a DataFrame before CSV export."""
     df = df.copy()
-    # Round currency columns to 2 decimals
+    # Round currency columns to 2 decimals (only if numeric)
     for col in currency_cols:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="ignore").round(2)
+        if col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
+            df[col] = df[col].round(2)
     # Ensure date columns are string-formatted as ISO 8601
     for col in date_cols:
         if col in df.columns:
