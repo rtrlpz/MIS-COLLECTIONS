@@ -12,7 +12,9 @@ Strict Star Schema engine for Power BI:
 """
 
 import os
+import time
 import random
+import logging
 import calendar
 import argparse
 from datetime import date, datetime, timedelta
@@ -23,11 +25,37 @@ import numpy as np
 import pandas as pd
 from faker import Faker
 
+BASE_PATH  = Path(__file__).resolve().parent
+
+# ═══════════════════════════════════════════════════════════════════════════
+# LOGGING SETUP
+# ═══════════════════════════════════════════════════════════════════════════
+
+logger = logging.getLogger("mis_collections_generator")
+logger.setLevel(logging.DEBUG)
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_formatter = logging.Formatter("%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%H:%M:%S")
+console_handler.setFormatter(console_formatter)
+logger.addHandler(console_handler)
+
+# File handler → data_sources/generators/logs/
+LOG_DIR = BASE_PATH / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = LOG_DIR / "generator.log"
+
+file_handler = logging.FileHandler(LOG_FILE, mode="w", encoding="utf-8")
+file_handler.setLevel(logging.DEBUG)
+file_formatter = logging.Formatter("%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════
 
-BASE_PATH  = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_PATH / "raw"
 
 CFG = {
@@ -133,7 +161,15 @@ parser.add_argument(
     "--seed", type=int, default=42,
     help="Random seed for reproducibility (default: 42)"
 )
+parser.add_argument(
+    "--log-level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+    help="Logging verbosity (default: INFO)"
+)
 args = parser.parse_args()
+
+# Configure logging based on CLI argument
+logger.setLevel(getattr(logging, args.log_level))
+console_handler.setLevel(getattr(logging, args.log_level))
 
 # Override CFG based on CLI arguments
 if args.output_dir:
@@ -149,6 +185,13 @@ if args.months:
 # ═══════════════════════════════════════════════════════════════════════════
 # SEED (applied after CLI overrides for reproducibility)
 # ═══════════════════════════════════════════════════════════════════════════
+
+t_start = time.time()
+logger.info("MIS Collections Data Generator v7")
+logger.info("Output: %s", CFG["output_dir"])
+logger.info("Date range: %s → %s", CFG["start_date"], CFG["end_date"])
+logger.info("Seed: %d", args.seed)
+logger.info("---")
 
 fake = Faker("es_ES")
 Faker.seed(args.seed)
@@ -228,7 +271,7 @@ def calc_min_payment(p_type: str, balance: float) -> float:
 # SECTION 1 — DIMENSION TABLES
 # ═══════════════════════════════════════════════════════════════════════════
 
-print("Building dimension tables...")
+logger.info("Building dimension tables...")
 
 # ── Dim_Supervisors ──────────────────────────────────────────────────────────
 dim_supervisors = pd.DataFrame([{
@@ -350,8 +393,8 @@ for client_id in client_ids:
 dim_accounts = pd.DataFrame(account_rows)
 all_acct_ids = list(account_state.keys())
 
-print(f"  Accounts:  {len(dim_accounts):,}")
-print(f"  In Mora:   {sum(1 for s in account_state.values() if s['status']=='Mora'):,}")
+logger.info("  Accounts:  %s", f"{len(dim_accounts):,}")
+logger.info("  In Mora:   %s", f"{sum(1 for s in account_state.values() if s['status']=='Mora'):,}")
 
 # ── Dim_Calendar ─────────────────────────────────────────────────────────────
 cal_rows = []
@@ -378,7 +421,7 @@ dim_calendar = pd.DataFrame(cal_rows)
 # SECTION 2 — SIMULATION LOOP (Day-by-day event-driven state machine)
 # ═══════════════════════════════════════════════════════════════════════════
 
-print("\nRunning simulation engine...")
+logger.info("Running simulation engine...")
 
 # Fact-table row lists
 fact_interactions  = []
@@ -740,19 +783,18 @@ for sim_date in DATE_RANGE:
                 "min_payment":    state["min_payment"],
             })
 
-    print(
-        f"  {sim_date} | INT: {int_ctr:>7,} | PTP: {ptp_ctr:>5,} | "
-        f"PAY: {pay_ctr:>5,} | MORA: {sum(1 for s in account_state.values() if s['status']=='Mora'):>5,}",
-        end="\r"
+    logger.debug(
+        f"{sim_date} | INT: {int_ctr:>7,} | PTP: {ptp_ctr:>5,} | "
+        f"PAY: {pay_ctr:>5,} | MORA: {sum(1 for s in account_state.values() if s['status']=='Mora'):>5,}"
     )
 
-print("\n\nSimulation complete.")
+logger.info("Simulation complete.")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 3 — BUILD & FINALIZE DATAFRAMES
 # ═══════════════════════════════════════════════════════════════════════════
 
-print("Finalizing fact tables...")
+logger.info("Finalizing fact tables...")
 
 df_interactions = pd.DataFrame(fact_interactions)
 df_payments     = pd.DataFrame(fact_payments)
@@ -778,6 +820,7 @@ if len(df_interactions) > 0:
     df_interactions.loc[anom_idx, "aht_seconds"] = (
         df_interactions.loc[anom_idx, "aht_seconds"].fillna(200) * mul
     ).round(0).astype("Int64")
+    logger.info("  Anomalies injected:  %s", f"{n_anom:,}")
 
 # Round financial columns
 for col in ["rpc_arrears", "dpd_at_contact"]:
@@ -787,11 +830,11 @@ for col in ["rpc_arrears", "dpd_at_contact"]:
 if len(df_payments) > 0:
     df_payments["amount_paid"] = df_payments["amount_paid"].round(2)
 
-print(f"  Fact_Interactions:    {len(df_interactions):>8,}")
-print(f"  Fact_PTP_Log:         {len(df_ptp):>8,}")
-print(f"  Fact_Payments:        {len(df_payments):>8,}")
-print(f"  Fact_Agent_Time_Log:  {len(df_time_log):>8,}")
-print(f"  Fact_EOM_Snapshot:    {len(df_eom):>8,}")
+logger.info("  Fact_Interactions:    %s", f"{len(df_interactions):>8,}")
+logger.info("  Fact_PTP_Log:         %s", f"{len(df_ptp):>8,}")
+logger.info("  Fact_Payments:        %s", f"{len(df_payments):>8,}")
+logger.info("  Fact_Agent_Time_Log:  %s", f"{len(df_time_log):>8,}")
+logger.info("  Fact_EOM_Snapshot:    %s", f"{len(df_eom):>8,}")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 3B — ENSURE EXPLICIT DTYpes FOR CSV EXPORT
@@ -828,7 +871,7 @@ def format_for_export(df):
 # SECTION 4 — EXPORT (Star Schema, monthly split)
 # ═══════════════════════════════════════════════════════════════════════════
 
-print("\nExporting...")
+logger.info("Exporting CSVs...")
 
 BASE_DIR   = CFG["output_dir"]
 shared_dir = os.path.join(BASE_DIR, "shared")
@@ -848,7 +891,7 @@ for name, df in dims.items():
     path = os.path.join(shared_dir, f"{name}.csv")
     df_exp = format_for_export(df)
     df_exp.to_csv(path, index=False, date_format="%Y-%m-%d", float_format="%.2f")
-    print(f"  [shared] {name}.csv  ({len(df):,} rows)")
+    logger.info("  [shared] %s.csv  (%s rows)", name, f"{len(df):,}")
 
 # Fact tables → monthly folders (split by date column)
 facts = {
@@ -876,6 +919,7 @@ for period in pd.date_range(START, END, freq="MS"):
         df_exp.to_csv(os.path.join(month_dir, f"{name}.csv"), index=False, date_format="%Y-%m-%d", float_format="%.2f")
         total   += len(df_month)
 
-    print(f"  [{folder}]  {total:,} total fact rows")
+    logger.info("  [%s]  %s total fact rows", folder, f"{total:,}")
 
-print("\nv7 done.")
+elapsed = time.time() - t_start
+logger.info("Generation complete. Elapsed time: %.1f seconds", elapsed)

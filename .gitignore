@@ -31,8 +31,14 @@ dashboards/docs/
 *.SemanticModel/
 *.Report/
 
+# Ignore generator logs
+data_sources/generators/logs/*.log
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
 # Ignore excel reports
-reports/outputs/*.xlsx
 reports/outputs/*.csv
 reports/templates/*.xlsx
 reports/templates/*.csv
