@@ -35,3 +35,10 @@ CREATE INDEX IF NOT EXISTS idx_fact_agent_time_log_log_date ON fact_agent_time_l
 -- Fact_EOM_Snapshot indexes
 CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_account_id ON fact_eom_snapshot(account_id);
 CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_snapshot_date ON fact_eom_snapshot(snapshot_date);
+
+-- Additional indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_fact_interactions_rpc_flag ON fact_interactions(rpc_flag);
+CREATE INDEX IF NOT EXISTS idx_fact_ptp_log_status ON fact_ptp_log(status);
+CREATE INDEX IF NOT EXISTS idx_fact_payments_is_cured ON fact_payments(is_cured);
+CREATE INDEX IF NOT EXISTS idx_fact_agent_time_log_utilization ON fact_agent_time_log(utilization);
+CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_dpd_bucket ON fact_eom_snapshot(dpd_bucket);

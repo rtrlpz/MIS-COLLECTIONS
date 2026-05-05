@@ -62,7 +62,7 @@
 ## PHASE 3 — Database & Schema (Current: 60% → Target: 90%) - Merged with PHASE 5. 
 
 - [X] Add indexes on FK columns (`Dim_Agents.supervisor_id`, `Dim_Accounts.client_id`, `Dim_Accounts.product_id`, all fact FK columns)
-- [ ] Add indexes on common query columns (`Dim_Calendar.date`, `Fact_Interactions.interaction_date`, `Fact_PTP_Log.ptp_date`)
+- [X] Add indexes on common query columns (`Dim_Calendar.date`, `Fact_Interactions.interaction_date`, `Fact_PTP_Log.ptp_date`)
 - [ ] Add composite indexes (`(product_id, month)`, `(agent_id, interaction_date)`, `(supervisor_id, month)`)
 - [x] Populate `002_kpi_views.sql` (7 views: v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics, v_daily_mis, v_monthly_summary)
 - [ ] Populate `003_agents_scorecards.sql` (agent composite score view) ← NEXT TASK
