@@ -65,19 +65,19 @@
 - [X] Add indexes on common query columns (`Dim_Calendar.date`, `Fact_Interactions.interaction_date`, `Fact_PTP_Log.ptp_date`)
 - [X] Add composite indexes (`(product_id, month)`, `(agent_id, interaction_date)`, `(supervisor_id, month)`)
 - [x] Populate `002_kpi_views.sql` (7 views: v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics, v_daily_mis, v_monthly_summary)
-- [ ] Populate `003_agents_scorecards.sql` (agent composite score view) ← NEXT TASK
+- [X] Populate `003_agents_scorecards.sql` (agent composite score view) ← NEXT TASK
 - [X] Create seed SQL scripts (`seeds/001_dim_products.sql`, `seeds/002_dim_calendar.sql`)
 - [ ] Add CHECK constraints (DPD >= 0, utilization BETWEEN 0 AND 100, call_duration > 0)
 - [ ] Add COMMENT ON TABLE/COLUMN for all tables
 - [ ] Create `v_etl_load_summary` view
 - [ ] Add data freshness query
-- [ ] `v_contact_metrics` — RPC, RPC%, RPC/OpHr, RPC Arrears by agent/day/team/month
-- [ ] `v_promise_metrics` — PTP count, PTP%, kept/broken count, kept%, BB conversion
-- [ ] `v_recovery_metrics` — cures, cured amount, cure rate, agent vs self-cure
-- [ ] `v_productivity_metrics` — utilization%, No Touch Letter rate, contacts/agent/hour
-- [ ] `v_handle_time_metrics` — AHT-RPC, AHT-NonRPC, ACW-RPC, ACW-NonRPC
-- [ ] `v_daily_mis` — consolidated daily view for Excel MIS report
-- [ ] `v_monthly_summary` — month-level rollup for dashboard trend lines
+- [X] `v_contact_metrics` — RPC, RPC%, RPC/OpHr, RPC Arrears by agent/day/team/month
+- [X] `v_promise_metrics` — PTP count, PTP%, kept/broken count, kept%, BB conversion
+- [X] `v_recovery_metrics` — cures, cured amount, cure rate, agent vs self-cure
+- [X] `v_productivity_metrics` — utilization%, No Touch Letter rate, contacts/agent/hour
+- [X] `v_handle_time_metrics` — AHT-RPC, AHT-NonRPC, ACW-RPC, ACW-NonRPC
+- [X] `v_daily_mis` — consolidated daily view for Excel MIS report
+- [X] `v_monthly_summary` — month-level rollup for dashboard trend lines
 
 ---
 
