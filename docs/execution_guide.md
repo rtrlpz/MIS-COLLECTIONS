@@ -564,7 +564,7 @@ Use color codes if possible (green for success, red for errors).
 
 **PROMPT:**
 ```
-Create database/migrations/002_indexes.sql with CREATE INDEX statements for all FK columns:
+Create database/migrations/004_indexes.sql with CREATE INDEX statements for all FK columns:
   - dim_agents(supervisor_id)
   - dim_accounts(client_id)
   - dim_accounts(product_id)
@@ -586,7 +586,7 @@ Use CREATE INDEX IF NOT EXISTS idx_<table>_<column> ON <table>(<column>);
 Add a comment at the top explaining the purpose of the file.
 ```
 
-**VERIFY:** `psql -f database/migrations/002_indexes.sql` runs without errors. Run `EXPLAIN SELECT * FROM fact_interactions JOIN dim_agents USING (agent_id);` -- should show "Index Scan" not "Seq Scan."
+**VERIFY:** `psql -f database/migrations/004_indexes.sql` runs without errors. Run `EXPLAIN SELECT * FROM fact_interactions JOIN dim_agents USING (agent_id);` -- should show "Index Scan" not "Seq Scan."
 
 **COMMIT:** `feat: add indexes on all FK columns for query performance`
 
@@ -602,7 +602,7 @@ Add a comment at the top explaining the purpose of the file.
 
 **PROMPT:**
 ```
-Append to database/migrations/002_indexes.sql additional indexes for common query patterns:
+Append to database/migrations/004_indexes.sql additional indexes for common query patterns:
   - fact_interactions(rpc_flag) -- for filtering connected vs not connected
   - fact_ptp_log(status) -- for filtering kept/broken PTPs
   - fact_payments(is_cured) -- for filtering cured accounts
@@ -628,7 +628,7 @@ Use CREATE INDEX IF NOT EXISTS with descriptive names.
 
 **PROMPT:**
 ```
-Append to database/migrations/002_indexes.sql:
+Append to database/migrations/004_indexes.sql:
   - fact_interactions(agent_id, interaction_date) -- for per-agent daily queries
   - fact_ptp_log(agent_id, ptp_date) -- for per-agent PTP tracking
   - fact_agent_time_log(agent_id, log_date) -- for per-agent daily utilization
@@ -1363,7 +1363,7 @@ Rewrite run_pipeline.bat with the following flow:
   4. Generate data (python data_sources/generators/data_generator_v7.py --seed 42)
   5. Validate CSVs exist and have content
   6. Run ETL (python database/etl/data_to_pg.py)
-  7. Apply migrations (psql -f database/migrations/002_indexes.sql, etc.)
+  7. Apply migrations (psql -f database/migrations/004_indexes.sql, etc.)
   8. Run tests (pytest test/ -v)
   9. Print summary: "Pipeline complete. X tables loaded, Y tests passed."
 
