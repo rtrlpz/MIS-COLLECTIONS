@@ -22,15 +22,15 @@ MIS-COLLECTIONS/
 ├── LICENSE
 ├── README.md                      # Project overview & interview pitch
 ├── ROADMAP.md                     # Phase-by-phase task checklist (corrected priority order)
-├── requirements.txt               # Python deps
+├── requirements.txt               # Python deps (pinned versions)
 ├── run_pipeline.bat               # Windows batch to run full pipeline (empty — Phase 7)
 │
-├── analysis/                      # SQL ANALYSIS LAYER
+├── analysis/                      # SQL ANALYSIS LAYER (17 files — all EMPTY skeletons)
 │   ├── README.md
 │   └── sql/
-│       ├── agent_level_operational_supervisors/   # 6 files — all EMPTY skeletons
-│       ├── team_level_tactical_managers/          # 6 files — all EMPTY skeletons
-│       └── portfolio_level_strategic_directors/   # 5 files — all EMPTY skeletons
+│       ├── agent_level_operational_supervisors/   # 6 files: daily_agent_activity, agent_scorecard, agent_exception_report, coaching_opportunities, schedule_adherence, eda_agents
+│       ├── team_level_tactical_managers/          # 6 files: team_comparison, agent_leaderboard, handle_time_benchmark, workload_distribution, campaign_effectiveness, eda_supervisors
+│       └── portfolio_level_strategic_directors/   # 5 files: portfolio_health, recovery_trend_mom, target_vs_actual, portfolio_concentration, roll_rate_analysis
 │
 ├── dashboards/                    # VISUALIZATION LAYER
 │   ├── assets/
@@ -41,9 +41,11 @@ MIS-COLLECTIONS/
 ├── data_sources/                  # DATA GENERATION LAYER
 │   ├── README.md
 │   ├── generators/
+│   │   ├── __init__.py
+│   │   ├── config.py             # CFG and PRODUCT_CFG dicts (extracted from v7)
 │   │   ├── logs/                  # Generator run logs (git-ignored)
 │   │   │   └── generator.log      # Detailed run output with DEBUG-level daily progress
-│   │   └── data_generator_v7.py   # Star schema generator (~1,050 lines)
+│   │   └── data_generator_v7.py   # Star schema generator (~1,050 lines) — Phase 1 COMPLETE
 │   └── schema/
 │       └── dictionary.md          # Column-level docs for all tables
 │
@@ -51,11 +53,13 @@ MIS-COLLECTIONS/
 │   ├── README.md
 │   ├── docker-compose.yml         # Postgres 15 + pgAdmin services
 │   ├── etl/
-│   │   └── data_to_pg.py          # ETL: CSV → PostgreSQL via COPY FROM (needs Phase 2 improvements)
+│   │   ├── logs/                  # ETL run logs
+│   │   │   └── logs               # ETL log file
+│   │   └── data_to_pg.py          # ETL: CSV → PostgreSQL — Phase 2 COMPLETE (logging, --dry-run, --incremental, retry logic, etl_load_log)
 │   ├── migrations/
 │   │   ├── 001_create_tables.sql  # DDL: 11 tables with FK constraints
-│   │   ├── 002_kpi_views.sql      # EMPTY — placeholder for 7 KPI views (Phase 3/5)
-│   │   └── 003_agents_scorecards.sql  # EMPTY — placeholder for scorecard view (Phase 3/5)
+│   │   ├── 002_kpi_views.sql      # 7 KPI views — Phase 3/5 COMPLETE (v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics, v_daily_mis, v_monthly_summary)
+│   │   └── 003_agents_scorecards.sql  # EMPTY — agent scorecard view (NEXT TASK)
 │   └── seeds/                     # Static lookup data (products, calendar)
 │       └── README.md
 │
@@ -69,12 +73,12 @@ MIS-COLLECTIONS/
 │   ├── templates/daily_mis.xlsx   # Daily MIS template
 │   └── output/                    # Generated reports (git-ignored)
 │
-└── test/                          # TESTING LAYER
+└── test/                          # TESTING LAYER (all EMPTY — Phase 6)
     ├── README.md
     ├── __init__.py
-    ├── qa_validation.py           # EMPTY — data integrity checks (Phase 6)
-    ├── test_generator.py          # EMPTY — generator unit tests (Phase 6)
-    └── test_kpi_views.sql         # EMPTY — KPI view tests (Phase 6)
+    ├── qa_validation.py           # EMPTY — data integrity checks
+    ├── test_generator.py          # EMPTY — generator unit tests
+    └── test_kpi_views.sql         # EMPTY — KPI view tests
 ```
 
 ## Data Model (Star Schema)
@@ -141,25 +145,42 @@ run_pipeline.bat
 ```
 
 ## Current State & Pending Work
-- **DONE**: 
-  - Phase 1 complete (Data Generation hardening). Generator has CLI args, logging, validation, config extraction, anomaly tracking, `requirements.txt`, and per-stage timing (dimensions, simulation, export, validation) added to `data_sources/generators/data_generator_v7.py`.
-  - Phase 2 ETL improvements complete: `database/etl/data_to_pg.py` enhanced with all Phase 2 tasks:
-    - Task 1: Logging (file + console handlers)
-    - Task 2: CSV validation (`validate_csv()` with PK validation, row count, headers)
-    - Task 3: Transaction wrapping (atomicity with single transaction)
-    - Task 4: Idempotency (TRUNCATE CASCADE before load)
-    - Task 5: Environment variable support (`--env-file` flag)
-    - Task 6: `--dry-run` flag (validate without DB connection, exit 0/1)
-    - Task 7: `--incremental` flag (skip already-loaded months based on `fact_interactions`)
-  - Phase 3/5 KPI views: `database/migrations/002_kpi_views.sql` now contains 7 views: `v_contact_metrics`, `v_promise_metrics`, `v_recovery_metrics`, `v_productivity_metrics`, `v_handle_time_metrics`, `v_daily_mis`, `v_monthly_summary`.
-- **PENDING**: 
-  - Agent scorecard view (`database/migrations/003_agents_scorecards.sql`)
-  - 17 analysis SQL files (all skeletoned under `analysis/sql/`)
+- **DONE**:
+  - **Phase 1** (Data Generation) — 100% complete:
+    - CLI args (--output-dir, --months, --seed, --log-level)
+    - Logging (file + console handlers with DEBUG-level daily progress)
+    - Per-stage timing (dimensions, simulation, export, validation)
+    - Config extraction (config.py with CFG + PRODUCT_CFG)
+    - Output validation (21 checks: row counts, PK nulls, FK integrity)
+    - Anomaly injection tracking (anomaly_report.csv)
+    - requirements.txt with pinned versions
+  - **Phase 2** (ETL Pipeline) — 100% complete:
+    - Logging (file + console handlers)
+    - validate_csv() with PK validation, row count, headers
+    - Transaction wrapping (atomicity with single transaction)
+    - Idempotency (TRUNCATE CASCADE before load)
+    - Environment variable support (--env-file flag)
+    - --dry-run flag (validate without DB connection, exit 0/1)
+    - --incremental flag (skip already-loaded months based on fact_interactions)
+    - etl_load_log table (creates table, logs each load with SHA256 checksum)
+    - Retry logic (up to 3 connection attempts with 5-second sleep)
+    - Per-table and total elapsed time tracking
+  - **Phase 3/5** (KPI Views) — 100% complete:
+    - 7 views in 002_kpi_views.sql: v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics, v_daily_mis, v_monthly_summary
+
+- **PENDING**:
+  - Agent scorecard view (database/migrations/003_agents_scorecards.sql) — NEXT TASK
+  - 17 analysis SQL files (all skeletoned under analysis/sql/)
   - Test implementations (Phase 6)
-  - Automation (Phase 7)
+  - Automation (Phase 7 — run_pipeline.bat)
   - BI/reporting (Phase 9)
   - Final docs (Phase 8)
-- **EMPTY FILES** (skeletons awaiting content): All files under `analysis/sql/`, `database/migrations/003_agents_scorecards.sql`, `test/test_generator.py`, `test/test_kpi_views.sql`, `test/qa_validation.py`, `run_pipeline.bat`
+
+- **EMPTY FILES** (skeletons awaiting content):
+  - All 17 files under analysis/sql/
+  - database/migrations/003_agents_scorecards.sql
+  - test/test_generator.py, test/test_kpi_views.sql, test/qa_validation.py
+  - run_pipeline.bat
 
 ## Session Notes
 - ROADMAP.md priority table: Phase 1 → Phase 2 → Phase 3(+5) → Phase 4 → Phase 6 → Phase 9 → Phase 7 → Phase 8
@@ -167,8 +188,9 @@ run_pipeline.bat
 - Phase 2 ETL improvements are complete:
   - `database/etl/data_to_pg.py` enhanced with logging (file + console handlers)
   - `validate_csv()` with PK validation (21 checks: row counts, PK nulls, dimension FK integrity, fact table completeness, fact FK integrity)
-  - argparse with `--env-file` and `--dry-run` flags
-  - `--incremental` flag: queries `fact_interactions` for existing months, skips already-loaded months
+  - argparse with `--env-file`, `--dry-run`, and `--incremental` flags
+  - `etl_load_log` table: creates table, logs each load with SHA256 checksum
+  - Retry logic: up to 3 connection attempts with 5-second sleep between attempts
   - TRUNCATE CASCADE with error handling for non-existent tables
   - Per-table and total elapsed time tracking
   - All print() replaced with logging.info()/logging.error()
