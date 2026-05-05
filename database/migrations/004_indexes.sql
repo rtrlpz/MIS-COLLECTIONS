@@ -42,3 +42,11 @@ CREATE INDEX IF NOT EXISTS idx_fact_ptp_log_status ON fact_ptp_log(status);
 CREATE INDEX IF NOT EXISTS idx_fact_payments_is_cured ON fact_payments(is_cured);
 CREATE INDEX IF NOT EXISTS idx_fact_agent_time_log_utilization ON fact_agent_time_log(utilization);
 CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_dpd_bucket ON fact_eom_snapshot(dpd_bucket);
+
+-- Composite indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_fact_interactions_agent_date ON fact_interactions(agent_id, interaction_date);
+CREATE INDEX IF NOT EXISTS idx_fact_ptp_log_agent_date ON fact_ptp_log(agent_id, ptp_date);
+CREATE INDEX IF NOT EXISTS idx_fact_agent_time_log_agent_date ON fact_agent_time_log(agent_id, log_date);
+CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_account_date ON fact_eom_snapshot(account_id, snapshot_date);
+CREATE INDEX IF NOT EXISTS idx_dim_agents_supervisor_agent ON dim_agents(supervisor_id, agent_id);
+CREATE INDEX IF NOT EXISTS idx_dim_accounts_product_client ON dim_accounts(product_id, client_id);
