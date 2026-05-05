@@ -34,10 +34,10 @@
 - [X] Generate CSVs with headers and explicit dtypes (ISO 8601 dates, consistent decimals)
 - [X] Add generator logging (console + file with timestamps, row counts, elapsed time, anomalies injected, --log-level arg)
 - [X] Add output validation post-generation (row counts ±5%, no nulls in PKs, FK integrity)
-- [ ] Add `requirements.txt` with pinned hashes (`--require-hashes`)
 - [X] Create `data_sources/__init__.py` (make it a proper Python package)
 - [X] Add `data_sources/generators/config.py` (centralize constants)
-- [ ] Add anomaly injection report (`anomaly_report.csv`)
+- [X] Add anomaly injection report (`anomaly_report.csv`)
+- [X] Add `requirements.txt` with pinned hashes (`--require-hashes`)
 - [ ] Add `data_sources/generators/README.md`
 
 ---
