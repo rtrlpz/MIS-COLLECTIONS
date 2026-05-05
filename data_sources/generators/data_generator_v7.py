@@ -54,94 +54,19 @@ file_handler.setFormatter(file_formatter)
 logger.addHandler(file_handler)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CONFIGURATION
+# CONFIGURATION (imported from config.py)
 # ═══════════════════════════════════════════════════════════════════════════
 
+try:
+    from .config import CFG, PRODUCT_CFG, CONTACT_NON_RPC, NON_CONTACT, PAY_METHODS, PAY_WEIGHTS
+except ImportError:
+    from config import CFG, PRODUCT_CFG, CONTACT_NON_RPC, NON_CONTACT, PAY_METHODS, PAY_WEIGHTS
+
+BASE_PATH  = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_PATH / "raw"
-
-CFG = {
-    "num_supervisors": 8,
-    "num_agents":      80,
-    "num_clients":     10_000,
-    "start_date":      date(2025, 10, 1),
-    "end_date":        date(2025, 12, 31),
-
-    # Portfolio dynamics
-    "mora_rate":                0.25,
-    "mora_replenishment_rate":  0.0018,   # daily: Activo → Mora
-    "self_cure_base_rate":      0.0006,   # daily: spontaneous full-arrears payment
-
-    # Dialer targeting
-    "accts_per_agent_day": (60, 100),
-    "mora_contact_pct":    0.72,
-    "attempts_per_acct":   (1, 3),
-
-    # Agent profile ranges (skill multiplier applied on top)
-    "connection_rate": (0.50, 0.90),
-    "rpc_rate_base":   (0.45, 0.80),
-    "ptp_rate_base":   (0.60, 0.85),
-    "kp_tendency":     (0.55, 0.85),
-    "utilization":     (0.85, 0.97),
-
-    # Handle-time normal distributions (seconds)
-    "aht_rpc":  {"mu": 245, "sigma": 52},
-    "aht_nrpc": {"mu":  52, "sigma": 18},
-    "acw_rpc":  {"mu":  90, "sigma": 30},
-    "acw_nrpc": {"mu":  22, "sigma":  8},
-
-    # Per-agent personal AHT/ACW offsets (Gauss std dev)
-    "aht_rpc_adj_std":  30,
-    "aht_nrpc_adj_std": 10,
-    "acw_rpc_adj_std":  15,
-    "acw_nrpc_adj_std":  5,
-
-    # PTP mechanics
-    "promise_window_days": (3, 14),   # days client requests to pay
-    "grace_period_days":   (2,  4),   # bank buffer after promise window
-    "payment_delay_days":  (0, 16),   # actual payment arrival lag
-
-    "kp_noise_std":   0.05,
-    "schedule_hours": 8.0,
-    "break_minutes":  (45, 90),
-
-    # Anomaly injection (escalation AHT spikes)
-    "anomaly_prob": 0.018,
-    "anomaly_mul":  (2.0, 3.5),
-
-    "output_dir": str(OUTPUT_DIR),
-}
-
-# Product catalogue
-PRODUCT_CFG = {
-    "Tarjeta": {
-        "id": 1, "name": "Credit Card Standard",
-        "rate": 25.99, "grace_days": 25,
-        "rule": "2% of Balance",
-        "bal_range": (500, 25_000),
-        "rpc_boost": 1.00,   # no collateral — hardest to reach when evading
-    },
-    "Prestamo": {
-        "id": 2, "name": "Personal Loan 5yr",
-        "rate": 12.50, "grace_days": 0,
-        "rule": "Fixed Monthly Installment",
-        "bal_range": (3_000, 80_000),
-        "rpc_boost": 1.15,   # some collateral
-    },
-    "Hipoteca": {
-        "id": 3, "name": "Mortgage 30yr",
-        "rate": 5.85, "grace_days": 0,
-        "rule": "Fixed Monthly Installment",
-        "bal_range": (50_000, 500_000),
-        "rpc_boost": 1.22,   # highest collateral — most motivated to answer
-    },
-}
-
-# Call-outcome pools
-CONTACT_NON_RPC = (["Third_Party", "Wrong_Number", "Message_w_Relative"], [0.45, 0.35, 0.20])
-NON_CONTACT = (["Voicemail", "No_Answer", "Busy"], [0.60, 0.30, 0.10])
-
-PAY_METHODS = ["Online", "Branch/ATM", "OFI"]
-PAY_WEIGHTS  = [0.45,    0.25, 0.30]
+CFG["output_dir"] = str(OUTPUT_DIR)
+CFG["start_date"] = date(2025, 10, 1)
+CFG["end_date"]   = date(2025, 12, 31)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CLI ARGUMENTS

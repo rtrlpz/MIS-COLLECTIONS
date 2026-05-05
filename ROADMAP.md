@@ -35,8 +35,8 @@
 - [X] Add generator logging (console + file with timestamps, row counts, elapsed time, anomalies injected, --log-level arg)
 - [X] Add output validation post-generation (row counts ±5%, no nulls in PKs, FK integrity)
 - [ ] Add `requirements.txt` with pinned hashes (`--require-hashes`)
-- [ ] Create `data_sources/__init__.py` (make it a proper Python package)
-- [ ] Add `data_sources/generators/config.py` (centralize constants)
+- [X] Create `data_sources/__init__.py` (make it a proper Python package)
+- [X] Add `data_sources/generators/config.py` (centralize constants)
 - [ ] Add anomaly injection report (`anomaly_report.csv`)
 - [ ] Add `data_sources/generators/README.md`
 
