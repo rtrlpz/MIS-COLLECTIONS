@@ -173,7 +173,10 @@ run_pipeline.bat
   - Agent scorecard view (database/migrations/003_agents_scorecards.sql) — NEXT TASK
   - 17 analysis SQL files (all skeletoned under analysis/sql/)
   - Test implementations (Phase 6)
-  - Database indexes, constraints, comments (Phase 3 partial)
+  - Database indexes, constraints, comments (Phase 3 partial) — RECENTLY COMPLETED:
+    - `004_indexes.sql` — 27 indexes (16 FK/date + 5 single-column + 6 composite)
+    - `003_constraints.sql` — 15 CHECK constraints across all fact and dimension tables
+    - `005_comments.sql` — COMMENT ON statements for all 11 tables and their columns
   - Automation (Phase 7)
   - BI/reporting (Phase 9)
   - Final docs (Phase 8)

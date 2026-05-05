@@ -682,7 +682,7 @@ Use ALTER TABLE <table> ADD CONSTRAINT chk_<table>_<column> CHECK (...);
 
 **PROMPT:**
 ```
-Create database/migrations/004_comments.sql with COMMENT ON statements for all 11 tables and their columns.
+Create database/migrations/005_comments.sql with COMMENT ON statements for all 11 tables and their columns.
 Example format:
   COMMENT ON TABLE dim_agents IS 'Collection agents with supervisor assignment, skill score, and hire date';
   COMMENT ON COLUMN dim_agents.agent_id IS 'Unique agent identifier (format: AGT_XXX)';
@@ -692,7 +692,7 @@ Generate comments for every table and every column based on the schema in 001_cr
 Keep comments concise but descriptive -- explain what the column stores, not just its name.
 ```
 
-**VERIFY:** `psql -f database/migrations/004_comments.sql` runs. Then `\d+ dim_agents` in psql shows column descriptions.
+**VERIFY:** `psql -f database/migrations/005_comments.sql` runs. Then `\d+ dim_agents` in psql shows column descriptions.
 
 **COMMIT:** `feat: add COMMENT ON for all tables and columns`
 
