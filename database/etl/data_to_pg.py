@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 from io import StringIO
 from pathlib import Path
@@ -9,7 +10,7 @@ from dotenv import load_dotenv
 
 """
 Script de Ingesta V2 - Adaptado para carpetas mensuales (Shared vs Transaccional)
-Antes de correr este script, asegurarse que la base de datos y sus tablas han sido creadas. 
+Antes de correr este script, asegurarse que la base de datos y sus tablas han sido creadas.
 """
 
 LOG_DIR = Path(__file__).resolve().parent / "logs"
@@ -76,6 +77,69 @@ TRANSACTIONAL_TABLES = [
 # Mantenemos el orden de ingesta para respetar las dependencias de Foreign Keys
 TABLE_ORDER = SHARED_TABLES + TRANSACTIONAL_TABLES
 
+# Mapeo de Primary Keys por tabla
+PK_MAPPING = {
+    'Dim_Supervisors': 'supervisor_id',
+    'Dim_Agents': 'agent_id',
+    'Dim_Clients': 'client_id',
+    'Dim_Products': 'product_id',
+    'Dim_Accounts': 'account_id',
+    'Fact_Interactions': 'interaction_id',
+    'Fact_PTP_Log': 'ptp_id',
+    'Fact_Payments': 'payment_id',
+    'Fact_Agent_Time_Log': 'log_id',
+}
+
+
+def validate_csv(file_path: Path, table_name: str) -> tuple[bool, str]:
+    """
+    Validate a CSV file before ingestion.
+    Returns (is_valid, error_message).
+    Checks:
+      1. File exists
+      2. Has headers (not empty)
+      3. Row count > 0
+      4. Primary key column has no null values
+         For Fact_EOM_Snapshot: both snapshot_date and account_id must not be null
+    """
+    # 1. File exists
+    if not file_path.exists():
+        return False, f"File not found: {file_path}"
+
+    try:
+        df = pd.read_csv(file_path)
+    except Exception as e:
+        return False, f"Failed to read CSV: {e}"
+
+    # 2. Has headers (check if columns are not empty)
+    if len(df.columns) == 0 or all(col.strip() == '' for col in df.columns):
+        return False, "CSV has no valid headers"
+
+    # 3. Row count > 0
+    if len(df) == 0:
+        return False, "CSV has 0 rows"
+
+    # 4. Primary key / required columns null check
+    if table_name == 'Fact_EOM_Snapshot':
+        # Special case: validate both snapshot_date and account_id
+        if 'snapshot_date' in df.columns and df['snapshot_date'].isna().any():
+            null_count = df['snapshot_date'].isna().sum()
+            return False, f"snapshot_date has {null_count} null values"
+        if 'account_id' in df.columns and df['account_id'].isna().any():
+            null_count = df['account_id'].isna().sum()
+            return False, f"account_id has {null_count} null values"
+    else:
+        pk_col = PK_MAPPING.get(table_name)
+        if pk_col and pk_col in df.columns:
+            if df[pk_col].isna().any():
+                null_count = df[pk_col].isna().sum()
+                return False, f"Primary key '{pk_col}' has {null_count} null values"
+        elif pk_col:
+            return False, f"Primary key column '{pk_col}' not found in CSV"
+
+    return True, "Validation passed"
+
+
 # --- 2. FUNCIÓN PARA LA INGESTA ---
 def ingest_data_to_pg(df: pd.DataFrame, table_name: str, conn):
     """ Cargar un DataFrame de pandas a una tabla de PostgreSQL usando COPY_FROM """
@@ -113,6 +177,8 @@ def ingest_data_to_pg(df: pd.DataFrame, table_name: str, conn):
 # --- 3. PROCESO PRINCIPAL ---
 def main():
     conn = None
+    t_start = time.time()
+
     try:
         logging.info("Trying to connect to PostgreSQL...")
         conn = psycopg2.connect(**DB_CONFIG)
@@ -121,13 +187,15 @@ def main():
         logging.info("--- STARTING INGESTION ---")
 
         for table_name in TABLE_ORDER:
+            t_table = time.time()
 
             if table_name in SHARED_TABLES:
                 # 1. Tablas compartidas (Buscamos en la carpeta /shared/)
                 csv_file = DATA_DIR / 'shared' / f'{table_name}.csv'
 
-                if not csv_file.exists():
-                    logging.error(f"File {csv_file} not found. Skipping...")
+                is_valid, msg = validate_csv(csv_file, table_name)
+                if not is_valid:
+                    logging.error(f"Validation failed for {table_name}: {msg}. Skipping...")
                     continue
 
                 df = pd.read_csv(csv_file)
@@ -135,6 +203,7 @@ def main():
                 # IMPORTANTE: Se eliminó el bloque legacy "if table_name == 'agents'"
 
                 ingest_data_to_pg(df, table_name, conn)
+                logging.info(f"  {table_name} processed in {time.time() - t_table:.1f} seconds")
 
             else:
                 # 2. Tablas Transaccionales (Optimizadas para cargar mes a mes sin colapsar la RAM)
@@ -142,13 +211,20 @@ def main():
                 month_dirs = [d for d in DATA_DIR.iterdir() if d.is_dir() and d.name != 'shared']
 
                 records_found = False
+                table_records = 0
 
                 for m_dir in sorted(month_dirs):  # Sorted para que entre en orden cronológico
                     csv_file = m_dir / f'{table_name}.csv'
 
                     if csv_file.exists():
+                        is_valid, msg = validate_csv(csv_file, table_name)
+                        if not is_valid:
+                            logging.error(f"Validation failed for {table_name} in {m_dir.name}: {msg}. Skipping...")
+                            continue
+
                         records_found = True
                         df_temp = pd.read_csv(csv_file)
+                        table_records += len(df_temp)
 
                         # Limpieza específica de datos
                         if 'rpc_flag' in df_temp.columns:
@@ -160,8 +236,11 @@ def main():
 
                 if not records_found:
                     logging.error(f"No data found for {table_name} in any month folders.")
+                else:
+                    logging.info(f"  {table_name} processed {table_records:,} records in {time.time() - t_table:.1f} seconds")
 
         logging.info("--- INGESTION COMPLETE ---")
+        logging.info(f"Total elapsed time: {time.time() - t_start:.1f} seconds")
 
     except psycopg2.OperationalError as e:
         logging.error(f"FATAL: No se pudo conectar a la base de datos. Error: {e}")
