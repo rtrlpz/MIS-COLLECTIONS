@@ -41,7 +41,9 @@ MIS-COLLECTIONS/
 ├── data_sources/                  # DATA GENERATION LAYER
 │   ├── README.md
 │   ├── generators/
-│   │   └── data_generator_v7.py   # Star schema generator (810 lines)
+│   │   ├── logs/                  # Generator run logs (git-ignored)
+│   │   │   └── generator.log      # Detailed run output with DEBUG-level daily progress
+│   │   └── data_generator_v7.py   # Star schema generator (~1,050 lines)
 │   └── schema/
 │       └── dictionary.md          # Column-level docs for all tables
 │
@@ -60,7 +62,7 @@ MIS-COLLECTIONS/
 ├── docs/                          # DOCUMENTATION LAYER
 │   ├── data_dictionary.md         # Full data dictionary (10 tables)
 │   ├── executive_summary.md       # One-page summary for leadership
-│   ├── execution_guide.md         # 1,544 lines — granular task instructions for each roadmap item
+│   ├── execution_guide.md         # Granular task instructions for each roadmap item
 │   └── kpi_definitions.md         # Comprehensive KPI reference (319 lines)
 │
 ├── reports/                       # EXCEL REPORTING LAYER
@@ -140,8 +142,8 @@ run_pipeline.bat
 
 ## Current State & Pending Work
 - **DONE**: Project restructure, data generator (v7), PostgreSQL schema, ETL pipeline, supervisor EDA (moved to team-level), Power BI dashboard (binary, not tracked), Excel template, full documentation, issue templates, test scaffolding
-- **DONE (this session)**: ROADMAP.md corrected priority order, Phase 3+5 merged, `docs/execution_guide.md` created (1,544 lines)
-- **PENDING**: Phase 1 generator improvements (CLI args, logging, validation), KPI views (002 — 7 views total), agent scorecard view (003), 17 analysis SQL files (all skeletoned), test implementations, ETL improvements, automation, BI/reporting, final docs
+- **DONE (Phase 1, Tasks 1-4)**: CLI args (`--output-dir`, `--months`, `--seed`), ISO 8601 dates + 2-decimal currency formatting, structured logging (console + file with `--log-level` arg), post-generation validation (21 checks: row counts, PK nulls, FK integrity, fact completeness)
+- **PENDING**: Phase 1 remaining tasks (requirements.txt with hashes, `__init__.py` packages, config.py extraction, anomaly report, generator README), Phase 2 ETL improvements, KPI views, 17 analysis SQL files, test implementations, automation, BI/reporting, final docs
 - **EMPTY FILES** (skeletons awaiting content): All files under `analysis/sql/`, `database/migrations/002_kpi_views.sql`, `database/migrations/003_agents_scorecards.sql`, `test/test_generator.py`, `test/test_kpi_views.sql`, `test/qa_validation.py`, `run_pipeline.bat`
 
 ## Session Notes

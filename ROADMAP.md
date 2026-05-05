@@ -32,7 +32,7 @@
 - [X] Add `--output-dir` and `--months` CLI parameters
 - [X] Add `--seed` flag for reproducibility (`python generator.py --seed 42`)
 - [X] Generate CSVs with headers and explicit dtypes (ISO 8601 dates, consistent decimals)
-- [X] Add generator logging (stdout: row counts, generation time, anomalies injected)
+- [X] Add generator logging (console + file with timestamps, row counts, elapsed time, anomalies injected, --log-level arg)
 - [X] Add output validation post-generation (row counts ±5%, no nulls in PKs, FK integrity)
 - [ ] Add `requirements.txt` with pinned hashes (`--require-hashes`)
 - [ ] Create `data_sources/__init__.py` (make it a proper Python package)

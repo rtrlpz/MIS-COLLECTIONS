@@ -88,17 +88,19 @@ Apply these formatting rules consistently across all CSV exports.
 
 **WHY** -> When the generator runs for 30+ seconds, you need visibility into what happened. Logging also enables the pipeline script (Phase 7) to capture output to a file for audit trails.
 
-**WHAT DONE** -> Running the generator produces timestamped `[INFO]` lines. At the end, a summary shows total time and rows generated per table.
+**WHAT DONE** -> Running the generator produces timestamped `[INFO]` lines on console. Logs are also written to `data_sources/generators/logs/generator.log` with DEBUG-level detail (daily simulation progress). A `--log-level` flag controls console verbosity (INFO/DEBUG/WARNING/ERROR). At the end, a summary shows total time and rows generated per table plus anomaly count.
 
 **PROMPT:**
 ```
 In data_sources/generators/data_generator_v7.py, replace all print() statements with Python's logging module.
-Configure logging at the top of the file:
-  import logging
-  logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+Configure logging with two handlers:
+  1. Console handler (StreamHandler, level=INFO): short timestamps "%H:%M:%S"
+  2. File handler (FileHandler, level=DEBUG): full timestamps, writes to data_sources/generators/logs/generator.log
+
+Add a --log-level CLI arg to control console verbosity.
 
 Add logging for:
-  - Generation start
+  - Generation start (output dir, date range, seed)
   - Each dimension/fact table generated (table name + row count)
   - Total anomalies injected
   - Generation complete + total elapsed time (use time.time())
@@ -106,7 +108,7 @@ Add logging for:
 Keep the output clean and readable. Use logging.info() for normal flow.
 ```
 
-**VERIFY:** `python data_generator_v7.py` produces formatted `[INFO]` lines with timestamps and a timing summary at the end.
+**VERIFY:** `python data_generator_v7.py` produces formatted `[INFO]` lines with timestamps and a timing summary at the end. `data_sources/generators/logs/generator.log` exists with full DEBUG-level output including daily progress. `--log-level DEBUG` shows per-day stats on console.
 
 **COMMIT:** `feat: replace print statements with structured logging module`
 
@@ -118,7 +120,7 @@ Keep the output clean and readable. Use logging.info() for normal flow.
 
 **WHY** -> Catches data corruption at the source. If the generator creates accounts referencing a `client_id` that doesn't exist in `Dim_Clients`, you want to know immediately -- not when the ETL fails or the dashboard shows wrong numbers.
 
-**WHAT DONE** -> After generation completes, a `[VALIDATION]` block prints PASS/FAIL for each check. The script exits with a non-zero code if any check fails.
+**WHAT DONE** -> After generation completes, a validation block prints `[PASS]`/`[FAIL]` for 21 checks (row counts, PK nulls, dimension FK integrity, fact table completeness, fact FK integrity). The script exits with `sys.exit(1)` if any check fails.
 
 **PROMPT:**
 ```
@@ -128,14 +130,15 @@ It should:
   2. Check row counts: Dim_Supervisors=8, Dim_Agents=80, Dim_Clients=10000, Dim_Accounts~=20000 (+/-5% tolerance for fact tables)
   3. Check no null values in PK columns (e.g., agent_id in Dim_Agents, account_id in Dim_Accounts)
   4. Check FK integrity: every supervisor_id in Dim_Agents exists in Dim_Supervisors, every client_id in Dim_Accounts exists in Dim_Clients, etc.
-  5. Print [PASS] or [FAIL] for each check with a brief description
-  6. Return True if all pass, False otherwise
+  5. Check fact tables have rows and their FK columns reference valid dimension entries
+  6. Print [PASS] or [FAIL] for each check with a brief description
+  7. Return True if all pass, False otherwise
 
 Call this function at the end of main() and exit with sys.exit(1) if validation fails.
 Use logging.info for validation messages.
 ```
 
-**VERIFY:** `python data_generator_v7.py` shows a `[VALIDATION]` section at the end with all `[PASS]` lines. Test a failure by temporarily breaking a FK in the generator code and confirming it prints `[FAIL]`.
+**VERIFY:** `python data_generator_v7.py` shows a validation section at the end with all `[PASS]` lines (21 checks). Test a failure by temporarily breaking a FK in the generator code and confirming it prints `[FAIL]` and exits with code 1.
 
 **COMMIT:** `feat: add post-generation validation with row count, PK, and FK integrity checks`
 
