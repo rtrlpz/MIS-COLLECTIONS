@@ -12,6 +12,7 @@ Strict Star Schema engine for Power BI:
 """
 
 import os
+import sys
 import time
 import random
 import logging
@@ -923,3 +924,147 @@ for period in pd.date_range(START, END, freq="MS"):
 
 elapsed = time.time() - t_start
 logger.info("Generation complete. Elapsed time: %.1f seconds", elapsed)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION 5 — POST-GENERATION VALIDATION
+# ═══════════════════════════════════════════════════════════════════════════
+
+def validate_output(output_dir):
+    """Validate generated CSVs for row counts, PK nulls, and FK integrity."""
+    shared = os.path.join(output_dir, "shared")
+    passed = True
+
+    def _check(description, condition):
+        nonlocal passed
+        tag = "[PASS]" if condition else "[FAIL]"
+        if not condition:
+            passed = False
+        logger.info("  %s  %s", tag, description)
+        return condition
+
+    # ── 1. Read dimension CSVs ────────────────────────────────────────
+    logger.info("Running post-generation validation...")
+
+    dim_tables = {}
+    for name in ["Dim_Supervisors", "Dim_Agents", "Dim_Clients",
+                 "Dim_Products", "Dim_Accounts", "Dim_Calendar"]:
+        path = os.path.join(shared, f"{name}.csv")
+        dim_tables[name] = pd.read_csv(path)
+
+    # ── 2. Row count checks ───────────────────────────────────────────
+    logger.info("  --- Row Counts ---")
+    _check("Dim_Supervisors == 8", len(dim_tables["Dim_Supervisors"]) == 8)
+    _check("Dim_Agents == 80", len(dim_tables["Dim_Agents"]) == 80)
+    _check("Dim_Clients == 10000", len(dim_tables["Dim_Clients"]) == 10_000)
+    _check("Dim_Products == 3", len(dim_tables["Dim_Products"]) == 3)
+
+    acct_count = len(dim_tables["Dim_Accounts"])
+    acct_ok = 15_000 <= acct_count <= 25_000
+    _check(f"Dim_Accounts ~20,000 (actual: {acct_count:,})", acct_ok)
+
+    # ── 3. PK null checks ─────────────────────────────────────────────
+    logger.info("  --- Primary Key Null Checks ---")
+    pk_checks = {
+        "Dim_Supervisors": "supervisor_id",
+        "Dim_Agents": "agent_id",
+        "Dim_Clients": "client_id",
+        "Dim_Products": "product_id",
+        "Dim_Accounts": "account_id",
+    }
+    for table, pk_col in pk_checks.items():
+        nulls = dim_tables[table][pk_col].isna().sum()
+        _check(f"{table}.{pk_col} has no nulls", nulls == 0)
+
+    # ── 4. FK integrity checks ────────────────────────────────────────
+    logger.info("  --- Foreign Key Integrity ---")
+
+    # Dim_Agents.supervisor_id → Dim_Supervisors.supervisor_id
+    sup_ids = set(dim_tables["Dim_Supervisors"]["supervisor_id"])
+    agent_sup_ids = set(dim_tables["Dim_Agents"]["supervisor_id"])
+    _check("All Dim_Agents.supervisor_id exist in Dim_Supervisors",
+           agent_sup_ids.issubset(sup_ids))
+
+    # Dim_Accounts.client_id → Dim_Clients.client_id
+    client_ids = set(dim_tables["Dim_Clients"]["client_id"])
+    acct_client_ids = set(dim_tables["Dim_Accounts"]["client_id"])
+    _check("All Dim_Accounts.client_id exist in Dim_Clients",
+           acct_client_ids.issubset(client_ids))
+
+    # Dim_Accounts.product_id → Dim_Products.product_id
+    prod_ids = set(dim_tables["Dim_Products"]["product_id"])
+    acct_prod_ids = set(dim_tables["Dim_Accounts"]["product_id"])
+    _check("All Dim_Accounts.product_id exist in Dim_Products",
+           acct_prod_ids.issubset(prod_ids))
+
+    # ── 5. Fact table non-empty check ─────────────────────────────────
+    logger.info("  --- Fact Table Completeness ---")
+    fact_tables = {
+        "Fact_Interactions": "interaction_date",
+        "Fact_PTP_Log": "ptp_date",
+        "Fact_Payments": "payment_date",
+        "Fact_Agent_Time_Log": "log_date",
+        "Fact_EOM_Snapshot": "snapshot_date",
+    }
+
+    # Read from first month folder
+    first_month = min(d for d in os.listdir(output_dir)
+                      if os.path.isdir(os.path.join(output_dir, d)))
+    month_dir = os.path.join(output_dir, first_month)
+
+    for name, date_col in fact_tables.items():
+        path = os.path.join(month_dir, f"{name}.csv")
+        fact_df = pd.read_csv(path)
+        _check(f"{name} has rows in {first_month} ({len(fact_df):,})",
+               len(fact_df) > 0)
+
+    # ── 6. Fact table FK checks (sample from first month) ─────────────
+    agent_ids_dim = set(dim_tables["Dim_Agents"]["agent_id"])
+    acct_ids_dim = set(dim_tables["Dim_Accounts"]["account_id"])
+
+    interactions = pd.read_csv(os.path.join(month_dir, "Fact_Interactions.csv"))
+    if "agent_id" in interactions.columns:
+        bad_agents = set(interactions["agent_id"].dropna()) - agent_ids_dim
+        _check("All Fact_Interactions.agent_id exist in Dim_Agents",
+               len(bad_agents) == 0)
+    if "account_id" in interactions.columns:
+        bad_accts = set(interactions["account_id"].dropna()) - acct_ids_dim
+        _check("All Fact_Interactions.account_id exist in Dim_Accounts",
+               len(bad_accts) == 0)
+
+    ptp = pd.read_csv(os.path.join(month_dir, "Fact_PTP_Log.csv"))
+    if "agent_id" in ptp.columns:
+        bad_agents = set(ptp["agent_id"].dropna()) - agent_ids_dim
+        _check("All Fact_PTP_Log.agent_id exist in Dim_Agents",
+               len(bad_agents) == 0)
+    if "account_id" in ptp.columns:
+        bad_accts = set(ptp["account_id"].dropna()) - acct_ids_dim
+        _check("All Fact_PTP_Log.account_id exist in Dim_Accounts",
+               len(bad_accts) == 0)
+
+    payments = pd.read_csv(os.path.join(month_dir, "Fact_Payments.csv"))
+    if "account_id" in payments.columns:
+        bad_accts = set(payments["account_id"].dropna()) - acct_ids_dim
+        _check("All Fact_Payments.account_id exist in Dim_Accounts",
+               len(bad_accts) == 0)
+
+    time_log = pd.read_csv(os.path.join(month_dir, "Fact_Agent_Time_Log.csv"))
+    if "agent_id" in time_log.columns:
+        bad_agents = set(time_log["agent_id"].dropna()) - agent_ids_dim
+        _check("All Fact_Agent_Time_Log.agent_id exist in Dim_Agents",
+               len(bad_agents) == 0)
+
+    eom = pd.read_csv(os.path.join(month_dir, "Fact_EOM_Snapshot.csv"))
+    if "account_id" in eom.columns:
+        bad_accts = set(eom["account_id"].dropna()) - acct_ids_dim
+        _check("All Fact_EOM_Snapshot.account_id exist in Dim_Accounts",
+               len(bad_accts) == 0)
+
+    logger.info("Validation result: %s", "ALL CHECKS PASSED" if passed else "SOME CHECKS FAILED")
+    return passed
+
+
+validation_ok = validate_output(CFG["output_dir"])
+if not validation_ok:
+    logger.error("Validation failed. Check logs for details.")
+    sys.exit(1)
