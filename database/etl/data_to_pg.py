@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import argparse
 import logging
@@ -20,13 +21,11 @@ parser.add_argument(
     "--env-file", type=str, default=None,
     help="Path to .env file (default: .env in script's directory)"
 )
+parser.add_argument(
+    "--dry-run", action="store_true",
+    help="Validate CSVs and print what would be loaded without connecting to database"
+)
 args = parser.parse_args()
-
-# Determine env file path
-if args.env_file:
-    env_file_path = Path(args.env_file).resolve()
-else:
-    env_file_path = Path(__file__).resolve().parent / ".env"
 
 # Configure logging early
 LOG_DIR = Path(__file__).resolve().parent / "logs"
@@ -43,38 +42,7 @@ logging.basicConfig(
     ]
 )
 
-# Load the specified env file
-load_dotenv(dotenv_path=env_file_path)
-logging.info(f"Loaded env file: {env_file_path}")
-
-# Obtenemos las variables. Si no existen en él .env, retornarán None.
-DB_USER = os.getenv('POSTGRES_USER')
-DB_PASSWORD = os.getenv('POSTGRES_PASSWORD')
-DB_NAME = os.getenv('POSTGRES_DB')
-DB_PORT = os.getenv('POSTGRES_PORT', '5432')  # Asegúrate que coincida con tu Docker
-DB_HOST = os.getenv('POSTGRES_HOST', 'localhost')
-
-# Validación de seguridad - list missing vars explicitly
-REQUIRED_ENV_VARS = ['POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB']
-missing_vars = [var for var in REQUIRED_ENV_VARS if not os.getenv(var)]
-
-if missing_vars:
-    error_msg = f"ERROR: Missing required environment variables: {', '.join(missing_vars)}"
-    error_msg += f"\nEnsure {env_file_path} exists and contains these variables."
-    logging.error(error_msg)
-    raise ValueError(error_msg)
-
-# --- 1. CONFIGURACIÓN DE CONEXIÓN A DB Y DATOS ---#
-DB_CONFIG = {
-    'host': DB_HOST,
-    'database': DB_NAME,
-    'user': DB_USER,
-    'password': DB_PASSWORD,
-    'port': DB_PORT
-}
-
 # Ruta RELATIVA
-# Sube tres niveles desde database/etl/ para llegar a la raíz del proyecto
 ROOT_PATH = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = ROOT_PATH / "data_sources" / "generators" / "raw"
 
@@ -96,7 +64,6 @@ TRANSACTIONAL_TABLES = [
     'Fact_PTP_Log'
 ]
 
-# Mantenemos el orden de ingesta para respetar las dependencias de Foreign Keys
 TABLE_ORDER = SHARED_TABLES + TRANSACTIONAL_TABLES
 
 # Mapeo de Primary Keys por tabla
@@ -113,18 +80,13 @@ PK_MAPPING = {
 }
 
 
-def validate_csv(file_path: Path, table_name: str) -> tuple[bool, str]:
+def validate_csv(file_path: Path, table_name: str) -> tuple:
     """
     Validate a CSV file before ingestion.
     Returns (is_valid, error_message).
-    Checks:
-      1. File exists
-      2. Has headers (not empty)
-      3. Row count > 0
-      4. Primary key column has no null values
-         For Fact_EOM_Snapshot: both snapshot_date and account_id must not be null
+    Checks: file exists, has headers, row count > 0, PK not null.
+    For Fact_EOM_Snapshot: both snapshot_date and account_id must not be null.
     """
-    # 1. File exists
     if not file_path.exists():
         return False, f"File not found: {file_path}"
 
@@ -133,17 +95,13 @@ def validate_csv(file_path: Path, table_name: str) -> tuple[bool, str]:
     except Exception as e:
         return False, f"Failed to read CSV: {e}"
 
-    # 2. Has headers (check if columns are not empty)
     if len(df.columns) == 0 or all(col.strip() == '' for col in df.columns):
         return False, "CSV has no valid headers"
 
-    # 3. Row count > 0
     if len(df) == 0:
         return False, "CSV has 0 rows"
 
-    # 4. Primary key / required columns null check
     if table_name == 'Fact_EOM_Snapshot':
-        # Special case: validate both snapshot_date and account_id
         if 'snapshot_date' in df.columns and df['snapshot_date'].isna().any():
             null_count = df['snapshot_date'].isna().sum()
             return False, f"snapshot_date has {null_count} null values"
@@ -162,37 +120,32 @@ def validate_csv(file_path: Path, table_name: str) -> tuple[bool, str]:
     return True, "Validation passed"
 
 
-# --- 2. FUNCIÓN PARA LA INGESTA ---
 def ingest_data_to_pg(df: pd.DataFrame, table_name: str, conn):
-    """ Cargar un DataFrame de pandas a una tabla de PostgreSQL usando COPY_FROM """
-    # Convertimos el nombre a minúsculas para que coincida exactamente con PostgreSQL
+    """Cargar un DataFrame de pandas a una tabla de PostgreSQL usando COPY_FROM"""
     pg_table_name = table_name.lower()
 
     logging.info(f"  -> Ingesting {pg_table_name}...")
 
     buffer = StringIO()
-    # Usamos na_rep='' para asegurar que los nulos de pandas se pasen limpios a Postgres
     df.to_csv(buffer, header=True, index=False, na_rep='')
     buffer.seek(0)
-    buffer.readline()  # Salta el header
+    buffer.readline()
 
     cursor = conn.cursor()
 
     try:
-        # Truncate table before loading (ensures clean slate for re-runs)
         try:
             cursor.execute(f"TRUNCATE TABLE {pg_table_name} CASCADE")
             logging.info(f"  [INFO] Truncated {pg_table_name}")
         except psycopg2.Error as te:
-            # Table may not exist yet; log warning and continue
             logging.warning(f"  [WARN] Could not truncate {pg_table_name}: {te}")
 
         cursor.copy_from(
             file=buffer,
-            table=pg_table_name,  # Usamos el nombre en minúsculas aquí
+            table=pg_table_name,
             sep=',',
             columns=df.columns.tolist(),
-            null=''  # Le dice a Postgres que los strings vacíos son NULL
+            null=''
         )
         conn.commit()
         logging.info(f"  [OK] {pg_table_name} completed. {len(df):,} records inserted.")
@@ -204,8 +157,98 @@ def ingest_data_to_pg(df: pd.DataFrame, table_name: str, conn):
         cursor.close()
 
 
-# --- 3. PROCESO PRINCIPAL ---
+def run_dry_run():
+    """Run validation only mode - print what would be loaded, no DB connection."""
+    all_passed = True
+    total_records = 0
+
+    logging.info("--- DRY-RUN MODE: Validating CSVs (no database connection) ---")
+
+    for table_name in TABLE_ORDER:
+        if table_name in SHARED_TABLES:
+            csv_file = DATA_DIR / 'shared' / f'{table_name}.csv'
+            is_valid, msg = validate_csv(csv_file, table_name)
+
+            if is_valid:
+                df = pd.read_csv(csv_file)
+                logging.info(f"  [OK] {table_name}: {csv_file} ({len(df):,} rows) - would load")
+                total_records += len(df)
+            else:
+                logging.error(f"  [FAIL] {table_name}: {msg}")
+                all_passed = False
+        else:
+            month_dirs = [d for d in DATA_DIR.iterdir() if d.is_dir() and d.name != 'shared']
+            table_records = 0
+            table_found = False
+
+            for m_dir in sorted(month_dirs):
+                csv_file = m_dir / f'{table_name}.csv'
+                if csv_file.exists():
+                    is_valid, msg = validate_csv(csv_file, table_name)
+
+                    if is_valid:
+                        df = pd.read_csv(csv_file)
+                        logging.info(f"  [OK] {table_name} [{m_dir.name}]: {csv_file} ({len(df):,} rows) - would load")
+                        table_records += len(df)
+                        table_found = True
+                    else:
+                        logging.error(f"  [FAIL] {table_name} [{m_dir.name}]: {msg}")
+                        all_passed = False
+
+            if table_found:
+                logging.info(f"  {table_name}: total {table_records:,} records would be loaded")
+                total_records += table_records
+            elif all_passed:
+                logging.error(f"  [FAIL] {table_name}: No data found in any month folders")
+                all_passed = False
+
+    logging.info("--- DRY-RUN COMPLETE ---")
+    logging.info(f"Total records that would be loaded: {total_records:,}")
+
+    if all_passed:
+        logging.info("All validations passed.")
+        sys.exit(0)
+    else:
+        logging.error("Some validations failed.")
+        sys.exit(1)
+
+
 def main():
+    if args.env_file:
+        env_file_path = Path(args.env_file).resolve()
+    else:
+        env_file_path = Path(__file__).resolve().parent / ".env"
+
+    load_dotenv(dotenv_path=env_file_path)
+    logging.info(f"Loaded env file: {env_file_path}")
+
+    DB_USER = os.getenv('POSTGRES_USER')
+    DB_PASSWORD = os.getenv('POSTGRES_PASSWORD')
+    DB_NAME = os.getenv('POSTGRES_DB')
+    DB_PORT = os.getenv('POSTGRES_PORT', '5432')
+    DB_HOST = os.getenv('POSTGRES_HOST', 'localhost')
+
+    REQUIRED_ENV_VARS = ['POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB']
+    missing_vars = [var for var in REQUIRED_ENV_VARS if not os.getenv(var)]
+
+    if missing_vars:
+        error_msg = f"ERROR: Missing required environment variables: {', '.join(missing_vars)}"
+        error_msg += f"\nEnsure {env_file_path} exists and contains these variables."
+        logging.error(error_msg)
+        raise ValueError(error_msg)
+
+    DB_CONFIG = {
+        'host': DB_HOST,
+        'database': DB_NAME,
+        'user': DB_USER,
+        'password': DB_PASSWORD,
+        'port': DB_PORT
+    }
+
+    if args.dry_run:
+        run_dry_run()
+        return
+
     conn = None
     t_start = time.time()
 
@@ -220,7 +263,6 @@ def main():
             t_table = time.time()
 
             if table_name in SHARED_TABLES:
-                # 1. Tablas compartidas (Buscamos en la carpeta /shared/)
                 csv_file = DATA_DIR / 'shared' / f'{table_name}.csv'
 
                 is_valid, msg = validate_csv(csv_file, table_name)
@@ -229,21 +271,17 @@ def main():
                     continue
 
                 df = pd.read_csv(csv_file)
-
-                # IMPORTANTE: Se eliminó el bloque legacy "if table_name == 'agents'"
-
                 ingest_data_to_pg(df, table_name, conn)
                 logging.info(f"  {table_name} processed in {time.time() - t_table:.1f} seconds")
 
             else:
-                # 2. Tablas Transaccionales (Optimizadas para cargar mes a mes sin colapsar la RAM)
                 logging.info(f"Processing transactional table: {table_name}")
                 month_dirs = [d for d in DATA_DIR.iterdir() if d.is_dir() and d.name != 'shared']
 
                 records_found = False
                 table_records = 0
 
-                for m_dir in sorted(month_dirs):  # Sorted para que entre en orden cronológico
+                for m_dir in sorted(month_dirs):
                     csv_file = m_dir / f'{table_name}.csv'
 
                     if csv_file.exists():
@@ -256,7 +294,6 @@ def main():
                         df_temp = pd.read_csv(csv_file)
                         table_records += len(df_temp)
 
-                        # Limpieza específica de datos
                         if 'rpc_flag' in df_temp.columns:
                             df_temp['rpc_flag'] = df_temp['rpc_flag'].astype(str).str.lower()
 
