@@ -1,5 +1,6 @@
 import os
 import time
+import argparse
 import logging
 from io import StringIO
 from pathlib import Path
@@ -13,6 +14,21 @@ Script de Ingesta V2 - Adaptado para carpetas mensuales (Shared vs Transaccional
 Antes de correr este script, asegurarse que la base de datos y sus tablas han sido creadas.
 """
 
+# --- PARSE CLI ARGUMENTS ---
+parser = argparse.ArgumentParser(description="Data ingestion script for MIS Collections")
+parser.add_argument(
+    "--env-file", type=str, default=None,
+    help="Path to .env file (default: .env in script's directory)"
+)
+args = parser.parse_args()
+
+# Determine env file path
+if args.env_file:
+    env_file_path = Path(args.env_file).resolve()
+else:
+    env_file_path = Path(__file__).resolve().parent / ".env"
+
+# Configure logging early
 LOG_DIR = Path(__file__).resolve().parent / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOG_DIR / "logs"
@@ -27,8 +43,9 @@ logging.basicConfig(
     ]
 )
 
-# Agrega esta línea para que Python lea el archivo .env
-load_dotenv()
+# Load the specified env file
+load_dotenv(dotenv_path=env_file_path)
+logging.info(f"Loaded env file: {env_file_path}")
 
 # Obtenemos las variables. Si no existen en él .env, retornarán None.
 DB_USER = os.getenv('POSTGRES_USER')
@@ -37,10 +54,15 @@ DB_NAME = os.getenv('POSTGRES_DB')
 DB_PORT = os.getenv('POSTGRES_PORT', '5432')  # Asegúrate que coincida con tu Docker
 DB_HOST = os.getenv('POSTGRES_HOST', 'localhost')
 
-# Validación de seguridad
-if not all([DB_USER, DB_PASSWORD, DB_NAME]):
-    raise ValueError(
-        "ERROR: Faltan credenciales. Asegúrate de que el archivo .env existe y contiene POSTGRES_USER, POSTGRES_PASSWORD y POSTGRES_DB.")
+# Validación de seguridad - list missing vars explicitly
+REQUIRED_ENV_VARS = ['POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB']
+missing_vars = [var for var in REQUIRED_ENV_VARS if not os.getenv(var)]
+
+if missing_vars:
+    error_msg = f"ERROR: Missing required environment variables: {', '.join(missing_vars)}"
+    error_msg += f"\nEnsure {env_file_path} exists and contains these variables."
+    logging.error(error_msg)
+    raise ValueError(error_msg)
 
 # --- 1. CONFIGURACIÓN DE CONEXIÓN A DB Y DATOS ---#
 DB_CONFIG = {
