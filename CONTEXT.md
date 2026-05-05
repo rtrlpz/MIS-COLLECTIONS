@@ -141,24 +141,12 @@ run_pipeline.bat
 ```
 
 ## Current State & Pending Work
-- **DONE**: Project restructure, data generator (v7), PostgreSQL schema, ETL pipeline, supervisor EDA (moved to team-level), Power BI dashboard (binary, not tracked), Excel template, full documentation, issue templates, test scaffolding
-- **DONE (Phase 1, Tasks 1-4)**: CLI args (`--output-dir`, `--months`, `--seed`), ISO 8601 dates + 2-decimal currency formatting, structured logging (console + file with `--log-level` arg), post-generation validation (21 checks: row counts, PK nulls, FK integrity, fact completeness)
-- **PENDING**: Phase 1 remaining tasks (requirements.txt with hashes, `__init__.py` packages, config.py extraction, anomaly report, generator README), Phase 2 ETL improvements, KPI views, 17 analysis SQL files, test implementations, automation, BI/reporting, final docs
+- **DONE**: Phase 1 complete (Data Generation hardening). Generator has CLI args, logging, validation, config extraction, anomaly tracking, and `requirements.txt`.
+- **PENDING**: Phase 2 ETL improvements (logging, retry, validation, transactions), Phase 3/5 KPI views (002 — 7 views total), agent scorecard view (003), 17 analysis SQL files (all skeletoned), test implementations (Phase 6), automation (Phase 7), BI/reporting (Phase 9), final docs (Phase 8)
 - **EMPTY FILES** (skeletons awaiting content): All files under `analysis/sql/`, `database/migrations/002_kpi_views.sql`, `database/migrations/003_agents_scorecards.sql`, `test/test_generator.py`, `test/test_kpi_views.sql`, `test/qa_validation.py`, `run_pipeline.bat`
 
 ## Session Notes
-- ROADMAP.md priority table corrected: Phase 1 → Phase 2 → Phase 3(+5) → Phase 4 → Phase 6 → Phase 9 → Phase 7 → Phase 8
-- Phase 3 and Phase 5 merged (same KPI view work was listed in both). 002_kpi_views.sql now contains 7 views (5 KPI + v_daily_mis + v_monthly_summary).
-- `docs/execution_guide.md` is the companion to ROADMAP.md — every task has PURPOSE, WHY, PROMPT, VERIFY, and COMMIT sections.
-- ETL file is `data_to_pg.py` (not V2 — the V2 file doesn't exist, the existing file is already V2).
-- OpenCode interaction pattern: one task per session, review code before committing, run before committing.
-
-## Important Notes
-- CSV data files are git-ignored (generated on demand)
-- `.env` contains local DB credentials — never commit
-- `.pbix` files are git-ignored (binary, large)
-- Architecture diagram at `dashboards/assets/screenshots/architecture_diagram.svg`
-- `analysis/sql/` is organized by audience: supervisors (operational), managers (tactical), directors (strategic)
-- Database uses numbered migrations (001, 002, 003) for versioned schema changes
-- `ROADMAP.md` links to `docs/execution_guide.md` for granular task instructions
-- Next work to start: Phase 1, Task 1 (CLI arguments for generator)
+- ROADMAP.md priority table: Phase 1 → Phase 2 → Phase 3(+5) → Phase 4 → Phase 6 → Phase 9 → Phase 7 → Phase 8
+- Phase 1 is 100% complete.
+- `docs/execution_guide.md` updated to reflect actual implementation details for Tasks 3 (logging with file + `--log-level`) and Task 4 (21 validation checks).
+- Next work to start: Phase 2, Task 1 (Add logging to `data_to_pg.py`)
