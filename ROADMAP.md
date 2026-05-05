@@ -54,7 +54,7 @@
 - [X] Add environment variable support (`python-dotenv` for DB credentials)
 - [X] Add `--dry-run` flag (validate files without loading)
 - [X] Add `--incremental` flag (load only new months)
-- [ ] Add error recovery (write failed rows to `errors/<table>_errors.csv`)
+- [X] Add error recovery (write failed rows to `errors/<table>_errors.csv`)
 - [ ] Add pipeline orchestration to `run_pipeline.bat`
 
 ---
