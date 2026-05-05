@@ -124,26 +124,25 @@ FROM monthly;
 -- Purpose: Promise KPIs per agent/day, team/day, and month
 -- ========================================================================
 CREATE OR REPLACE VIEW v_promise_metrics AS
-WITH agent_daily AS (
+WITH ptp_agent_daily AS (
     SELECT
         fpl.agent_id,
         da.agent_name,
         da.supervisor_id,
         ds.team_name,
-        fpl.ptp_date AS interaction_date,
+        fpl.ptp_date AS date,
         dc.month_num,
         dc.month_name,
         COUNT(*) AS ptp_count,
         SUM(CASE WHEN fpl.status = 'Kept' THEN 1 ELSE 0 END) AS kept_count,
-        SUM(CASE WHEN fpl.status = 'Broken' THEN 1 ELSE 0 END) AS broken_count,
-        SUM(fpl.promised_amount) AS promised_amount_total
+        SUM(CASE WHEN fpl.status = 'Broken' THEN 1 ELSE 0 END) AS broken_count
     FROM fact_ptp_log fpl
     JOIN dim_agents da ON fpl.agent_id = da.agent_id
     JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
     JOIN dim_calendar dc ON fpl.ptp_date = dc.date
     GROUP BY fpl.agent_id, da.agent_name, da.supervisor_id, ds.team_name, fpl.ptp_date, dc.month_num, dc.month_name
 ),
-rpc_counts AS (
+rpc_agent_daily AS (
     SELECT
         agent_id,
         interaction_date,
@@ -151,120 +150,469 @@ rpc_counts AS (
     FROM fact_interactions
     WHERE rpc_flag = TRUE
     GROUP BY agent_id, interaction_date
+),
+rpc_team_daily AS (
+    SELECT
+        da.supervisor_id,
+        fi.interaction_date,
+        COUNT(*) AS rpc_count
+    FROM fact_interactions fi
+    JOIN dim_agents da ON fi.agent_id = da.agent_id
+    WHERE fi.rpc_flag = TRUE
+    GROUP BY da.supervisor_id, fi.interaction_date
+),
+rpc_monthly AS (
+    SELECT
+        fi.agent_id,
+        dc.month_num,
+        COUNT(*) AS rpc_count
+    FROM fact_interactions fi
+    JOIN dim_calendar dc ON fi.interaction_date = dc.date
+    WHERE fi.rpc_flag = TRUE
+    GROUP BY fi.agent_id, dc.month_num
+),
+ptp_team_daily AS (
+    SELECT
+        supervisor_id,
+        team_name,
+        date,
+        month_num,
+        month_name,
+        SUM(ptp_count) AS ptp_count,
+        SUM(kept_count) AS kept_count,
+        SUM(broken_count) AS broken_count
+    FROM ptp_agent_daily
+    GROUP BY supervisor_id, team_name, date, month_num, month_name
+),
+ptp_monthly AS (
+    SELECT
+        agent_id,
+        agent_name,
+        supervisor_id,
+        team_name,
+        month_num,
+        month_name,
+        SUM(ptp_count) AS ptp_count,
+        SUM(kept_count) AS kept_count,
+        SUM(broken_count) AS broken_count
+    FROM ptp_agent_daily
+    GROUP BY agent_id, agent_name, supervisor_id, team_name, month_num, month_name
 )
 SELECT
-    ad.agent_id,
-    ad.agent_name,
-    ad.supervisor_id,
-    ad.team_name,
-    ad.interaction_date,
-    ad.month_num,
-    ad.month_name,
-    ad.ptp_count,
-    CASE
-        WHEN rc.rpc_count > 0 THEN ROUND(ad.ptp_count * 100.0 / rc.rpc_count, 2)
-        ELSE 0
-    END AS ptp_pct,
-    ad.kept_count,
-    ad.broken_count,
-    CASE
-        WHEN ad.ptp_count > 0 THEN ROUND(ad.kept_count * 100.0 / ad.ptp_count, 2)
-        ELSE 0
-    END AS kept_pct,
-    CASE
-        WHEN ad.ptp_count > 0 THEN ROUND(ad.broken_count * 100.0 / ad.ptp_count, 2)
-        ELSE 0
-    END AS broken_pct,
-    ad.promised_amount_total
-FROM agent_daily ad
-LEFT JOIN rpc_counts rc ON ad.agent_id = rc.agent_id AND ad.interaction_date = rc.interaction_date;
+    'agent' AS granularity,
+    pad.agent_id,
+    pad.agent_name,
+    pad.supervisor_id,
+    pad.team_name,
+    pad.date,
+    pad.month_num,
+    pad.month_name,
+    pad.ptp_count,
+    ROUND(pad.ptp_count * 100.0 / NULLIF(rad.rpc_count, 0), 2) AS ptp_pct,
+    pad.kept_count,
+    pad.broken_count,
+    ROUND(pad.kept_count * 100.0 / NULLIF(pad.ptp_count, 0), 2) AS kept_pct,
+    NULL AS bucket_conversion
+FROM ptp_agent_daily pad
+LEFT JOIN rpc_agent_daily rad ON pad.agent_id = rad.agent_id AND pad.date = rad.interaction_date
+
+UNION ALL
+
+SELECT
+    'team' AS granularity,
+    NULL AS agent_id,
+    NULL AS agent_name,
+    ptd.supervisor_id,
+    ptd.team_name,
+    ptd.date,
+    ptd.month_num,
+    ptd.month_name,
+    ptd.ptp_count,
+    ROUND(ptd.ptp_count * 100.0 / NULLIF(rtd.rpc_count, 0), 2) AS ptp_pct,
+    ptd.kept_count,
+    ptd.broken_count,
+    ROUND(ptd.kept_count * 100.0 / NULLIF(ptd.ptp_count, 0), 2) AS kept_pct,
+    NULL AS bucket_conversion
+FROM ptp_team_daily ptd
+LEFT JOIN rpc_team_daily rtd ON ptd.supervisor_id = rtd.supervisor_id AND ptd.date = rtd.interaction_date
+
+UNION ALL
+
+SELECT
+    'monthly' AS granularity,
+    pm.agent_id,
+    pm.agent_name,
+    pm.supervisor_id,
+    pm.team_name,
+    NULL AS date,
+    pm.month_num,
+    pm.month_name,
+    pm.ptp_count,
+    ROUND(pm.ptp_count * 100.0 / NULLIF(rm.rpc_count, 0), 2) AS ptp_pct,
+    pm.kept_count,
+    pm.broken_count,
+    ROUND(pm.kept_count * 100.0 / NULLIF(pm.ptp_count, 0), 2) AS kept_pct,
+    NULL AS bucket_conversion
+FROM ptp_monthly pm
+LEFT JOIN rpc_monthly rm ON pm.agent_id = rm.agent_id AND pm.month_num = rm.month_num;
 
 -- ========================================================================
 -- 3. v_recovery_metrics
 -- Purpose: Recovery KPIs - cures, cured amounts, agent vs self-cures
 -- ========================================================================
 CREATE OR REPLACE VIEW v_recovery_metrics AS
+WITH agent_daily AS (
+    SELECT
+        fp.payment_date AS date,
+        dc.month_num,
+        dc.month_name,
+        fp.agent_id,
+        da.agent_name,
+        da.supervisor_id,
+        ds.team_name,
+        dp.product_id,
+        dp.product_name,
+        COUNT(*) AS payment_count,
+        SUM(CASE WHEN fp.is_cured THEN 1 ELSE 0 END) AS cure_count,
+        SUM(CASE WHEN fp.is_cured THEN fp.amount_paid ELSE 0 END) AS cured_amount,
+        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN 1 ELSE 0 END) AS agent_cure_count,
+        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN 1 ELSE 0 END) AS self_cure_count
+    FROM fact_payments fp
+    JOIN dim_calendar dc ON fp.payment_date = dc.date
+    JOIN dim_accounts da2 ON fp.account_id = da2.account_id
+    JOIN dim_products dp ON da2.product_id = dp.product_id
+    LEFT JOIN dim_agents da ON fp.agent_id = da.agent_id
+    LEFT JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+    GROUP BY fp.payment_date, dc.month_num, dc.month_name, fp.agent_id, da.agent_name, da.supervisor_id, ds.team_name, dp.product_id, dp.product_name
+),
+product_daily AS (
+    SELECT
+        fp.payment_date AS date,
+        dc.month_num,
+        dc.month_name,
+        dp.product_id,
+        dp.product_name,
+        COUNT(*) AS payment_count,
+        SUM(CASE WHEN fp.is_cured THEN 1 ELSE 0 END) AS cure_count,
+        SUM(CASE WHEN fp.is_cured THEN fp.amount_paid ELSE 0 END) AS cured_amount,
+        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN 1 ELSE 0 END) AS agent_cure_count,
+        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN 1 ELSE 0 END) AS self_cure_count
+    FROM fact_payments fp
+    JOIN dim_calendar dc ON fp.payment_date = dc.date
+    JOIN dim_accounts da2 ON fp.account_id = da2.account_id
+    JOIN dim_products dp ON da2.product_id = dp.product_id
+    GROUP BY fp.payment_date, dc.month_num, dc.month_name, dp.product_id, dp.product_name
+),
+agent_monthly AS (
+    SELECT
+        fp.agent_id,
+        da.agent_name,
+        da.supervisor_id,
+        ds.team_name,
+        dc.month_num,
+        dc.month_name,
+        COUNT(*) AS payment_count,
+        SUM(CASE WHEN fp.is_cured THEN 1 ELSE 0 END) AS cure_count,
+        SUM(CASE WHEN fp.is_cured THEN fp.amount_paid ELSE 0 END) AS cured_amount,
+        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN 1 ELSE 0 END) AS agent_cure_count,
+        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN 1 ELSE 0 END) AS self_cure_count
+    FROM fact_payments fp
+    JOIN dim_calendar dc ON fp.payment_date = dc.date
+    LEFT JOIN dim_agents da ON fp.agent_id = da.agent_id
+    LEFT JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+    GROUP BY fp.agent_id, da.agent_name, da.supervisor_id, ds.team_name, dc.month_num, dc.month_name
+),
+product_monthly AS (
+    SELECT
+        dp.product_id,
+        dp.product_name,
+        dc.month_num,
+        dc.month_name,
+        COUNT(*) AS payment_count,
+        SUM(CASE WHEN fp.is_cured THEN 1 ELSE 0 END) AS cure_count,
+        SUM(CASE WHEN fp.is_cured THEN fp.amount_paid ELSE 0 END) AS cured_amount,
+        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN 1 ELSE 0 END) AS agent_cure_count,
+        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN 1 ELSE 0 END) AS self_cure_count
+    FROM fact_payments fp
+    JOIN dim_calendar dc ON fp.payment_date = dc.date
+    JOIN dim_accounts da2 ON fp.account_id = da2.account_id
+    JOIN dim_products dp ON da2.product_id = dp.product_id
+    GROUP BY dp.product_id, dp.product_name, dc.month_num, dc.month_name
+)
 SELECT
-    fp.payment_date,
-    dc.month_num,
-    dc.month_name,
-    fp.agent_id,
-    da.agent_name,
-    da.supervisor_id,
-    ds.team_name,
-    dp.product_id,
-    dp.product_name,
-    COUNT(*) AS payment_count,
-    SUM(CASE WHEN fp.is_cured THEN 1 ELSE 0 END) AS cure_count,
-    SUM(CASE WHEN fp.is_cured THEN fp.amount_paid ELSE 0 END) AS cured_amount,
-    CASE
-        WHEN COUNT(*) > 0 THEN ROUND(SUM(CASE WHEN fp.is_cured THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2)
-        ELSE 0
-    END AS cure_rate,
-    SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN 1 ELSE 0 END) AS agent_cure_count,
-    SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN 1 ELSE 0 END) AS self_cure_count
-FROM fact_payments fp
-JOIN dim_calendar dc ON fp.payment_date = dc.date
-JOIN dim_accounts da2 ON fp.account_id = da2.account_id
-JOIN dim_products dp ON da2.product_id = dp.product_id
-LEFT JOIN dim_agents da ON fp.agent_id = da.agent_id
-LEFT JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
-GROUP BY fp.payment_date, dc.month_num, dc.month_name, fp.agent_id, da.agent_name, da.supervisor_id, ds.team_name, dp.product_id, dp.product_name;
+    'agent' AS granularity,
+    ad.date,
+    ad.month_num,
+    ad.month_name,
+    ad.agent_id,
+    ad.agent_name,
+    ad.supervisor_id,
+    ad.team_name,
+    ad.product_id,
+    ad.product_name,
+    ad.payment_count,
+    ad.cure_count,
+    ad.cured_amount,
+    ROUND(ad.cure_count * 100.0 / NULLIF(ad.payment_count, 0), 2) AS cure_rate,
+    ad.agent_cure_count,
+    ad.self_cure_count
+FROM agent_daily ad
+
+UNION ALL
+
+SELECT
+    'product' AS granularity,
+    pd.date,
+    pd.month_num,
+    pd.month_name,
+    NULL AS agent_id,
+    NULL AS agent_name,
+    NULL AS supervisor_id,
+    NULL AS team_name,
+    pd.product_id,
+    pd.product_name,
+    pd.payment_count,
+    pd.cure_count,
+    pd.cured_amount,
+    ROUND(pd.cure_count * 100.0 / NULLIF(pd.payment_count, 0), 2) AS cure_rate,
+    pd.agent_cure_count,
+    pd.self_cure_count
+FROM product_daily pd
+
+UNION ALL
+
+SELECT
+    'monthly_agent' AS granularity,
+    NULL AS date,
+    am.month_num,
+    am.month_name,
+    am.agent_id,
+    am.agent_name,
+    am.supervisor_id,
+    am.team_name,
+    NULL AS product_id,
+    NULL AS product_name,
+    am.payment_count,
+    am.cure_count,
+    am.cured_amount,
+    ROUND(am.cure_count * 100.0 / NULLIF(am.payment_count, 0), 2) AS cure_rate,
+    am.agent_cure_count,
+    am.self_cure_count
+FROM agent_monthly am
+
+UNION ALL
+
+SELECT
+    'monthly_product' AS granularity,
+    NULL AS date,
+    pm.month_num,
+    pm.month_name,
+    NULL AS agent_id,
+    NULL AS agent_name,
+    NULL AS supervisor_id,
+    NULL AS team_name,
+    pm.product_id,
+    pm.product_name,
+    pm.payment_count,
+    pm.cure_count,
+    pm.cured_amount,
+    ROUND(pm.cure_count * 100.0 / NULLIF(pm.payment_count, 0), 2) AS cure_rate,
+    pm.agent_cure_count,
+    pm.self_cure_count
+FROM product_monthly pm;
 
 -- ========================================================================
 -- 4. v_productivity_metrics
 -- Purpose: Productivity KPIs - utilization, contacts per hour, no-touch rate
 -- ========================================================================
 CREATE OR REPLACE VIEW v_productivity_metrics AS
+WITH agent_daily AS (
+    SELECT
+        atl.log_date AS date,
+        dc.month_num,
+        dc.month_name,
+        atl.agent_id,
+        da.agent_name,
+        da.supervisor_id,
+        ds.team_name,
+        atl.utilization AS utilization_pct,
+        atl.operational_hours,
+        atl.schedule_hours,
+        COALESCE(fi.total_calls, 0) AS total_calls
+    FROM fact_agent_time_log atl
+    JOIN dim_agents da ON atl.agent_id = da.agent_id
+    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+    JOIN dim_calendar dc ON atl.log_date = dc.date
+    LEFT JOIN (
+        SELECT agent_id, interaction_date, SUM(calls_attempted) AS total_calls
+        FROM fact_interactions
+        GROUP BY agent_id, interaction_date
+    ) fi ON atl.agent_id = fi.agent_id AND atl.log_date = fi.interaction_date
+),
+team_daily AS (
+    SELECT
+        supervisor_id,
+        team_name,
+        date,
+        month_num,
+        month_name,
+        AVG(utilization_pct) AS utilization_pct,
+        SUM(operational_hours) AS operational_hours,
+        SUM(schedule_hours) AS schedule_hours,
+        SUM(total_calls) AS total_calls
+    FROM agent_daily
+    GROUP BY supervisor_id, team_name, date, month_num, month_name
+),
+monthly AS (
+    SELECT
+        agent_id,
+        agent_name,
+        supervisor_id,
+        team_name,
+        month_num,
+        month_name,
+        AVG(utilization_pct) AS utilization_pct,
+        SUM(operational_hours) AS operational_hours,
+        SUM(schedule_hours) AS schedule_hours,
+        SUM(total_calls) AS total_calls
+    FROM agent_daily
+    GROUP BY agent_id, agent_name, supervisor_id, team_name, month_num, month_name
+)
 SELECT
-    atl.log_date AS date,
-    dc.month_num,
-    dc.month_name,
-    atl.agent_id,
-    da.agent_name,
-    da.supervisor_id,
-    ds.team_name,
-    atl.utilization AS utilization_pct,
+    'agent' AS granularity,
+    date,
+    month_num,
+    month_name,
+    agent_id,
+    agent_name,
+    supervisor_id,
+    team_name,
+    ROUND(utilization_pct, 2) AS utilization_pct,
     CASE
-        WHEN atl.operational_hours > 0 THEN ROUND(fi.total_calls::numeric / atl.operational_hours, 2)
+        WHEN operational_hours > 0 THEN ROUND(total_calls::numeric / operational_hours, 2)
         ELSE 0
     END AS contacts_per_agent_hour,
     CASE
-        WHEN atl.schedule_hours > 0 THEN ROUND((1 - (atl.utilization / 100)) * 100, 2)
+        WHEN schedule_hours > 0 THEN ROUND((1 - (utilization_pct / 100)) * 100, 2)
         ELSE 0
     END AS no_touch_letter_rate
-FROM fact_agent_time_log atl
-JOIN dim_agents da ON atl.agent_id = da.agent_id
-JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
-JOIN dim_calendar dc ON atl.log_date = dc.date
-LEFT JOIN (
-    SELECT agent_id, interaction_date, SUM(calls_attempted) AS total_calls
-    FROM fact_interactions
-    GROUP BY agent_id, interaction_date
-) fi ON atl.agent_id = fi.agent_id AND atl.log_date = fi.interaction_date;
+FROM agent_daily
+
+UNION ALL
+
+SELECT
+    'team' AS granularity,
+    date,
+    month_num,
+    month_name,
+    NULL AS agent_id,
+    NULL AS agent_name,
+    supervisor_id,
+    team_name,
+    ROUND(utilization_pct, 2) AS utilization_pct,
+    CASE
+        WHEN operational_hours > 0 THEN ROUND(total_calls::numeric / operational_hours, 2)
+        ELSE 0
+    END AS contacts_per_agent_hour,
+    CASE
+        WHEN schedule_hours > 0 THEN ROUND((1 - (utilization_pct / 100)) * 100, 2)
+        ELSE 0
+    END AS no_touch_letter_rate
+FROM team_daily
+
+UNION ALL
+
+SELECT
+    'monthly' AS granularity,
+    NULL AS date,
+    month_num,
+    month_name,
+    agent_id,
+    agent_name,
+    supervisor_id,
+    team_name,
+    ROUND(utilization_pct, 2) AS utilization_pct,
+    CASE
+        WHEN operational_hours > 0 THEN ROUND(total_calls::numeric / operational_hours, 2)
+        ELSE 0
+    END AS contacts_per_agent_hour,
+    CASE
+        WHEN schedule_hours > 0 THEN ROUND((1 - (utilization_pct / 100)) * 100, 2)
+        ELSE 0
+    END AS no_touch_letter_rate
+FROM monthly;
 
 -- ========================================================================
 -- 5. v_handle_time_metrics
 -- Purpose: AHT and ACW metrics separated by RPC and non-RPC
 -- ========================================================================
 CREATE OR REPLACE VIEW v_handle_time_metrics AS
-SELECT
-    fi.interaction_date AS date,
-    dc.month_num,
-    dc.month_name,
-    fi.agent_id,
-    da.agent_name,
-    da.supervisor_id,
-    ds.team_name,
-    ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_rpc,
-    ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_nonrpc,
-    ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_rpc,
-    ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_nonrpc
-FROM fact_interactions fi
-JOIN dim_agents da ON fi.agent_id = da.agent_id
-JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
-JOIN dim_calendar dc ON fi.interaction_date = dc.date
-GROUP BY fi.interaction_date, dc.month_num, dc.month_name, fi.agent_id, da.agent_name, da.supervisor_id, ds.team_name;
+WITH agent_daily AS (
+    SELECT
+        fi.interaction_date AS date,
+        dc.month_num,
+        dc.month_name,
+        fi.agent_id,
+        da.agent_name,
+        da.supervisor_id,
+        ds.team_name,
+        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_rpc,
+        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_nonrpc,
+        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_rpc,
+        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_nonrpc
+    FROM fact_interactions fi
+    JOIN dim_agents da ON fi.agent_id = da.agent_id
+    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+    JOIN dim_calendar dc ON fi.interaction_date = dc.date
+    GROUP BY fi.interaction_date, dc.month_num, dc.month_name, fi.agent_id, da.agent_name, da.supervisor_id, ds.team_name
+),
+team_daily AS (
+    SELECT
+        interaction_date AS date,
+        dc.month_num,
+        dc.month_name,
+        da.supervisor_id,
+        ds.team_name,
+        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_rpc,
+        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_nonrpc,
+        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_rpc,
+        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_nonrpc
+    FROM fact_interactions fi
+    JOIN dim_agents da ON fi.agent_id = da.agent_id
+    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+    JOIN dim_calendar dc ON fi.interaction_date = dc.date
+    GROUP BY fi.interaction_date, dc.month_num, dc.month_name, da.supervisor_id, ds.team_name
+),
+monthly AS (
+    SELECT
+        dc.month_num,
+        dc.month_name,
+        fi.agent_id,
+        da.agent_name,
+        da.supervisor_id,
+        ds.team_name,
+        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_rpc,
+        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_nonrpc,
+        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_rpc,
+        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_nonrpc
+    FROM fact_interactions fi
+    JOIN dim_agents da ON fi.agent_id = da.agent_id
+    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+    JOIN dim_calendar dc ON fi.interaction_date = dc.date
+    GROUP BY dc.month_num, dc.month_name, fi.agent_id, da.agent_name, da.supervisor_id, ds.team_name
+)
+SELECT 'agent' AS granularity, date, month_num, month_name, agent_id, agent_name, supervisor_id, team_name, avg_aht_rpc, avg_aht_nonrpc, avg_acw_rpc, avg_acw_nonrpc
+FROM agent_daily
+
+UNION ALL
+
+SELECT 'team' AS granularity, date, month_num, month_name, NULL AS agent_id, NULL AS agent_name, supervisor_id, team_name, avg_aht_rpc, avg_aht_nonrpc, avg_acw_rpc, avg_acw_nonrpc
+FROM team_daily
+
+UNION ALL
+
+SELECT 'monthly' AS granularity, NULL AS date, month_num, month_name, agent_id, agent_name, supervisor_id, team_name, avg_aht_rpc, avg_aht_nonrpc, avg_acw_rpc, avg_acw_nonrpc
+FROM monthly;
 
 -- ========================================================================
 -- 6. v_daily_mis
@@ -292,45 +640,156 @@ SELECT
     rm.cure_count,
     rm.cured_amount,
     rm.cure_rate,
+    rm.agent_cure_count,
+    rm.self_cure_count,
     pr.utilization_pct,
     pr.contacts_per_agent_hour,
+    pr.no_touch_letter_rate,
     ht.avg_aht_rpc,
     ht.avg_aht_nonrpc,
     ht.avg_acw_rpc,
     ht.avg_acw_nonrpc
-FROM v_contact_metrics cm
-LEFT JOIN v_promise_metrics pm ON cm.agent_id = pm.agent_id AND cm.date = pm.interaction_date AND cm.granularity = 'agent'
-LEFT JOIN v_recovery_metrics rm ON cm.agent_id = rm.agent_id AND cm.date = rm.payment_date AND cm.granularity = 'agent'
-LEFT JOIN v_productivity_metrics pr ON cm.agent_id = pr.agent_id AND cm.date = pr.date AND cm.granularity = 'agent'
-LEFT JOIN v_handle_time_metrics ht ON cm.agent_id = ht.agent_id AND cm.date = ht.date AND cm.granularity = 'agent'
-WHERE cm.granularity = 'agent';
+FROM (
+    SELECT *
+    FROM v_contact_metrics
+    WHERE granularity = 'agent'
+) cm
+LEFT JOIN (
+    SELECT *
+    FROM v_promise_metrics
+    WHERE granularity = 'agent'
+) pm ON cm.agent_id = pm.agent_id AND cm.date = pm.date
+LEFT JOIN (
+    SELECT *
+    FROM v_recovery_metrics
+    WHERE granularity = 'agent'
+) rm ON cm.agent_id = rm.agent_id AND cm.date = rm.date
+LEFT JOIN (
+    SELECT *
+    FROM v_productivity_metrics
+    WHERE granularity = 'agent'
+) pr ON cm.agent_id = pr.agent_id AND cm.date = pr.date
+LEFT JOIN (
+    SELECT *
+    FROM v_handle_time_metrics
+    WHERE granularity = 'agent'
+) ht ON cm.agent_id = ht.agent_id AND cm.date = ht.date;
 
 -- ========================================================================
 -- 7. v_monthly_summary
--- Purpose: Month-level rollup of all KPIs for dashboard trends
+-- Purpose: Month-level rollup of all KPIs for dashboard trends and MoM comparisons
 -- ========================================================================
 CREATE OR REPLACE VIEW v_monthly_summary AS
-SELECT
-    cm.month_num,
-    cm.month_name,
-    cm.agent_id,
-    cm.agent_name,
-    cm.supervisor_id,
-    cm.team_name,
-    SUM(cm.total_calls) AS total_calls,
-    SUM(cm.connected_calls) AS connected_calls,
-    SUM(cm.rpc_count) AS rpc_count,
-    ROUND(AVG(cm.rpc_pct), 2) AS avg_rpc_pct,
-    SUM(pm.ptp_count) AS ptp_count,
-    ROUND(AVG(pm.ptp_pct), 2) AS avg_ptp_pct,
-    SUM(pm.kept_count) AS kept_count,
-    ROUND(AVG(pm.kept_pct), 2) AS avg_kept_pct,
-    SUM(rm.cure_count) AS cure_count,
-    ROUND(AVG(rm.cure_rate), 2) AS avg_cure_rate,
-    ROUND(AVG(pr.utilization_pct), 2) AS avg_utilization_pct
-FROM v_contact_metrics cm
-LEFT JOIN v_promise_metrics pm ON cm.agent_id = pm.agent_id AND cm.month_num = pm.month_num AND cm.granularity = 'monthly'
-LEFT JOIN v_recovery_metrics rm ON cm.agent_id = rm.agent_id AND cm.month_num = rm.month_num AND cm.granularity = 'monthly'
-LEFT JOIN v_productivity_metrics pr ON cm.agent_id = pr.agent_id AND cm.month_num = pr.month_num AND cm.granularity = 'monthly'
-WHERE cm.granularity = 'monthly'
-GROUP BY cm.month_num, cm.month_name, cm.agent_id, cm.agent_name, cm.supervisor_id, cm.team_name;
+WITH agent_monthly AS (
+    SELECT
+        cm.month_num,
+        cm.month_name,
+        cm.agent_id,
+        cm.agent_name,
+        cm.supervisor_id,
+        cm.team_name,
+        SUM(cm.total_calls) AS total_calls,
+        SUM(cm.connected_calls) AS connected_calls,
+        SUM(cm.rpc_count) AS rpc_count,
+        ROUND(AVG(cm.rpc_pct), 2) AS avg_rpc_pct,
+        SUM(pm.ptp_count) AS ptp_count,
+        ROUND(AVG(pm.ptp_pct), 2) AS avg_ptp_pct,
+        SUM(pm.kept_count) AS kept_count,
+        ROUND(AVG(pm.kept_pct), 2) AS avg_kept_pct,
+        SUM(rm.cure_count) AS cure_count,
+        ROUND(AVG(rm.cure_rate), 2) AS avg_cure_rate,
+        SUM(rm.agent_cure_count) AS agent_cure_count,
+        SUM(rm.self_cure_count) AS self_cure_count,
+        ROUND(AVG(pr.utilization_pct), 2) AS avg_utilization_pct,
+        ROUND(AVG(ht.avg_aht_rpc), 2) AS avg_aht_rpc,
+        ROUND(AVG(ht.avg_aht_nonrpc), 2) AS avg_aht_nonrpc,
+        ROUND(AVG(ht.avg_acw_rpc), 2) AS avg_acw_rpc,
+        ROUND(AVG(ht.avg_acw_nonrpc), 2) AS avg_acw_nonrpc
+    FROM (SELECT * FROM v_contact_metrics WHERE granularity = 'monthly') cm
+    LEFT JOIN (SELECT * FROM v_promise_metrics WHERE granularity = 'monthly') pm 
+        ON cm.agent_id = pm.agent_id AND cm.month_num = pm.month_num
+    LEFT JOIN (SELECT * FROM v_recovery_metrics WHERE granularity = 'monthly_agent') rm 
+        ON cm.agent_id = rm.agent_id AND cm.month_num = rm.month_num
+    LEFT JOIN (SELECT * FROM v_productivity_metrics WHERE granularity = 'monthly') pr 
+        ON cm.agent_id = pr.agent_id AND cm.month_num = pr.month_num
+    LEFT JOIN (SELECT * FROM v_handle_time_metrics WHERE granularity = 'monthly') ht 
+        ON cm.agent_id = ht.agent_id AND cm.month_num = ht.month_num
+    GROUP BY cm.month_num, cm.month_name, cm.agent_id, cm.agent_name, cm.supervisor_id, cm.team_name
+),
+team_monthly AS (
+    SELECT
+        cm.month_num,
+        cm.month_name,
+        NULL AS agent_id,
+        NULL AS agent_name,
+        cm.supervisor_id,
+        cm.team_name,
+        SUM(cm.total_calls) AS total_calls,
+        SUM(cm.connected_calls) AS connected_calls,
+        SUM(cm.rpc_count) AS rpc_count,
+        ROUND(AVG(cm.rpc_pct), 2) AS avg_rpc_pct,
+        SUM(pm.ptp_count) AS ptp_count,
+        ROUND(AVG(pm.ptp_pct), 2) AS avg_ptp_pct,
+        SUM(pm.kept_count) AS kept_count,
+        ROUND(AVG(pm.kept_pct), 2) AS avg_kept_pct,
+        SUM(rm.cure_count) AS cure_count,
+        ROUND(AVG(rm.cure_rate), 2) AS avg_cure_rate,
+        SUM(rm.agent_cure_count) AS agent_cure_count,
+        SUM(rm.self_cure_count) AS self_cure_count,
+        ROUND(AVG(pr.utilization_pct), 2) AS avg_utilization_pct,
+        ROUND(AVG(ht.avg_aht_rpc), 2) AS avg_aht_rpc,
+        ROUND(AVG(ht.avg_aht_nonrpc), 2) AS avg_aht_nonrpc,
+        ROUND(AVG(ht.avg_acw_rpc), 2) AS avg_acw_rpc,
+        ROUND(AVG(ht.avg_acw_nonrpc), 2) AS avg_acw_nonrpc
+    FROM (SELECT * FROM v_contact_metrics WHERE granularity = 'monthly') cm
+    LEFT JOIN (SELECT * FROM v_promise_metrics WHERE granularity = 'monthly') pm 
+        ON cm.supervisor_id = pm.supervisor_id AND cm.month_num = pm.month_num
+    LEFT JOIN (SELECT * FROM v_recovery_metrics WHERE granularity = 'monthly_agent') rm 
+        ON cm.supervisor_id = rm.supervisor_id AND cm.month_num = rm.month_num
+    LEFT JOIN (SELECT * FROM v_productivity_metrics WHERE granularity = 'monthly') pr 
+        ON cm.supervisor_id = pr.supervisor_id AND cm.month_num = pr.month_num
+    LEFT JOIN (SELECT * FROM v_handle_time_metrics WHERE granularity = 'monthly') ht 
+        ON cm.supervisor_id = ht.supervisor_id AND cm.month_num = ht.month_num
+    GROUP BY cm.month_num, cm.month_name, cm.supervisor_id, cm.team_name
+),
+portfolio_monthly AS (
+    SELECT
+        cm.month_num,
+        cm.month_name,
+        NULL AS agent_id,
+        NULL AS agent_name,
+        NULL AS supervisor_id,
+        NULL AS team_name,
+        SUM(cm.total_calls) AS total_calls,
+        SUM(cm.connected_calls) AS connected_calls,
+        SUM(cm.rpc_count) AS rpc_count,
+        ROUND(AVG(cm.rpc_pct), 2) AS avg_rpc_pct,
+        SUM(pm.ptp_count) AS ptp_count,
+        ROUND(AVG(pm.ptp_pct), 2) AS avg_ptp_pct,
+        SUM(pm.kept_count) AS kept_count,
+        ROUND(AVG(pm.kept_pct), 2) AS avg_kept_pct,
+        SUM(rm.cure_count) AS cure_count,
+        ROUND(AVG(rm.cure_rate), 2) AS avg_cure_rate,
+        SUM(rm.agent_cure_count) AS agent_cure_count,
+        SUM(rm.self_cure_count) AS self_cure_count,
+        ROUND(AVG(pr.utilization_pct), 2) AS avg_utilization_pct,
+        ROUND(AVG(ht.avg_aht_rpc), 2) AS avg_aht_rpc,
+        ROUND(AVG(ht.avg_aht_nonrpc), 2) AS avg_aht_nonrpc,
+        ROUND(AVG(ht.avg_acw_rpc), 2) AS avg_acw_rpc,
+        ROUND(AVG(ht.avg_acw_nonrpc), 2) AS avg_acw_nonrpc
+    FROM (SELECT * FROM v_contact_metrics WHERE granularity = 'monthly') cm
+    LEFT JOIN (SELECT * FROM v_promise_metrics WHERE granularity = 'monthly') pm 
+        ON cm.month_num = pm.month_num
+    LEFT JOIN (SELECT * FROM v_recovery_metrics WHERE granularity = 'monthly_agent') rm 
+        ON cm.month_num = rm.month_num
+    LEFT JOIN (SELECT * FROM v_productivity_metrics WHERE granularity = 'monthly') pr 
+        ON cm.month_num = pr.month_num
+    LEFT JOIN (SELECT * FROM v_handle_time_metrics WHERE granularity = 'monthly') ht 
+        ON cm.month_num = ht.month_num
+    GROUP BY cm.month_num, cm.month_name
+)
+SELECT 'agent' AS granularity, * FROM agent_monthly
+UNION ALL
+SELECT 'team' AS granularity, * FROM team_monthly
+UNION ALL
+SELECT 'portfolio' AS granularity, * FROM portfolio_monthly;
