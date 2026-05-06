@@ -1,5 +1,5 @@
 -- ============================================================================
--- 002_dim_calendar.sql — Seed Data for Dim_Calendar
+-- 002_dim_calendar.sql â€” Seed Data for Dim_Calendar
 -- ============================================================================
 -- Purpose: Insert 365 rows for the 2025 calendar year with business flags
 -- ============================================================================
@@ -370,4 +370,5 @@ VALUES
 ('2025-12-28', 2025, 4, 12, 'December', 52, 7, 'Sunday', FALSE, FALSE, FALSE, 1.0),
 ('2025-12-29', 2025, 4, 12, 'December', 1, 1, 'Monday', TRUE, FALSE, TRUE, 1.3),
 ('2025-12-30', 2025, 4, 12, 'December', 1, 2, 'Tuesday', TRUE, FALSE, TRUE, 1.3),
-('2025-12-31', 2025, 4, 12, 'December', 1, 3, 'Wednesday', TRUE, TRUE, TRUE, 1.3);
+('2025-12-31', 2025, 4, 12, 'December', 1, 3, 'Wednesday', TRUE, TRUE, TRUE, 1.3)
+ON CONFLICT (date) DO NOTHING;

@@ -1,5 +1,5 @@
 -- ============================================================================
--- 005_comments.sql — Table and Column Comments for Documentation
+-- 006_comments.sql — Table and Column Comments for Documentation
 -- ============================================================================
 -- Purpose: Add descriptive comments to all tables and columns in the database
 -- schema. These comments appear in pgAdmin, system catalogs, and help

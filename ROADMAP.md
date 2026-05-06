@@ -64,13 +64,14 @@
 - [X] Add indexes on FK columns (`Dim_Agents.supervisor_id`, `Dim_Accounts.client_id`, `Dim_Accounts.product_id`, all fact FK columns)
 - [X] Add indexes on common query columns (`Dim_Calendar.date`, `Fact_Interactions.interaction_date`, `Fact_PTP_Log.ptp_date`)
 - [X] Add composite indexes (`(product_id, month)`, `(agent_id, interaction_date)`, `(supervisor_id, month)`)
-- [x] Populate `002_kpi_views.sql` (7 views: v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics, v_daily_mis, v_monthly_summary)
-- [X] Populate `003_agents_scorecards.sql` (agent composite score view) ← NEXT TASK
+- [x] Populate `002_kpi_views.sql` (9 views: v_contact_metrics, v_promise_metrics, v_recovery_metrics, v_productivity_metrics, v_handle_time_metrics, v_daily_mis, v_monthly_summary, v_etl_load_summary, v_data_freshness)
+- [X] Add CHECK constraints (`003_constraints.sql`)
+- [X] Populate `004_agents_scorecards.sql` (agent composite score view)
 - [X] Create seed SQL scripts (`seeds/001_dim_products.sql`, `seeds/002_dim_calendar.sql`)
-- [X] Add CHECK constraints (DPD >= 0, utilization BETWEEN 0 AND 100, call_duration > 0)
-- [X] Add COMMENT ON TABLE/COLUMN for all tables
-- [ ] Create `v_etl_load_summary` view
-- [ ] Add data freshness query
+- [X] Add indexes (`005_indexes.sql`)
+- [X] Add COMMENT ON TABLE/COLUMN for all tables (`006_comments.sql`)
+- [X] Create `v_etl_load_summary` view (in 002_kpi_views.sql)
+- [X] Add `v_data_freshness` view (in 002_kpi_views.sql)
 - [X] `v_contact_metrics` — RPC, RPC%, RPC/OpHr, RPC Arrears by agent/day/team/month
 - [X] `v_promise_metrics` — PTP count, PTP%, kept/broken count, kept%, BB conversion
 - [X] `v_recovery_metrics` — cures, cured amount, cure rate, agent vs self-cure

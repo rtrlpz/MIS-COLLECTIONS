@@ -564,7 +564,7 @@ Use color codes if possible (green for success, red for errors).
 
 **PROMPT:**
 ```
-Create database/migrations/004_indexes.sql with CREATE INDEX statements for all FK columns:
+Create database/migrations/005_indexes.sql with CREATE INDEX statements for all FK columns:
   - dim_agents(supervisor_id)
   - dim_accounts(client_id)
   - dim_accounts(product_id)
@@ -602,7 +602,7 @@ Add a comment at the top explaining the purpose of the file.
 
 **PROMPT:**
 ```
-Append to database/migrations/004_indexes.sql additional indexes for common query patterns:
+Append to database/migrations/005_indexes.sql additional indexes for common query patterns:
   - fact_interactions(rpc_flag) -- for filtering connected vs not connected
   - fact_ptp_log(status) -- for filtering kept/broken PTPs
   - fact_payments(is_cured) -- for filtering cured accounts
@@ -628,7 +628,7 @@ Use CREATE INDEX IF NOT EXISTS with descriptive names.
 
 **PROMPT:**
 ```
-Append to database/migrations/004_indexes.sql:
+Append to database/migrations/005_indexes.sql:
   - fact_interactions(agent_id, interaction_date) -- for per-agent daily queries
   - fact_ptp_log(agent_id, ptp_date) -- for per-agent PTP tracking
   - fact_agent_time_log(agent_id, log_date) -- for per-agent daily utilization
@@ -682,7 +682,7 @@ Use ALTER TABLE <table> ADD CONSTRAINT chk_<table>_<column> CHECK (...);
 
 **PROMPT:**
 ```
-Create database/migrations/005_comments.sql with COMMENT ON statements for all 11 tables and their columns.
+Create database/migrations/006_comments.sql with COMMENT ON statements for all 11 tables and their columns.
 Example format:
   COMMENT ON TABLE dim_agents IS 'Collection agents with supervisor assignment, skill score, and hire date';
   COMMENT ON COLUMN dim_agents.agent_id IS 'Unique agent identifier (format: AGT_XXX)';
@@ -692,7 +692,7 @@ Generate comments for every table and every column based on the schema in 001_cr
 Keep comments concise but descriptive -- explain what the column stores, not just its name.
 ```
 
-**VERIFY:** `psql -f database/migrations/005_comments.sql` runs. Then `\d+ dim_agents` in psql shows column descriptions.
+**VERIFY:** `psql -f database/migrations/006_comments.sql` runs. Then `\d+ dim_agents` in psql shows column descriptions.
 
 **COMMIT:** `feat: add COMMENT ON for all tables and columns`
 
@@ -821,7 +821,7 @@ Write v_monthly_summary:
 
 ---
 
-### Task 8: Populate Agent Scorecard View in `003_agents_scorecards.sql`
+### Task 8: Populate Agent Scorecard View in `004_agents_scorecards.sql`
 
 **PURPOSE** -> Create a composite score for each agent combining multiple KPIs with weights. Rank agents within their team.
 
@@ -831,7 +831,7 @@ Write v_monthly_summary:
 
 **PROMPT:**
 ```
-Write database/migrations/003_agents_scorecards.sql creating a view v_agent_scorecards:
+Write database/migrations/004_agents_scorecards.sql creating a view v_agent_scorecards:
   - Composite score = weighted combination of:
     - rpc_pct * 0.25 (25% weight)
     - kept_pct * 0.25 (25% weight)
@@ -844,7 +844,7 @@ Write database/migrations/003_agents_scorecards.sql creating a view v_agent_scor
   - Group by agent and month for monthly scorecards
 ```
 
-**VERIFY:** `psql -f database/migrations/003_agents_scorecards.sql` runs. `SELECT agent_name, composite_score, team_rank FROM v_agent_scorecards WHERE month_num = 10 ORDER BY composite_score DESC LIMIT 10;` returns ranked agents.
+**VERIFY:** `psql -f database/migrations/004_agents_scorecards.sql` runs. `SELECT agent_name, composite_score, team_rank FROM v_agent_scorecards WHERE month_num = 10 ORDER BY composite_score DESC LIMIT 10;` returns ranked agents.
 
 **COMMIT:** `feat: populate v_agent_scorecards composite score view`
 

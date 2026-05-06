@@ -1,5 +1,5 @@
 -- ============================================================================
--- 003_agents_scorecards.sql — Agent Scorecard View
+-- 004_agents_scorecards.sql — Agent Scorecard View
 -- ============================================================================
 -- Purpose: Monthly agent scorecards with composite performance scores
 -- Composite score = weighted combination of 5 KPIs, each normalized to 0-100

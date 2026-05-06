@@ -1,5 +1,5 @@
 -- ============================================================================
--- 004_indexes.sql — Database Indexes for Performance Optimization
+-- 005_indexes.sql — Database Indexes for Performance Optimization
 -- ============================================================================
 -- Purpose: Create indexes on all foreign key columns and frequently queried
 -- date columns across dimension and fact tables. These indexes improve query

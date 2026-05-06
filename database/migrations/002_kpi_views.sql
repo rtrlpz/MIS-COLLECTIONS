@@ -1,6 +1,6 @@
 -- ========================================================================
 -- 002_kpi_views.sql
--- 7 KPI Views for Collections Analytics
+-- 9 KPI Views for Collections Analytics
 -- ========================================================================
 
 -- ========================================================================
@@ -58,20 +58,20 @@ monthly AS (
 )
 SELECT
     'agent' AS granularity,
-    agent_id,
-    agent_name,
-    supervisor_id,
-    team_name,
-    interaction_date AS date,
-    month_num,
-    month_name,
-    total_calls,
-    connected_calls,
-    rpc_count,
-    ROUND(rpc_count * 100.0 / NULLIF(connected_calls, 0), 2) AS rpc_pct,
-    ROUND(rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
+    ad.agent_id,
+    ad.agent_name,
+    ad.supervisor_id,
+    ad.team_name,
+    ad.interaction_date AS date,
+    ad.month_num,
+    ad.month_name,
+    ad.total_calls,
+    ad.connected_calls,
+    ad.rpc_count,
+    ROUND(ad.rpc_count * 100.0 / NULLIF(ad.connected_calls, 0), 2) AS rpc_pct,
+    ROUND(ad.rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
     CASE
-        WHEN operational_hours > 0 THEN ROUND(rpc_count::numeric / operational_hours, 2)
+        WHEN atl.operational_hours > 0 THEN ROUND(ad.rpc_count::numeric / atl.operational_hours, 2)
         ELSE 0
     END AS rpc_per_operating_hour
 FROM agent_daily ad
@@ -87,37 +87,37 @@ SELECT
     'team' AS granularity,
     NULL AS agent_id,
     NULL AS agent_name,
-    supervisor_id,
-    team_name,
-    interaction_date AS date,
-    month_num,
-    month_name,
-    total_calls,
-    connected_calls,
-    rpc_count,
-    ROUND(rpc_count * 100.0 / NULLIF(connected_calls, 0), 2) AS rpc_pct,
-    ROUND(rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
+    td.supervisor_id,
+    td.team_name,
+    td.interaction_date AS date,
+    td.month_num,
+    td.month_name,
+    td.total_calls,
+    td.connected_calls,
+    td.rpc_count,
+    ROUND(td.rpc_count * 100.0 / NULLIF(td.connected_calls, 0), 2) AS rpc_pct,
+    ROUND(td.rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
     NULL AS rpc_per_operating_hour
-FROM team_daily
+FROM team_daily td
 
 UNION ALL
 
 SELECT
     'monthly' AS granularity,
-    agent_id,
-    agent_name,
-    supervisor_id,
-    team_name,
+    md.agent_id,
+    md.agent_name,
+    md.supervisor_id,
+    md.team_name,
     NULL AS date,
-    month_num,
-    month_name,
-    total_calls,
-    connected_calls,
-    rpc_count,
-    ROUND(rpc_count * 100.0 / NULLIF(connected_calls, 0), 2) AS rpc_pct,
-    ROUND(rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
+    md.month_num,
+    md.month_name,
+    md.total_calls,
+    md.connected_calls,
+    md.rpc_count,
+    ROUND(md.rpc_count * 100.0 / NULLIF(md.connected_calls, 0), 2) AS rpc_pct,
+    ROUND(md.rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
     NULL AS rpc_per_operating_hour
-FROM monthly;
+FROM monthly md;
 
 -- ========================================================================
 -- 2. v_promise_metrics
@@ -258,7 +258,7 @@ LEFT JOIN rpc_monthly rm ON pm.agent_id = rm.agent_id AND pm.month_num = rm.mont
 
 -- ========================================================================
 -- 3. v_recovery_metrics
--- Purpose: Recovery KPIs - cures, cured amounts, agent vs self-cures
+-- Purpose: Recovery KPIs - cures, cured amounts, agent vs self cures
 -- ========================================================================
 CREATE OR REPLACE VIEW v_recovery_metrics AS
 WITH agent_daily AS (
@@ -650,29 +650,19 @@ SELECT
     ht.avg_acw_rpc,
     ht.avg_acw_nonrpc
 FROM (
-    SELECT *
-    FROM v_contact_metrics
-    WHERE granularity = 'agent'
+    SELECT * FROM v_contact_metrics WHERE granularity = 'agent'
 ) cm
 LEFT JOIN (
-    SELECT *
-    FROM v_promise_metrics
-    WHERE granularity = 'agent'
+    SELECT * FROM v_promise_metrics WHERE granularity = 'agent'
 ) pm ON cm.agent_id = pm.agent_id AND cm.date = pm.date
 LEFT JOIN (
-    SELECT *
-    FROM v_recovery_metrics
-    WHERE granularity = 'agent'
+    SELECT * FROM v_recovery_metrics WHERE granularity = 'agent'
 ) rm ON cm.agent_id = rm.agent_id AND cm.date = rm.date
 LEFT JOIN (
-    SELECT *
-    FROM v_productivity_metrics
-    WHERE granularity = 'agent'
+    SELECT * FROM v_productivity_metrics WHERE granularity = 'agent'
 ) pr ON cm.agent_id = pr.agent_id AND cm.date = pr.date
 LEFT JOIN (
-    SELECT *
-    FROM v_handle_time_metrics
-    WHERE granularity = 'agent'
+    SELECT * FROM v_handle_time_metrics WHERE granularity = 'agent'
 ) ht ON cm.agent_id = ht.agent_id AND cm.date = ht.date;
 
 -- ========================================================================
@@ -798,6 +788,15 @@ SELECT 'portfolio' AS granularity, * FROM portfolio_monthly;
 -- 8. v_etl_load_summary
 -- Purpose: Summary of latest ETL load per table from etl_load_log
 -- ========================================================================
+CREATE TABLE IF NOT EXISTS etl_load_log (
+    id SERIAL PRIMARY KEY,
+    table_name TEXT NOT NULL,
+    rows_loaded INT,
+    loaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status TEXT,
+    csv_checksum TEXT
+);
+
 CREATE OR REPLACE VIEW v_etl_load_summary AS
 WITH ranked AS (
     SELECT
