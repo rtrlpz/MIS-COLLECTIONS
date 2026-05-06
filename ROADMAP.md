@@ -85,27 +85,27 @@
 ## PHASE 4 — Analysis SQL (Current: 8% → Target: 100%)
 
 ### Supervisor-Level (6 files)
-- [ ] `daily_agent_activity.sql` — per-agent daily totals + running window totals
-- [ ] `agent_scorecard.sql` — composite weighted score + rank within team
-- [ ] `coaching_opportunities.sql` — flag agents with WoW metric drops
-- [ ] `agent_exception_report.sql` — outliers: top/bottom 5 by RPC%, AHT, PTP kept%
-- [ ] `schedule_adherence.sql` — hourly activity vs expected, gap detection
-- [ ] `eda_agents.sql` — distribution analysis, tenure vs RPC% correlation
+- [X] `daily_agent_activity.sql` — per-agent daily totals + running window totals
+- [X] `agent_scorecard.sql` — composite weighted score + rank within team
+- [X] `coaching_opportunities.sql` — flag agents with WoW metric drops
+- [X] `agent_exception_report.sql` — outliers: top/bottom 5 by RPC%, AHT, PTP kept%
+- [X] `schedule_adherence.sql` — hourly activity vs expected, gap detection
+- [X] `eda_agents.sql` — distribution analysis, tenure vs RPC% correlation
 
 ### Manager-Level (6 files)
-- [ ] `team_comparison.sql` — side-by-side team metrics + t-test approximation
-- [ ] `agent_leaderboard.sql` — top/bottom 10, trend columns, WoW position changes
-- [ ] `campaign_effectiveness.sql` — contact frequency vs RPC%, PTP set rate by time of day
-- [ ] `handle_time_benchmark.sql` — AHT by product/agent/region vs SLA targets
-- [ ] `workload_distribution.sql` — accounts/calls per agent, deviation from team avg
-- [ ] `eda_supervisors.sql` — validate existing 464 lines + add supervisor tenure correlation
+- [X] `team_comparison.sql` — side-by-side team metrics + t-test approximation
+- [X] `agent_leaderboard.sql` — top/bottom 10, trend columns, WoW position changes
+- [X] `campaign_effectiveness.sql` — contact frequency vs RPC%, PTP set rate by time of day
+- [X] `handle_time_benchmark.sql` — AHT by product/agent/region vs SLA targets
+- [X] `workload_distribution.sql` — accounts/calls per agent, deviation from team avg
+- [X] `eda_supervisors.sql` — validate existing 464 lines + add supervisor tenure correlation
 
 ### Director-Level (5 files)
-- [ ] `portfolio_health.sql` — % accounts per DPD bucket, cure rate by product, arrears trend
-- [ ] `roll_rate_analysis.sql` — 30→60→90→120+ DPD migration matrix, MoM roll rates
-- [ ] `recovery_trend_mom.sql` — MoM cures, cure rate, cost-to-collect, seasonal patterns
-- [ ] `portfolio_concentration.sql` — top 10% by balance, geographic/product mix risk
-- [ ] `target_vs_actual.sql` — KPI targets vs actuals, gap analysis, trend to target
+- [X] `portfolio_health.sql` — % accounts per DPD bucket, cure rate by product, arrears trend
+- [X] `roll_rate_analysis.sql` — 30→60→90→120+ DPD migration matrix, MoM roll rates
+- [X] `recovery_trend_mom.sql` — MoM cures, cure rate, cost-to-collect, seasonal patterns
+- [X] `portfolio_concentration.sql` — top 10% by balance, geographic/product mix risk
+- [X] `target_vs_actual.sql` — KPI targets vs actuals, gap analysis, trend to target
 
 ---
 

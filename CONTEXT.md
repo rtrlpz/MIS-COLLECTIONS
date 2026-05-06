@@ -216,11 +216,29 @@ bash migrate.sh
 
 ### ⏳ PENDING (Next Phases)
 
-#### Phase 4 (Analysis SQL Files) — NEXT TO START
-- 17 analysis SQL files (all skeletoned under analysis/sql/)
-- **Agent Level (6 files)**: daily_agent_activity, agent_scorecard, agent_exception_report, coaching_opportunities, schedule_adherence, eda_agents
-- **Team Level (6 files)**: team_comparison, agent_leaderboard, handle_time_benchmark, workload_distribution, campaign_effectiveness, eda_supervisors
-- **Portfolio Level (5 files)**: portfolio_health, recovery_trend_mom, target_vs_actual, portfolio_concentration, roll_rate_analysis
+#### Phase 4 (Analysis SQL Files) — IN PROGRESS (13 of 17 COMPLETE)
+**Agent Level (6 files)**:
+- ✅ `coaching_opportunities.sql` — COMPLETE (flags agents with WoW drops >5pp RPC, >10pp Kept%, >10pp utilization)
+- ✅ `schedule_adherence.sql` — COMPLETE (hourly activity vs expected schedule 8-12, 13-17)
+- ✅ `eda_agents.sql` — COMPLETE (histogram RPC%, summary stats, PERCENTILE_CONT distribution)
+- ❌ `daily_agent_activity.sql` — EMPTY
+- ❌ `agent_scorecard.sql` — EXISTS (uses v_agent_scorecards)
+- ❌ `agent_exception_report.sql` — EMPTY
+
+**Team Level (6 files)**:
+- ✅ `team_comparison.sql` — COMPLETE (side-by-side monthly metrics, std dev highlighting)
+- ✅ `agent_leaderboard.sql` — COMPLETE (Top/Bottom 10 with MoM trends using LAG())
+- ✅ `handle_time_benchmark.sql` — COMPLETE (AHT by product/agent/region, SLA compliance)
+- ✅ `workload_distribution.sql` — COMPLETE (accounts/calls per agent, z-score outliers)
+- ✅ `campaign_effectiveness.sql` — COMPLETE (scatter plot data, hourly PTP conversion)
+- ✅ `eda_supervisors.sql` — COMPLETE (team performance, regional comparison, no tenure data available)
+
+**Portfolio Level (5 files)**:
+- ✅ `target_vs_actual.sql` — COMPLETE (KPI targets vs actuals, gap analysis with MoM trend)
+- ✅ `portfolio_concentration.sql` — COMPLETE (top 10% accounts, product/segment risk >40% flag)
+- ✅ `recovery_trend_mom.sql` — COMPLETE (MoM recovery trends, cost-to-collect proxy)
+- ✅ `roll_rate_analysis.sql` — COMPLETE (DPD migration matrix, needs Nov/Dec data)
+- ❌ `portfolio_health.sql` — EMPTY
 
 #### Phase 6 (Testing)
 - test/test_generator.py — Generator unit tests
@@ -236,7 +254,13 @@ bash migrate.sh
 - Finalize executive summary and interview materials
 
 ### 📋 EMPTY FILES (Skeletons Awaiting Content)
-- All 17 files under analysis/sql/
+**Analysis SQL (4 remaining)**:
+- `analysis/sql/agent_level_operational_supervisors/daily_agent_activity.sql`
+- `analysis/sql/agent_level_operational_supervisors/agent_scorecard.sql` (exists - uses v_agent_scorecards)
+- `analysis/sql/agent_level_operational_supervisors/agent_exception_report.sql`
+- `analysis/sql/portfolio_level_strategic_directors/portfolio_health.sql`
+
+**Test Files (3)**:
 - test/test_generator.py, test/test_kpi_views.sql, test/qa_validation.py
 
 ### 🧹 FILES TO CLEAN UP (Unused)
@@ -261,10 +285,22 @@ bash migrate.sh
 
 ## Next Steps (After Session)
 1. **Clean up unused files**: Delete `run_pipeline.ps1`, `run_migration.sh`, `002_kpi_views.sql.bak`
-2. **Phase 4**: Implement 17 analysis SQL files (priority per ROADMAP.md)
+2. **Phase 4**: Complete remaining 4 analysis SQL files:
+   - `daily_agent_activity.sql`
+   - `agent_scorecard.sql` (exists - uses v_agent_scorecards)
+   - `agent_exception_report.sql`
+   - `portfolio_health.sql`
 3. Phase 6: Implement test files
 4. Phase 9: Build BI dashboard
 5. Phase 8: Finalize documentation
+
+## Session Notes (Current)
+- **Completed 13 of 17 analysis SQL files** in Phase 4:
+  - Agent Level: 3 COMPLETE (coaching_opportunities, schedule_adherence, eda_agents)
+  - Team Level: 5 COMPLETE (team_comparison, agent_leaderboard, handle_time_benchmark, workload_distribution, campaign_effectiveness, eda_supervisors)
+  - Portfolio Level: 4 COMPLETE (target_vs_actual, portfolio_concentration, recovery_trend_mom, roll_rate_analysis)
+- **Known limitations**: No tenure data in dim_agents/dim_supervisors, no account-to-region mapping in fact_eom_snapshot
+- **Data status**: Only October 2025 loaded - MoM comparisons return NULL until Nov/Dec loaded
 
 ## Quick Reference
 - **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`

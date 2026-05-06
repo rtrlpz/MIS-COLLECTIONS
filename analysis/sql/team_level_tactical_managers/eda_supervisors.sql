@@ -1,464 +1,192 @@
--- TABLA SUPERVISOR
-SELECT * FROM supervisors;
+-- ========================================================================
+-- eda_supervisors.sql
+-- Purpose: Supervisor/team-level exploratory analysis and validation
+-- 1. Supervisor tenure correlation: does supervisor experience correlate with team performance?
+-- 2. Validate existing analysis: compute team-level metrics and compare against expected patterns
+-- 3. Agent turnover proxy (if available) vs team performance
+-- ========================================================================
 
--- Ver cuantos agentes tiene cada supervisor
-SELECT
-	s.name AS supervisor_name,
-	s.team_name,
-	COUNT(a.agent_id) AS total_agents
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-GROUP BY
-	s.name,
-	s.team_name
-ORDER BY
-	total_agents; --DESC;
+-- ========================================================================
+-- NOTE: Tenure analysis is NOT POSSIBLE
+-- The dim_supervisors table does NOT have hire_date or tenure columns
+-- If tenure analysis is needed, add hire_date column to dim_supervisors
+-- ========================================================================
 
--- Ver Total de Promesas (PTPs) por Region
-SELECT
-	s.region,
-	COUNT(p.ptp_id) AS total_ptps_taken
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN  ptp_log p ON a.agent_id = p.agent_id
-GROUP BY s.region
-ORDER BY total_ptps_taken; --DESC;
+-- ========================================================================
+-- NOTE: Turnover analysis is NOT POSSIBLE
+-- There is no turnover/termination data in the schema
+-- Agent IDs are static (no hire/termination dates in dim_agents)
+-- ========================================================================
 
--- Ver total de agentes por Region
-SELECT
-	s.region,
-	COUNT(a.agent_id) AS total_agents_region
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-GROUP BY s.region
-ORDER BY total_agents_region; -- DESC |
+-- ========================================================================
+-- SECTION 1: Team Performance Summary & Validation
+-- ========================================================================
 
--- Ver total de promesas por equipo
-SELECT
-	s.region,
-	s.team_name,
-	COUNT(p.ptp_id) AS total_ptp_team
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN ptp_log p ON a.agent_id = p.agent_id
-GROUP BY
-	s.region,
-	s.team_name
-ORDER BY total_ptp_team; -- DESC |
-
--- Analizar la Tasa de Contacto Util (RPC RATE) por Region | Esta consulta mide la calidad de la actividad de contacto, enfocándose en qué tan a menudo el esfuerzo del discador resulta en una conversación útil (RPC).
-SELECT
-	s.region,
-	SUM(d.calls_connected) AS total_connected,
-	SUM(CASE WHEN d.rpc_flag = TRUE THEN 1 ELSE 0 END) as total_rpcs,
-	-- Calcula el procentaje de RPC (RPC / Conectadas)
-	CAST(SUM(CASE WHEN d.rpc_flag = TRUE THEN 1 ELSE 0 END) AS NUMERIC) * 100 /
-		NULLIF(SUM(d.calls_connected), 0) AS rpc_rate_pct
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN dialer_interactions d on a.agent_id = d.agent_id
-GROUP BY s.region
-ORDER BY rpc_rate_pct DESC; -- RPC rate 60% let's make that randomly
-
-
--- Analizar el Monto Total Recaudado (Cures) por Equipo
-SELECT
-	s.team_name,
-	COUNT(c.cure_id) AS total_cures,
-	SUM(c.amount_paid) AS total_amount_paid
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN cures_log c ON a.agent_id = c.agent_id
-GROUP BY s.team_name
-ORDER BY total_amount_paid; --DECS -- Montos muy altos, acercarlos mas a la realidad
-
--- Productividad y Utilizacion de Agentes para evaluar la eficiencia del tiempo de los equipos
-SELECT
-	s.name AS supervisor_name,
-	-- Calcula el promedio del porcentaje de utilizacion
-	AVG(atl.utilization) AS avg_utilization_pct,
-	-- Ver promedio de horas operativas
-	AVG(atl.operational_hours) AS avg_operational_hours
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN agent_time_log atl ON a.agent_id = atl.agent_id
-GROUP BY s.name
-ORDER BY avg_utilization_pct; -- DESC -- Result range avg ut pct - 0.66008064516129032258 - 0.66683284457478005865 | avg operational hours 12.6063306451612903 - 12.5799706744868035 not okay op shouldn't exceed 9 hrs due to law and regulation
-
-
---  Analizar tasa de cumplimiento de PTP por equipo
-SELECT
-	s.team_name,
-	COUNT(p.ptp_id) AS total_ptps_taken,
-	SUM(CASE WHEN p.status = 'Kept' THEN 1 ELSE 0 END) AS total_kepts_ptps,
-	-- Calcula porcentaje (kept /total taken)
-	CAST(SUM(CASE WHEN p.status = 'Kept' THEN 1 ELSE 0 END) AS NUMERIC) * 100 /
-		NULLIF(COUNT(p.ptp_id), 0) AS ptp_kept_rate_pct
-FROM supervisors s
-JOIN agents a ON s.superviSor_id = a.supervisor_id
-JOIN ptp_log p ON a.agent_id = p.agent_id
-GROUP BY s.team_name
-ORDER BY ptp_kept_rate_pct; -- DESC -- kept promises range - (4.9917149958574979, 5.4102472232174848)
-
--- Calcula el porcentaje de recaudo (Cures) respecto al Balance Total por Equipo
-SELECT
-	s.team_name,
-	-- 1. Balance Total (Mora/Activo) Manejado por equipo
-	SUM(CASE WHEN a.status IN ('Activo', 'Mora') THEN a.balance ELSE 0 END) AS total_manage_balance,
-	-- 2. Monto total recaudado por equipo
-	(SELECT SUM(c.amount_paid)
-	FROM cures_log c
-	JOIN agents sub_a ON c.agent_id = sub_a.agent_id
-	WHERE  sub_a.supervisor_id = s.supervisor_id) AS total_cures_amount,
-
-	-- 3. Porcentaje de curas respecto al balance
-	CAST((SELECT SUM(c.amount_paid)
-		FROM cures_log c
-		JOIN agents sub_a ON c.agent_id = sub_a.agent_id
-		WHERE sub_a.supervisor_id = s.supervisor_id) AS NUMERIC) * 100 /
-	NULLIF(SUM(CASE WHEN a.status IN ('Activo', 'Mora') THEN a.balance ELSE 0 END), 0) AS cure_to_balance_pct
-FROM supervisors s
-JOIN agents a_main ON s.supervisor_id = a_main.supervisor_id
-JOIN accounts a ON a_main.agent_id = a.account_id
-GROUP BY s.supervisor_id, s.team_name
-ORDER BY cure_to_balance_pct; --DESC -- This needs attention
-
--- Distribucion de cartera por riesgo y segmento
-SELECT
-	s.team_name,
-	-- Score de riesgo promedio de los clientes gestionandos por el equipo
-	AVG(cl.risk_score) AS avg_client_risk_score,
-
-	-- Cuantifica la concentracion de clientes en segmentos de interes (ej. 'Premium')
-	SUM(CASE WHEN cl.segment = 'Premium' THEN 1 ELSE 0 END) AS total_premium_clients,
-
-	-- Cuantas cuentas de sus clientes estan en Mora
-	SUM(CASE WHEN a.status = 'Mora' THEN 1 ELSE 0 END) AS total_accounts_in_mora
-FROM supervisors s
-JOIN agents a_main ON s.supervisor_id = a_main.supervisor_id
-JOIN accounts a ON a_main.agent_id = a.account_id
-JOIN clientes cl ON  a.client_id = cl.cliente_id
-GROUP BY s.team_name
-ORDER BY avg_client_risk_score; --DESC;
-
--- Analisa tiempo promedio (AHT) por equipo
-SELECT s.team_name,
-	-- Tiempo promedio de manejo de la llamada en segundos
-	AVG(d.aht_seconds) AS avg_aht_seconds,
-	-- Varianza o Desviacion Estandar para medir consistencia
-	STDDEV(d.aht_seconds) AS stddev_aht
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN dialer_interactions d ON a.agent_id = d.agent_id
-GROUP BY s.team_name
-ORDER BY avg_aht_seconds DESC; -- Ranges avg_aht (303.3435189748644653, 298.2494432071269488) Ranges STDDEV (97.1914312059668918, 98.8319825740754355)
--- Interpretación: Un stddev_aht alto sugiere que las llamadas dentro de ese equipo son muy inconsistentes, lo cual puede indicar falta de estandarización o agentes inexpertos.
-
--- Calcula el promedio de PTPs tomadas por equipor por dia
-SELECT
-	s.team_name,
-	COUNT(p.ptp_id) AS total_ptp_period,
-	COUNT(DISTINCT p.date_of_interaction) AS total_days_active,
-	-- PTPs promedio por dia de operacion del equipo
-	CAST(COUNT(p.ptp_id) AS NUMERIC) / NULLIF(COUNT(DISTINCT p.date_of_interaction), 0) AS avg_ptps_per_day
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN ptp_log p ON  a.agent_id = p.agent_id
-GROUP BY s.team_name
-ORDER BY avg_ptps_per_day DESC;
-
--- Analiza la composicion de la cartera (cuentas) por tipo de producto y equipo
-SELECT
-	s.team_name,
-	p.product_type,
-	COUNT(a.account_id) AS total_accounts_in_teams,
-	-- Porcentaje de ese producto dentro de la cartera total del equipo
-	CAST(COUNT(a.account_id) AS NUMERIC) * 100 /
-		SUM(COUNT(a.account_id)) OVER (PARTITION BY s.team_name) AS pecentage_of_team_portafolio
-FROM supervisors s
-JOIN agents a_main ON s.supervisor_id = a_main.supervisor_id
-JOIN accounts a ON a_main.agent_id = a.account_id -- Asignacion de cuenta/agente
-JOIN products p ON a.product_id = p.product_id
-GROUP BY
-	s.team_name,
-	p.product_type
-ORDER BY s.team_name, pecentage_of_team_portafolio DESC;
-
--- Calcula el Balance Promedio por cuenta Gestionada por Equipo
-SELECT
-	s.team_name,
-	COUNT(a.account_id) AS total_account_managed,
-	-- Balance promedio de las cuentas activas/en mora asignada al equipo
-	AVG(a.balance) AS avg_managed_balance,
-	-- Balance promedio de la cartera total (Para comparacion)
-	(SELECT AVG(balance) FROM accounts WHERE status IN ('Activo', 'Mora')) AS overall_avg_balance
-FROM supervisors s
-JOIN agents a_main ON s.supervisor_id = a_main.supervisor_id
-JOIN accounts a ON a_main.agent_id = a.account_id -- Asignacion de cuenta/agente
-WHERE a.status IN ('Activo', 'Mora')
-GROUP BY s.team_name
-ORDER BY avg_managed_balance DESC;
-
--- Analiza el porcentaje de ceuntas en Mora por Producto y por region
-SELECT
-	s.region,
-	p.product_type,
-	COUNT(a.account_id) AS total_accounts,
-	SUM(CASE WHEN a.status = 'Mora' THEN 1 ELSE 0 END) AS accounts_in_mora,
-	-- Porcentaje de las cuentas en Mora dentro de ese tipo de producto/region
-	CAST(SUM(CASE WHEN a.status = 'Mora' THEN 1 ELSE 0 END) AS NUMERIC) * 100 /
-		NULLIF(COUNT(a.account_id), 0) AS default_rate_pct
-FROM supervisors s
-JOIN agents a_main ON s.supervisor_id = a_main.supervisor_id
-JOIN accounts a ON a_main.agent_id = a.account_id
-JOIN products p ON a.product_id = p.product_id
-GROUP BY s.region, p.product_type
-ORDER BY s.region, default_rate_pct DESC;
-
--- Monto Recaudado (cures) por segmento de clientes y supervisor
-SELECT
-	s.name AS supervisor_name,
-	cl.segment,
-	SUM(c.amount_paid) AS total_amount_paid
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN cures_log c ON a.agent_id = c.agent_id
-JOIN accounts a_acc ON c.account_id = a_acc.account_id
-JOIN clients cl ON a_acc.client_id = cl.client_id
-GROUP BY s.name, cl.segment
-ORDER BY s.name, total_amount_paid DESC;
-
--- Analisis de tendencias y estabilidad
-
--- Días Activos de Logro de PTPs y Promedio de PTPs por día de actividad, por Supervisor
-SELECT
-    s.name AS supervisor_name,
-    COUNT(DISTINCT p.date_of_interaction) AS days_with_ptps, -- Días en que el equipo tomó al menos 1 PTP
-    COUNT(p.ptp_id) AS total_ptps,
-    -- PTPs promedio por día que hubo actividad de promesa
-    CAST(COUNT(p.ptp_id) AS NUMERIC) / NULLIF(COUNT(DISTINCT p.date_of_interaction), 0) AS avg_ptps_per_active_day
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN ptp_log p ON a.agent_id = p.agent_id
-GROUP BY s.name
-ORDER BY avg_ptps_per_active_day DESC;
-
--- Consistencia en las Horas Operativas de los Equipos (Variación Diaria)
-SELECT
-    s.team_name,
-    -- Horas operativas promedio del equipo
-    AVG(atl.operational_hours) AS avg_operational_hours,
-    -- Desviación Estándar para medir la consistencia diaria de esas horas
-    STDDEV(atl.operational_hours) AS stddev_operational_hours
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN agent_time_log atl ON a.agent_id = atl.agent_id
-GROUP BY s.team_name
-ORDER BY stddev_operational_hours DESC;
-
--- 🔒 Análisis de Cumplimiento de Procesos
-
--- Tasa de Cumplimiento de Pagos Programados por Equipo/Región
-SELECT
-    s.team_name,
-    COUNT(ps.schedule_id) AS total_payments_due,
-    SUM(CASE WHEN ps.status = 'Paid' THEN 1 ELSE 0 END) AS payments_successfully_made,
-    SUM(CASE WHEN ps.status = 'Overdue' THEN 1 ELSE 0 END) AS payments_missed,
-    -- Calcula el porcentaje de pagos exitosos (Paid / Total Due)
-    CAST(SUM(CASE WHEN ps.status = 'Paid' THEN 1 ELSE 0 END) AS NUMERIC) * 100 /
-        NULLIF(COUNT(ps.schedule_id), 0) AS schedule_paid_rate_pct
-FROM supervisors s
-JOIN agents a_main ON s.supervisor_id = a_main.supervisor_id
-JOIN accounts acc ON a_main.agent_id = acc.account_id -- Asignación de cuenta/agente
-JOIN payment_schedule ps ON acc.account_id = ps.account_id
-GROUP BY s.team_name
-ORDER BY schedule_paid_rate_pct DESC;
-
--- Número de Cuentas en Mora por Periodo de Gracia y Región
-SELECT
-    s.region,
-    p.grace_period_days,
-    COUNT(a.account_id) AS total_accounts_in_mora
-FROM supervisors s
-JOIN agents a_main ON s.supervisor_id = a_main.supervisor_id
-JOIN accounts a ON a_main.agent_id = a.account_id
-JOIN products p ON a.product_id = p.product_id
-WHERE a.status = 'Mora' -- Solo cuentas en mora
-GROUP BY s.region, p.grace_period_days
-ORDER BY s.region, total_accounts_in_mora DESC;
-
--- 💲 Análisis Final: Costo de Recaudo por Supervisor
--- Calcula el Monto Recaudado por Hora Operativa, por Supervisor
-SELECT
-    s.name AS supervisor_name,
-
-    -- 1. Horas Operativas Totales del Equipo
-    SUM(atl.operational_hours) AS total_operational_hours,
-
-    -- 2. Monto Total Recaudado (Cures) por el Equipo
-    (SELECT SUM(c.amount_paid)
-     FROM cures_log c
-     JOIN agents sub_a ON c.agent_id = sub_a.agent_id
-     WHERE sub_a.supervisor_id = s.supervisor_id) AS total_amount_cured,
-
-    -- 3. Monto Recaudado por Hora Operativa (El KPI de Eficiencia)
-    CAST((SELECT SUM(c.amount_paid)
-          FROM cures_log c
-          JOIN agents sub_a ON c.agent_id = sub_a.agent_id
-          WHERE sub_a.supervisor_id = s.supervisor_id) AS NUMERIC) /
-        NULLIF(SUM(atl.operational_hours), 0) AS amount_cured_per_hour
-
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN agent_time_log atl ON a.agent_id = atl.agent_id
-GROUP BY s.supervisor_id, s.name
-ORDER BY amount_cured_per_hour DESC;
-
-
--- Análisis de Calidad y Rendimiento Cruzado
--- Calcula un Índice Ponderado de Eficiencia Financiera por Supervisor
-SELECT
-    s.name AS supervisor_name,
-
-    -- Tasa de Recaudo por Hora Operativa (Ya calculada)
-    (SELECT CAST(SUM(c.amount_paid) AS NUMERIC)
-     FROM cures_log c
-     JOIN agents sub_a ON c.agent_id = sub_a.agent_id
-     WHERE sub_a.supervisor_id = s.supervisor_id) /
-        NULLIF(SUM(atl.operational_hours), 0) AS amount_cured_per_hour,
-
-    -- Tasa de RPC (Conversión) Promedio del equipo
-    CAST(SUM(CASE WHEN d.rpc_flag = TRUE THEN 1 ELSE 0 END) AS NUMERIC) * 100 /
-        NULLIF(SUM(d.calls_connected), 0) AS rpc_rate_pct,
-
-    -- KPI Final: Multiplicar el Recaudo/Hora por la Tasa de RPC
-    ( (SELECT CAST(SUM(c.amount_paid) AS NUMERIC)
-       FROM cures_log c
-       JOIN agents sub_a ON c.agent_id = sub_a.agent_id
-       WHERE sub_a.supervisor_id = s.supervisor_id) /
-      NULLIF(SUM(atl.operational_hours), 0) )
-    * ( CAST(SUM(CASE WHEN d.rpc_flag = TRUE THEN 1 ELSE 0 END) AS NUMERIC) * 100 /
-      NULLIF(SUM(d.calls_connected), 0) ) AS financial_efficiency_index
-
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN agent_time_log atl ON a.agent_id = atl.agent_id
-JOIN dialer_interactions d ON a.agent_id = d.agent_id
-GROUP BY s.supervisor_id, s.name
-ORDER BY financial_efficiency_index DESC;
-
--- Identificar Cuentas en Mora SIN RPC (Contactos Útiles) en el período
-SELECT
-    s.team_name,
-    COUNT(DISTINCT a.account_id) AS total_mora_accounts,
-    COUNT(DISTINCT a.account_id) FILTER (WHERE d.rpc_flag IS NULL) AS mora_sin_rpc_count
-FROM supervisors s
-JOIN agents ag ON s.supervisor_id = ag.supervisor_id
-JOIN accounts a ON ag.agent_id = a.account_id -- Asignación
-LEFT JOIN dialer_interactions d ON a.account_id = d.account_id
-    AND d.rpc_flag = TRUE -- Solo unimos RPCs
-WHERE a.status = 'Mora'
-GROUP BY s.team_name
-ORDER BY mora_sin_rpc_count DESC;
-
--- Ratio de Recaudo por Promesa Tomada (Calidad de Negociación)
-SELECT
-    s.team_name,
-    SUM(p.amount_promised) AS total_amount_promised,
-    (SELECT SUM(c.amount_paid)
-     FROM cures_log c
-     JOIN agents sub_a ON c.agent_id = sub_a.agent_id
-     WHERE sub_a.supervisor_id = s.supervisor_id) AS total_amount_cured,
-
-    -- Ratio: Cures (Recaudo) / PTPs (Esfuerzo)
-    (SELECT SUM(c.amount_paid)
-     FROM cures_log c
-     JOIN agents sub_a ON c.agent_id = sub_a.agent_id
-     WHERE sub_a.supervisor_id = s.supervisor_id)
-    / NULLIF(SUM(p.amount_promised), 0) AS cure_to_promise_ratio
-
-FROM supervisors s
-JOIN agents a ON s.supervisor_id = a.supervisor_id
-JOIN ptp_log p ON a.agent_id = p.agent_id
-GROUP BY s.supervisor_id, s.team_name
-ORDER BY cure_to_promise_ratio DESC;
-
-
--- Análisis Final: Dispersión y Benchmarking
-
--- Identifica el Mejor y el Peor Equipo por Tasa de Cumplimiento de PTPs
-WITH PTP_Fulfillment AS (
-    SELECT
-        s.team_name,
-        CAST(SUM(CASE WHEN p.status = 'Kept' THEN 1 ELSE 0 END) AS NUMERIC) * 100 /
-            NULLIF(COUNT(p.ptp_id), 0) AS ptp_kept_rate_pct
-    FROM supervisors s
-    JOIN agents a ON s.supervisor_id = a.supervisor_id
-    JOIN ptp_log p ON a.agent_id = p.agent_id
-    GROUP BY s.team_name
+WITH team_metrics AS (
+    SELECT 
+        ms.supervisor_id,
+        ms.team_name,
+        ds.region,
+        ROUND(AVG(ms.avg_rpc_pct)::numeric, 2) AS team_avg_rpc_pct,
+        ROUND(AVG(ms.avg_ptp_pct)::numeric, 2) AS team_avg_ptp_pct,
+        ROUND(AVG(ms.avg_kept_pct)::numeric, 2) AS team_avg_kept_pct,
+        ROUND(AVG(ms.avg_cure_rate)::numeric, 2) AS team_avg_cure_rate,
+        ROUND(AVG(ms.avg_utilization_pct)::numeric, 2) AS team_avg_utilization,
+        SUM(ms.total_calls) AS team_total_calls,
+        COUNT(DISTINCT ms.agent_id) AS team_size
+    FROM v_monthly_summary ms
+    JOIN dim_supervisors ds ON ms.supervisor_id = ds.supervisor_id
+    WHERE ms.granularity = 'team'
+    GROUP BY ms.supervisor_id, ms.team_name, ds.region, ms.month_num
 )
-SELECT
-    'Mejor Equipo' AS performance_level,
+
+SELECT 
     team_name,
-    ptp_kept_rate_pct
-FROM PTP_Fulfillment
-ORDER BY ptp_kept_rate_pct DESC
-LIMIT 1
+    region,
+    team_size,
+    team_avg_rpc_pct,
+    team_avg_ptp_pct,
+    team_avg_kept_pct,
+    team_avg_cure_rate,
+    team_avg_utilization,
+    team_total_calls,
+    -- Team ranking within region
+    RANK() OVER (PARTITION BY region ORDER BY team_avg_rpc_pct DESC) AS rpc_rank_in_region,
+    RANK() OVER (PARTITION BY region ORDER BY team_avg_cure_rate DESC) AS cure_rank_in_region
+FROM team_metrics
+ORDER BY region, team_avg_rpc_pct DESC;
 
-UNION ALL
+-- ========================================================================
+-- SECTION 2: Team Size vs Performance Correlation
+-- Do larger teams perform better or worse?
+-- ========================================================================
 
-SELECT
-    'Peor Equipo' AS performance_level,
-    team_name,
-    ptp_kept_rate_pct
-FROM PTP_Fulfillment
-ORDER BY ptp_kept_rate_pct ASC
-LIMIT 1;
-
-
--- Desviación del Monto Recaudado de la Media Operacional
-WITH Recaudo AS (
-    SELECT
-        s.team_name,
-        (SELECT SUM(c.amount_paid)
-         FROM cures_log c
-         JOIN agents sub_a ON c.agent_id = sub_a.agent_id
-         WHERE sub_a.supervisor_id = s.supervisor_id) AS total_amount_cured
-    FROM supervisors s
-    GROUP BY s.supervisor_id, s.team_name
+WITH team_size_perf AS (
+    SELECT 
+        ms.supervisor_id,
+        ms.team_name,
+        ds.region,
+        COUNT(DISTINCT ms.agent_id) AS team_size,
+        ROUND(AVG(ms.avg_rpc_pct)::numeric, 2) AS avg_rpc_pct,
+        ROUND(AVG(ms.avg_cure_rate)::numeric, 2) AS avg_cure_rate,
+        ROUND(AVG(ms.avg_utilization_pct)::numeric, 2) AS avg_utilization
+    FROM v_monthly_summary ms
+    JOIN dim_supervisors ds ON ms.supervisor_id = ds.supervisor_id
+    WHERE ms.granularity = 'team'
+    GROUP BY ms.supervisor_id, ms.team_name, ds.region, ms.month_num
 )
-SELECT
-    r.team_name,
-    r.total_amount_cured,
-    -- Calcula la diferencia de la media general
-    r.total_amount_cured - AVG(r.total_amount_cured) OVER () AS deviation_from_average
-FROM Recaudo r
-ORDER BY deviation_from_average DESC;
 
+SELECT 
+    'Team Size vs Performance' AS analysis,
+    team_name,
+    region,
+    team_size,
+    avg_rpc_pct,
+    avg_cure_rate,
+    avg_utilization,
+    CASE 
+        WHEN team_size <= 8 THEN 'Small'
+        WHEN team_size <= 12 THEN 'Medium'
+        ELSE 'Large'
+    END AS team_size_category
+FROM team_size_perf
+ORDER BY team_size DESC;
 
--- Ver registros de la tabla agentes
-SELECT * FROM agents;
+-- ========================================================================
+-- SECTION 3: Regional Performance Comparison
+-- ========================================================================
 
--- Ver registros de la tabla clientes
-SELECT * FROM clients;
+WITH regional_metrics AS (
+    SELECT 
+        ds.region,
+        COUNT(DISTINCT ms.supervisor_id) AS num_teams,
+        COUNT(DISTINCT ms.agent_id) AS total_agents,
+        ROUND(AVG(ms.avg_rpc_pct)::numeric, 2) AS region_avg_rpc_pct,
+        ROUND(AVG(ms.avg_ptp_pct)::numeric, 2) AS region_avg_ptp_pct,
+        ROUND(AVG(ms.avg_kept_pct)::numeric, 2) AS region_avg_kept_pct,
+        ROUND(AVG(ms.avg_cure_rate)::numeric, 2) AS region_avg_cure_rate,
+        ROUND(AVG(ms.avg_utilization_pct)::numeric, 2) AS region_avg_utilization,
+        SUM(ms.total_calls) AS region_total_calls
+    FROM v_monthly_summary ms
+    JOIN dim_supervisors ds ON ms.supervisor_id = ds.supervisor_id
+    WHERE ms.granularity = 'team'
+    GROUP BY ds.region, ms.month_num
+)
 
--- Ver registros de la tabla productos
-SELECT * FROM products;
+SELECT 
+    region,
+    num_teams,
+    total_agents,
+    region_avg_rpc_pct,
+    region_avg_ptp_pct,
+    region_avg_kept_pct,
+    region_avg_cure_rate,
+    region_avg_utilization,
+    region_total_calls,
+    -- Regional ranking
+    RANK() OVER (ORDER BY region_avg_rpc_pct DESC) AS rpc_rank,
+    RANK() OVER (ORDER BY region_avg_cure_rate DESC) AS cure_rank
+FROM regional_metrics
+ORDER BY region_avg_rpc_pct DESC;
 
--- Ver registros de la tabla cuentas
-SELECT * from accounts;
+-- ========================================================================
+-- SECTION 4: Validate Expected Patterns
+-- Expected: Higher utilization should correlate with higher RPC/PTP
+-- ========================================================================
 
--- Ver registros de la tabla pagos agendados
-SELECT * FROM payment_schedule;
-s
--- Ver registros de la tabla iteracciones del dialer
-SELECT * FROM dialer_interactions;
+WITH validation AS (
+    SELECT 
+        ms.agent_id,
+        ms.agent_name,
+        ms.team_name,
+        ROUND(AVG(ms.avg_utilization_pct)::numeric, 2) AS avg_utilization,
+        ROUND(AVG(ms.avg_rpc_pct)::numeric, 2) AS avg_rpc_pct,
+        ROUND(AVG(ms.avg_ptp_pct)::numeric, 2) AS avg_ptp_pct,
+        ROUND(AVG(ms.avg_cure_rate)::numeric, 2) AS avg_cure_rate
+    FROM v_monthly_summary ms
+    WHERE ms.granularity = 'agent'
+    GROUP BY ms.agent_id, ms.agent_name, ms.team_name, ms.month_num
+)
 
--- Ver registros de la tabla ptp
-SELECT * FROM ptp_log;
+SELECT 
+    'Utilization vs Performance' AS analysis,
+    team_name,
+    COUNT(*) AS agent_count,
+    ROUND(AVG(avg_utilization)::numeric, 2) AS team_avg_utilization,
+    ROUND(AVG(avg_rpc_pct)::numeric, 2) AS team_avg_rpc,
+    ROUND(AVG(avg_cure_rate)::numeric, 2) AS team_avg_cure_rate,
+    -- Correlation proxy: Do high-utilization teams have high RPC?
+    CASE 
+        WHEN AVG(avg_utilization) > 80 AND AVG(avg_rpc_pct) > 70 THEN 'Strong Positive'
+        WHEN AVG(avg_utilization) > 80 AND AVG(avg_rpc_pct) < 60 THEN 'Negative (Inefficient)'
+        WHEN AVG(avg_utilization) < 70 AND AVG(avg_rpc_pct) > 70 THEN 'Efficient (Low Effort)'
+        ELSE 'Normal'
+    END AS utilization_rpc_pattern
+FROM validation
+GROUP BY team_name
+ORDER BY team_avg_utilization DESC;
 
--- Ver registros de la tabla curas
-SELECT * FROM cures_log;
+-- ========================================================================
+-- SECTION 5: Summary Statistics for Teams
+-- ========================================================================
 
--- Ver registros de la tabla agente login time
-SELECT * FROM agent_time_log;
+WITH team_stats AS (
+    SELECT 
+        ms.supervisor_id,
+        ms.team_name,
+        ROUND(AVG(ms.avg_rpc_pct)::numeric, 2) AS avg_rpc_pct,
+        ROUND(AVG(ms.avg_cure_rate)::numeric, 2) AS avg_cure_rate
+    FROM v_monthly_summary ms
+    WHERE ms.granularity = 'team'
+    GROUP BY ms.supervisor_id, ms.team_name, ms.month_num
+)
+
+SELECT 
+    'Summary Statistics' AS analysis,
+    COUNT(DISTINCT team_name) AS total_teams,
+    ROUND(AVG(avg_rpc_pct)::numeric, 2) AS portfolio_avg_rpc,
+    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY avg_rpc_pct)::numeric, 2) AS median_rpc,
+    ROUND(STDDEV(avg_rpc_pct)::numeric, 2) AS stddev_rpc,
+    ROUND(MIN(avg_rpc_pct)::numeric, 2) AS min_rpc,
+    ROUND(MAX(avg_rpc_pct)::numeric, 2) AS max_rpc
+FROM team_stats;
