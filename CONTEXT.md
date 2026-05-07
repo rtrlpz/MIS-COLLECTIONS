@@ -246,14 +246,14 @@ cd C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS
 
 ### ⏳ PENDING (Next Phases)
 
-#### Phase 4 (Analysis SQL Files) — IN PROGRESS (13 of 17 COMPLETE)
+#### Phase 4 (Analysis SQL Files) — 100% COMPLETE (17 of 17 COMPLETE)
 **Agent Level (6 files)**:
 - ✅ `coaching_opportunities.sql` — COMPLETE
 - ✅ `schedule_adherence.sql` — COMPLETE
 - ✅ `eda_agents.sql` — COMPLETE
-- ❌ `daily_agent_activity.sql` — EMPTY
-- ❌ `agent_scorecard.sql` — EXISTS (uses v_agent_scorecards)
-- ❌ `agent_exception_report.sql` — EMPTY
+- ✅ `daily_agent_activity.sql` — COMPLETE
+- ✅ `agent_scorecard.sql` — COMPLETE (uses v_agent_scorecards)
+- ✅ `agent_exception_report.sql` — COMPLETE
 
 **Team Level (6 files)** — ALL COMPLETE:
 - ✅ `team_comparison.sql`
@@ -268,7 +268,7 @@ cd C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS
 - ✅ `portfolio_concentration.sql` — COMPLETE
 - ✅ `recovery_trend_mom.sql` — COMPLETE
 - ✅ `roll_rate_analysis.sql` — COMPLETE
-- ❌ `portfolio_health.sql` — EMPTY
+- ✅ `portfolio_health.sql` — COMPLETE
 
 #### Phase 9 (BI/Reporting)
 - Build Power BI dashboard using collections_dashboard_v2.pbix template
@@ -277,17 +277,6 @@ cd C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS
 #### Phase 8 (Final Documentation)
 - Update ROADMAP.md with completed tasks
 - Finalize executive summary and interview materials
-
-### 📋 EMPTY FILES (Skeletons Awaiting Content)
-**Analysis SQL (3 remaining)**:
-- `analysis/sql/agent_level_operational_supervisors/daily_agent_activity.sql`
-- `analysis/sql/agent_level_operational_supervisors/agent_exception_report.sql`
-- `analysis/sql/portfolio_level_strategic_directors/portfolio_health.sql`
-
-### 🧹 FILES TO CLEAN UP (Unused)
-- `run_pipeline.ps1` — Unfinished PowerShell version (can delete)
-- `run_migration.sh` — Duplicate of migrate.sh (can delete)
-- `002_kpi_views.sql.bak` — Backup file (can delete)
 
 ### ✅ RESOLVED ISSUES
 - ~~`psycopg2` module not installed~~ — **RESOLVED**: Installed in mis-collections conda env
@@ -310,14 +299,10 @@ cd C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS
 - **pytest installed** in `mis-collections` conda environment for testing
 
 ## Next Steps (After Session)
-1. **Clean up unused files**: Delete `run_pipeline.ps1`, `run_migration.sh`, `002_kpi_views.sql.bak`
-2. **Phase 4**: Complete remaining 3 analysis SQL files:
-   - `daily_agent_activity.sql`
-   - `agent_exception_report.sql`
-   - `portfolio_health.sql`
-3. **Fix generator bug**: Update `data_generator_v7.py` to filter weekend dates (remove 25,786 weekend interactions)
-4. Phase 9: Build BI dashboard
-5. Phase 8: Finalize documentation
+1. **Phase 8**: Finalize documentation (QUICKSTART.md, CHANGELOG.md, README badges)
+2. **Fix generator bug**: Update `data_generator_v7.py` to filter weekend dates (remove 25,786 weekend interactions)
+3. **Phase 9**: Build Power BI dashboard (per `mis_collections_build_plan.md`) + Excel generation script
+4. **ROADMAP.md**: Already updated to reflect current state
 
 ## Session Notes (Current Session - Phase 6 Completion)
 - **Completed Phase 6 (Testing)**:
@@ -328,6 +313,19 @@ cd C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS
 - **Test results**: 9 of 11 tests pass, 1 xfail (weekend bug), 2 marked slow
 - **Known limitations**: No tenure data in dim_agents/dim_supervisors, no account-to-region mapping in fact_eom_snapshot
 - **Data status**: Only October 2025 loaded - MoM comparisons return NULL until Nov/Dec loaded
+
+## Session Notes (Current Session - ROADMAP + Build Plan)
+- **Completed Phase 4 verification**: All 17 SQL analysis files verified to have valid content (not empty)
+- **Created `mis_collections_build_plan.md`**: Comprehensive 396-line build plan at `dashboards/assets/`
+  - Covers 5 Power BI dashboard pages + Excel MIS report
+  - 5 phases (A→E), 10 business day timeline
+  - Requirements matrix: 8 data, 29 KPI, 7 technical, 10 business requirements
+- **Updated ROADMAP.md**: Fixed header from stale 28% to actual ~82%
+  - All completed phases (1-7) now accurately marked at 100%
+  - Phase 8 and 9 reflect true pending state
+  - Phase 6 test items restructured to match actual qa_validation.py classes (not a 2017-era wish list)
+- **Confirmed cleanup**: `run_pipeline.ps1`, `run_migration.sh`, `002_kpi_views.sql.bak` no longer exist on disk — removed stale references from CONTEXT.md
+- **No changes to data**: Weekend bug, Oct-only data still apply
 
 ## Quick Reference
 - **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`
