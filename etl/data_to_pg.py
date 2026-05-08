@@ -1,6 +1,3 @@
-import textwrap
-
-content = """
 import os
 import sys
 import time
@@ -37,7 +34,7 @@ logging.basicConfig(
 )
 
 # Paths
-ROOT_PATH = Path(__file__).resolve().parent.parent.parent
+ROOT_PATH = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_PATH / "data_sources" / "generators" / "raw"
 
 # Table definitions
@@ -81,7 +78,7 @@ def compute_checksum(file_path: Path) -> str:
     sha256_hash = hashlib.sha256()
     try:
         with open(file_path, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b"")):
+            for byte_block in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
     except Exception as e:
@@ -91,8 +88,8 @@ def compute_checksum(file_path: Path) -> str:
 def create_etl_load_log_table(conn):
     cursor = conn.cursor()
     try:
-        cursor.execute("
-                CREATE TABLE IF NOT EXISTS etl_load_log (
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS etl_load_log (
                 id SERIAL PRIMARY KEY,
                 table_name VARCHAR(100),
                 rows_loaded INT,
@@ -100,7 +97,7 @@ def create_etl_load_log_table(conn):
                 status VARCHAR(20),
                 csv_checksum VARCHAR(64)
             )
-        ")
+        """)
         conn.commit()
         logging.info("  [INFO] Ensured etl_load_log table exists")
     except Exception as e:
@@ -124,24 +121,44 @@ def log_etl_load(table_name: str, rows_loaded: int, status: str, checksum: str, 
 def ingest_data_to_pg(df: pd.DataFrame, table_name: str, conn):
     pg_table_name = table_name.lower()
     logging.info(f"  -> Ingesting {pg_table_name}...")
+
+    # Create errors directory if it doesn't exist
+    errors_dir = Path(__file__).resolve().parent / "errors"
+    errors_dir.mkdir(exist_ok=True)
+
     buffer = StringIO()
     df.to_csv(buffer, header=True, index=False, na_rep='')
     buffer.seek(0)
     buffer.readline()
+
     cursor = conn.cursor()
     try:
+        # Set savepoint for this table
+        cursor.execute("SAVEPOINT sp")
+
         try:
             cursor.execute(f"TRUNCATE TABLE {pg_table_name} CASCADE")
             logging.info(f"  [INFO] Truncated {pg_table_name}")
         except psycopg2.Error as te:
             logging.warning(f"  [WARN] Could not truncate: {te}")
+
         cursor.copy_from(file=buffer, table=pg_table_name, sep=',', columns=df.columns.tolist(), null='')
         conn.commit()
         logging.info(f"  [OK] {pg_table_name}: {len(df):,} records inserted.")
         return True, len(df)
     except Exception as e:
+        # Rollback to savepoint (only this table fails, not entire transaction)
+        cursor.execute("ROLLBACK TO SAVEPOINT sp")
         logging.error(f"  [ERROR] Ingesting {pg_table_name}: {e}")
-        conn.rollback()
+
+        # Write problematic data to errors directory
+        error_file = errors_dir / f"{pg_table_name}_errors.csv"
+        try:
+            df.to_csv(error_file, index=False)
+            logging.info(f"  [INFO] Error data saved to: {error_file}")
+        except Exception as write_error:
+            logging.error(f"  [ERROR] Could not write error file: {write_error}")
+
         return False, 0
     finally:
         cursor.close()
@@ -191,7 +208,7 @@ def main():
     if args.env_file:
         env_file_path = Path(args.env_file).resolve()
     else:
-        env_file_path = Path(__file__).resolve().parent / ".env"
+        env_file_path = Path(__file__).resolve().parent.parent / ".env"
     load_dotenv(dotenv_path=env_file_path)
     logging.info(f"Loaded env file: {env_file_path}")
 
@@ -312,8 +329,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-"""
-
-with open('data_to_pg.py', 'w', encoding='utf-8') as f:
-    f.write(textwrap.dedent(content).strip() + '\n')
-print('data_to_pg.py written successfully')

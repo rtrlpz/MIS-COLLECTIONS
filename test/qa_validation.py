@@ -226,8 +226,8 @@ class TestKPIViewOutput:
 class TestETLIdempotency:
     def test_etl_idempotent_row_counts(self, cursor):
         root_path = Path(__file__).resolve().parent.parent
-        etl_script = root_path / "database" / "etl" / "data_to_pg.py"
-        env_file = root_path / "database" / ".env"
+        etl_script = root_path / "etl" / "data_to_pg.py"
+        env_file = root_path / ".env"
 
         # Get row counts before
         tables_to_check = ['dim_agents', 'dim_clients', 'dim_accounts', 'fact_interactions']

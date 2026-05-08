@@ -129,8 +129,7 @@ docker-compose up -d
 psql -h localhost -U your_user -d MSI_CollectionsDB -f 02_database/01_create_tables.sql
 
 # 3. Generate and load the data
-cd 02_database
-python data_to_pg.py
+python etl/data_to_pg.py
 
 # 4. Create the KPI views
 psql -h localhost -U your_user -d MSI_CollectionsDB -f 02_database/kpi_views.sql

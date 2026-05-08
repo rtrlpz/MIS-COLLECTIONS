@@ -14,6 +14,7 @@ reports/outputs/*.xlsx
 pgdata/
 database/.env
 database/data/
+.env
 
 # Ignore unused documentation and word docs
 docs/*.docx
@@ -33,7 +34,7 @@ dashboards/docs/
 
 # Ignore logs
 data_sources/generators/logs/*.log
-database/etl/logs
+etl/logs
 
 # Ignore Python cache
 __pycache__/

@@ -32,6 +32,9 @@ echo "  [OK] 002_dim_calendar.sql"
 cat database/migrations/003_constraints.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
 echo "  [OK] 003_constraints.sql"
 
+cat database/migrations/002_kpi_views.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
+echo "  [OK] 002_kpi_views.sql"
+
 cat database/migrations/004_agents_scorecards.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
 echo "  [OK] 004_agents_scorecards.sql"
 
@@ -40,8 +43,5 @@ echo "  [OK] 005_indexes.sql"
 
 cat database/migrations/006_comments.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
 echo "  [OK] 006_comments.sql"
-
-cat database/migrations/002_kpi_views.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
-echo "  [OK] 002_kpi_views.sql"
 
 echo "Migrations complete."

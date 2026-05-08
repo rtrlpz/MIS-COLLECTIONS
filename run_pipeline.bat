@@ -2,6 +2,7 @@
 setlocal EnableDelayedExpansion
 
 :: Color codes: Green=0A, Red=0C, Yellow=0E, White=07
+set CONDA_PYTHON=C:\Users\Leand\.conda\envs\mis-collections\python.exe
 color 07
 
 :: Get start time in seconds since epoch using PowerShell
@@ -26,7 +27,7 @@ echo [OK] Docker is running.
 color 07
 echo [2/6] Starting PostgreSQL container...
 for /f %%a in ('powershell -Command "[int](Get-Date -UFormat %%s)"') do set "step_start=%%a"
-docker-compose -f database/docker-compose.yml up -d >nul 2>&1
+docker-compose --env-file .env -f database/docker-compose.yml up -d >nul 2>&1
 if errorlevel 1 (
     color 0C
     echo [ERROR] Failed to start Docker containers.
@@ -52,7 +53,7 @@ if !waited! GTR %wait_timeout% (
     echo [ERROR] PostgreSQL did not become ready in %wait_timeout% seconds.
     goto :end
 )
-timeout /t 2 /nobreak >nul
+ping -n 3 localhost >nul
 goto :wait_loop
 :ready
 for /f %%a in ('powershell -Command "[int](Get-Date -UFormat %%s)"') do set "now=%%a"
@@ -80,7 +81,7 @@ echo [OK] Migrations complete. (%elapsed% seconds)
 color 07
 echo [5/6] Generating data...
 for /f %%a in ('powershell -Command "[int](Get-Date -UFormat %%s)"') do set "step_start=%%a"
-python data_sources/generators/data_generator_v7.py
+%CONDA_PYTHON% data_sources/generators/data_generator_v7.py
 if errorlevel 1 (
     color 0C
     echo [ERROR] Data generation failed. Check logs for details.
@@ -95,7 +96,7 @@ echo [OK] Data generated successfully. (%elapsed% seconds)
 color 07
 echo [6/6] Loading data into PostgreSQL...
 for /f %%a in ('powershell -Command "[int](Get-Date -UFormat %%s)"') do set "step_start=%%a"
-python database/etl/data_to_pg.py
+%CONDA_PYTHON% etl/data_to_pg.py
 if errorlevel 1 (
     color 0C
     echo [ERROR] ETL failed. Check logs for details.

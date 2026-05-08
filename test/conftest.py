@@ -12,11 +12,9 @@ def pytest_configure(config):
 # Resolve project root
 ROOT_PATH = Path(__file__).resolve().parent.parent
 
-# Load .env same as ETL script
+# Load .env from project root
 def _load_env():
-    env_file_path = ROOT_PATH / "database" / ".env"
-    if not env_file_path.exists():
-        env_file_path = ROOT_PATH / ".env"
+    env_file_path = ROOT_PATH / ".env"
     load_dotenv(dotenv_path=env_file_path)
     return env_file_path
 

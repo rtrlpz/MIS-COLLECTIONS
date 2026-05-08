@@ -222,7 +222,7 @@ Include it in the logging output: "Anomaly report written: X anomalies tracked"
 
 **PROMPT:**
 ```
-Read the current requirements.txt (if it exists) and the imports in data_generator_v7.py, database/etl/data_to_pg.py.
+Read the current requirements.txt (if it exists) and the imports in data_generator_v7.py, etl/data_to_pg.py.
 Update requirements.txt with pinned versions for all dependencies used in the project:
   faker, pandas, numpy, python-dotenv, psycopg2-binary, openpyxl
 Use the format: package==X.Y.Z
@@ -259,7 +259,7 @@ Use the format: package==X.Y.Z
 
 ### Task 1: Add Logging to ETL Script
 
-**PURPOSE** -> Replace `print()` statements in `database/etl/data_to_pg.py` with Python's `logging` module. Use INFO for progress, ERROR for failures, with timestamps.
+**PURPOSE** -> Replace `print()` statements in `etl/data_to_pg.py` with Python's `logging` module. Use INFO for progress, ERROR for failures, with timestamps.
 
 **WHY** -> The current script mixes Spanish and English print statements with emojis. Logging provides structured, searchable output that can be captured to a file by the pipeline script.
 
@@ -267,7 +267,7 @@ Use the format: package==X.Y.Z
 
 **PROMPT:**
 ```
-In database/etl/data_to_pg.py, replace all print() statements with Python's logging module.
+In etl/data_to_pg.py, replace all print() statements with Python's logging module.
 Configure logging at the top:
   logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
@@ -276,7 +276,7 @@ Use logging.error() for errors (file not found, connection failure, ingestion er
 Remove emojis from messages. Keep the logic identical.
 ```
 
-**VERIFY:** `python database/etl/data_to_pg.py` produces clean timestamped log lines. No emojis, no raw prints.
+**VERIFY:** `python etl/data_to_pg.py` produces clean timestamped log lines. No emojis, no raw prints.
 
 **COMMIT:** `refactor: replace print statements with logging in ETL script`
 
@@ -292,7 +292,7 @@ Remove emojis from messages. Keep the logic identical.
 
 **PROMPT:**
 ```
-In database/etl/data_to_pg.py, add a validate_csv(file_path, table_name) function that checks:
+In etl/data_to_pg.py, add a validate_csv(file_path, table_name) function that checks:
   1. File exists
   2. Has headers (first line is not empty)
   3. Row count > 0
@@ -330,7 +330,7 @@ For fact_eom_snapshot, validate both snapshot_date and account_id are not null.
 
 **PROMPT:**
 ```
-In database/etl/data_to_pg.py, wrap the entire table loading loop (inside main()) in a single transaction.
+In etl/data_to_pg.py, wrap the entire table loading loop (inside main()) in a single transaction.
 Remove the conn.commit() and conn.rollback() calls from inside ingest_data_to_pg().
 Instead:
   - After ALL tables load successfully, call conn.commit() once
@@ -356,7 +356,7 @@ Also, pass the cursor from main() instead of creating a new one per table to sta
 
 **PROMPT:**
 ```
-In database/etl/data_to_pg.py, add a TRUNCATE TABLE <name> CASCADE command before loading each table.
+In etl/data_to_pg.py, add a TRUNCATE TABLE <name> CASCADE command before loading each table.
 Use cursor.execute(f"TRUNCATE TABLE {pg_table_name} CASCADE") right before cursor.copy_from().
 This ensures re-runs start from a clean slate.
 Handle the case where the table doesn't exist yet (use TRUNCATE only if table exists, or catch the error).
@@ -378,7 +378,7 @@ Handle the case where the table doesn't exist yet (use TRUNCATE only if table ex
 
 **PROMPT:**
 ```
-In database/etl/data_to_pg.py, add argparse with --env-file flag (default: .env in the script's directory).
+In etl/data_to_pg.py, add argparse with --env-file flag (default: .env in the script's directory).
 Load the specified env file with load_dotenv(env_file_path).
 Keep all existing credential loading via os.getenv().
 Add a check: if any required env var is missing, print a clear error listing which ones are missing.
@@ -400,7 +400,7 @@ Add a check: if any required env var is missing, print a clear error listing whi
 
 **PROMPT:**
 ```
-In database/etl/data_to_pg.py, add a --dry-run flag via argparse.
+In etl/data_to_pg.py, add a --dry-run flag via argparse.
 When --dry-run is True:
   - Skip database connection entirely
   - Run all CSV validations (file exists, headers, row count > 0, PK not null)
@@ -424,7 +424,7 @@ When --dry-run is True:
 
 **PROMPT:**
 ```
-In database/etl/data_to_pg.py, add an --incremental flag via argparse.
+In etl/data_to_pg.py, add an --incremental flag via argparse.
 When --incremental is True:
   - Connect to the database
   - Query which months already exist in fact_interactions (SELECT DISTINCT EXTRACT(MONTH FROM interaction_date) ...)
@@ -449,7 +449,7 @@ When --incremental is True:
 
 **PROMPT:**
 ```
-In database/etl/data_to_pg.py:
+In etl/data_to_pg.py:
   1. At the start of main(), create the etl_load_log table if it doesn't exist:
      CREATE TABLE IF NOT EXISTS etl_load_log (
        id SERIAL PRIMARY KEY,
@@ -480,7 +480,7 @@ In database/etl/data_to_pg.py:
 
 **PROMPT:**
 ```
-In database/etl/data_to_pg.py, add retry logic to the database connection in main():
+In etl/data_to_pg.py, add retry logic to the database connection in main():
   - Try to connect up to 3 times
   - Wait 5 seconds between attempts (use time.sleep(5))
   - If all 3 attempts fail, log a fatal error and exit
@@ -503,7 +503,7 @@ Use a simple for loop with range(3) and break on success.
 
 **PROMPT:**
 ```
-In database/etl/data_to_pg.py, add error recovery:
+In etl/data_to_pg.py, add error recovery:
   1. Create an errors/ directory if it doesn't exist (relative to the ETL script)
   2. When ingest_data_to_pg() fails for a table, write the problematic DataFrame to errors/<table_name>_errors.csv
   3. Log where the error file was saved
@@ -533,7 +533,7 @@ Write a run_pipeline.bat script that:
   1. Checks if Docker is running (docker info >nul 2>&1)
   2. Generates data: python data_sources/generators/data_generator_v7.py
   3. Checks generator exit code, exits if failed
-  4. Runs ETL: python database/etl/data_to_pg.py
+  4. Runs ETL: python etl/data_to_pg.py
   5. Checks ETL exit code, exits if failed
   6. Prints a summary: "Pipeline complete. Data generated and loaded."
   7. Pauses at the end so the user can see the output
@@ -1362,7 +1362,7 @@ Rewrite run_pipeline.bat with the following flow:
   3. Wait for PostgreSQL to be ready (poll with docker exec ... pg_isready)
   4. Generate data (python data_sources/generators/data_generator_v7.py --seed 42)
   5. Validate CSVs exist and have content
-  6. Run ETL (python database/etl/data_to_pg.py)
+  6. Run ETL (python etl/data_to_pg.py)
   7. Apply migrations (psql -f database/migrations/004_indexes.sql, etc.)
   8. Run tests (pytest test/ -v)
   9. Print summary: "Pipeline complete. X tables loaded, Y tests passed."
@@ -1415,7 +1415,7 @@ Create a Makefile with targets:
   generate: python data_sources/generators/data_generator_v7.py
   db-up: docker compose -f database/docker-compose.yml up -d
   db-down: docker compose -f database/docker-compose.yml down
-  etl: python database/etl/data_to_pg.py
+  etl: python etl/data_to_pg.py
   test: pytest test/ -v
   migrations: psql -h localhost -p 5433 -U $$POSTGRES_USER -d $$POSTGRES_DB -f database/migrations/001_create_tables.sql
   full-pipeline: generate etl test
@@ -1505,7 +1505,7 @@ Create .dockerignore with:
 2. `git clone` + `cd`
 3. `docker compose -f database/docker-compose.yml up -d`
 4. `python data_sources/generators/data_generator_v7.py`
-5. `python database/etl/data_to_pg.py`
+5. `python etl/data_to_pg.py`
 6. Verify: `SELECT count(*) FROM dim_agents;` -> 80
 
 ---

@@ -20,6 +20,8 @@ MIS-COLLECTIONS/
 ├── .github/ISSUE_TEMPLATE/        # bug_report.md, feature_request.md
 ├── .gitignore
 ├── .idea/                         # JetBrains IDE config files
+├── .env                           # DB credentials (git-ignored)
+├── CLAUDE.md                      # Short AI-agent project context
 ├── CONTEXT.md                     # THIS FILE — single-source project overview
 ├── LICENSE
 ├── README.md                      # Project overview & interview pitch
@@ -43,6 +45,11 @@ MIS-COLLECTIONS/
 │   ├── collections_project/collections_dashboard_v2.pbix
 │   └── dax_measures_dictionary.md
 │
+├── etl/                           # ETL LAYER
+│   ├── data_to_pg.py              # CSV → PostgreSQL — Phase 2 COMPLETE
+│   ├── errors/                    # Error CSVs from failed loads
+│   └── logs/                      # ETL run logs (git-ignored)
+│
 ├── data_sources/                  # DATA GENERATION LAYER
 │   ├── README.md
 │   ├── __init__.py
@@ -56,12 +63,7 @@ MIS-COLLECTIONS/
 │
 ├── database/                      # DATABASE LAYER
 │   ├── README.md
-│   ├── .env                      # Environment variables for DB connection
 │   ├── docker-compose.yml         # Postgres 15 + pgAdmin services
-│   ├── etl/
-│   │   ├── data_to_pg.py          # ETL: CSV → PostgreSQL — Phase 2 COMPLETE
-│   │   ├── write_script.py        # Utility script
-│   │   └── logs/                  # ETL run logs (git-ignored)
 │   ├── migrations/
 │   │   ├── 001_create_tables.sql  # DDL: 11 tables with FK constraints
 │   │   ├── 002_kpi_views.sql      # 9 KPI views — Phase 3/5 COMPLETE
@@ -155,7 +157,7 @@ python data_sources/generators/data_generator_v7.py
 docker-compose -f database/docker-compose.yml up -d
 
 # Ingest data into PostgreSQL
-python database/etl/data_to_pg.py
+python etl/data_to_pg.py
 
 # Run full pipeline (Windows)
 ./run_pipeline.bat
