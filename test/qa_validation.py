@@ -121,9 +121,6 @@ class TestDateRanges:
 # =========================================================================
 class TestWeekdayOnly:
     def test_no_weekend_interactions(self, cursor):
-        # NOTE: This test fails because generator creates weekend interactions
-        # contrary to business rules. Marked as xfail until generator is fixed.
-        pytest.xfail("Generator creates weekend interactions - violates business rule")
         cursor.execute("""
             SELECT COUNT(*) FROM fact_interactions fi
             JOIN dim_calendar dc ON fi.interaction_date = dc.date

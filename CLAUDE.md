@@ -20,11 +20,24 @@
 - Tests use pytest with conftest.py fixtures
 
 ## Key Facts
-- DB: localhost:5433, user=rtrlpz, db=MSI_CollectionsDB
+- DB: localhost:5433, user=rtrlpz, password=rtrlpz, db=MSI_CollectionsDB
 - Star schema: 6 dim tables, 5 fact tables, 9 KPI views
-- Known bug: generator creates ~25K weekend interactions (xfail test)
-- Pipeline runs in ~83s end-to-end
+- Weekend bug FIXED: interactions Mon-Fri only, payments allowed on weekends
+- 41 fast QA tests passing (0 failures), 2 slow tests
+- Pipeline runs in ~157s end-to-end (3 months data)
+- All 3 months (Oct-Dec 2025) loaded in PostgreSQL
+- `.env` at project root (was database/.env)
+- ETL at `etl/` (was database/etl/)
+
+## Key Documents
+- `docs/execution_guide.md` — 14,877-word enterprise build guide (13 sections)
+- `dashboards/assets/mis_collections_build_plan.md` — 5-phase Power BI build plan
+- `CONTEXT.md` — Full project context, conventions, session history
+
+## Next Phase
+- Phase C: Build Power BI dashboard (5 pages, fresh PBIX, import mode, star schema, 70+ DAX, RLS)
+- Phase D: Excel MIS report generator (openpyxl)
+- Phase E: Publish, user guide, handoff
 
 ## Reference
-For full project context, conventions, data model, and session history, read:
-`CONTEXT.md`
+For full project context read: `CONTEXT.md`

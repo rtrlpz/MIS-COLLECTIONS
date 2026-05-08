@@ -105,7 +105,7 @@ COMMENT ON COLUMN fact_ptp_log.rpc_arrears_at_contact IS 'Arrears amount when RP
 -- Fact_Payments
 COMMENT ON TABLE fact_payments IS 'Payment transactions including cure events and self-cures';
 COMMENT ON COLUMN fact_payments.payment_id IS 'Unique payment identifier (format: PAY_XXXXX)';
-COMMENT ON COLUMN fact_payments.payment_date IS 'Date payment was received (FK to dim_calendar)';
+COMMENT ON COLUMN fact_payments.payment_date IS 'Date payment was made (can include weekends — not a processing date; FK to dim_calendar)';
 COMMENT ON COLUMN fact_payments.payment_time IS 'Time of day when payment was processed';
 COMMENT ON COLUMN fact_payments.account_id IS 'FK to dim_accounts — account making the payment';
 COMMENT ON COLUMN fact_payments.ptp_id IS 'FK to fact_ptp_log — linked promise (NULL for self-cures)';

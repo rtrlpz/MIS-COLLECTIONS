@@ -8,7 +8,7 @@ Strict Star Schema engine for Power BI:
   - Event-driven PTP state machine with grace period resolution
   - Agent-Cure vs Self-Cure distinction on every payment
   - Fact_EOM_Snapshot: month-end balance/arrears/DPD-bucket per account
-  - Weekday-only payment clearing; interactions during 08:00–21:00 only
+  - Payments allowed on any date (payment_date = date made, not processed); interactions during 08:00–21:00 weekdays only
 """
 
 import os
@@ -147,13 +147,6 @@ def gauss_secs(mu, sigma, adj=0.0):
 
 def is_weekday(d: date) -> bool:
     return d.weekday() < 5
-
-
-def next_weekday(d: date) -> date:
-    """Advance to Monday if d falls on a weekend."""
-    while d.weekday() >= 5:
-        d += timedelta(days=1)
-    return d
 
 
 def rand_time_str(open_h: int, close_h: int) -> str:
@@ -369,55 +362,53 @@ for sim_date in DATE_RANGE:
     p_factor  = payday_factor(sim_date)
     eom_today = (sim_date == last_day(sim_date))
 
-    # ── 3A. PROCESS SCHEDULED PAYMENTS (weekdays only) ────────────────────
-    # Payment queue already adjusted to weekdays at PTP creation (next_weekday).
-    if is_wkday:
-        for pay in payment_queue.pop(sim_date, []):
-            acct_id = pay["account_id"]
-            ptp_id  = pay.get("ptp_id")
-            state   = account_state[acct_id]
-            ptp_rec = ptp_registry.get(ptp_id) if ptp_id else None
+    # ── 3A. PROCESS SCHEDULED PAYMENTS ────────────────────────────────────
+    for pay in payment_queue.pop(sim_date, []):
+        acct_id = pay["account_id"]
+        ptp_id  = pay.get("ptp_id")
+        state   = account_state[acct_id]
+        ptp_rec = ptp_registry.get(ptp_id) if ptp_id else None
 
-            if state["arrears"] <= 0:
-                continue    # already cured by an earlier payment this day
+        if state["arrears"] <= 0:
+            continue    # already cured by an earlier payment this day
 
-            applied          = min(pay["amount"], state["arrears"])
-            state["arrears"] = round(state["arrears"] - applied, 2)
-            state["balance"] = round(max(0.0, state["balance"] - applied), 2)
-            is_cured         = state["arrears"] <= 0
+        applied          = min(pay["amount"], state["arrears"])
+        state["arrears"] = round(state["arrears"] - applied, 2)
+        state["balance"] = round(max(0.0, state["balance"] - applied), 2)
+        is_cured         = state["arrears"] <= 0
 
-            if is_cured:
-                state["status"] = "Activo"
-                state["dpd"]    = 0
+        if is_cured:
+            state["status"] = "Activo"
+            state["dpd"]    = 0
 
-            # Cure classification
-            if is_cured and ptp_rec and ptp_rec["status"] == "Pending":
-                cure_flag = "Agent_Cure"
-            elif is_cured and ptp_rec is None:
-                cure_flag = "Self_Cure"
-            else:
-                cure_flag = "None"
+        # Cure classification
+        if is_cured and ptp_rec and ptp_rec["status"] == "Pending":
+            cure_flag = "Agent_Cure"
+        elif is_cured and ptp_rec is None:
+            cure_flag = "Self_Cure"
+        else:
+            cure_flag = "None"
 
-            # Resolve PTP: Kept if on-time AND payment covers ≥95% of promised
-            if ptp_rec and ptp_rec["status"] == "Pending":
-                on_time  = sim_date <= ptp_rec["grace_until"]
-                full_pay = applied >= ptp_rec["promised_amount"] * 0.95
-                ptp_rec["status"] = "Kept" if (on_time and full_pay) else "Broken"
+        # Resolve PTP: Kept if on-time AND payment covers ≥95% of promised
+        if ptp_rec and ptp_rec["status"] == "Pending":
+            on_time  = sim_date <= ptp_rec["grace_until"]
+            full_pay = applied >= ptp_rec["promised_amount"] * 0.95
+            ptp_rec["status"] = "Kept" if (on_time and full_pay) else "Broken"
 
-            pay_ctr += 1
-            fact_payments.append({
-                "payment_id":     fmt_id("PAY", pay_ctr, 6),
-                "payment_date":   str(sim_date),
-                "payment_time":   rand_time_str(8, 17),    # bank processing hours
-                "account_id":     acct_id,
-                "ptp_id":         ptp_id,
-                "agent_id":       pay.get("agent_id"),
-                "amount_paid":    round(applied, 2),
-                "payment_method": pay["method"],
-                "is_cured":       is_cured,
-                "cure_flag":      cure_flag,
-                "dpd_at_payment": state["dpd"],
-            })
+        pay_ctr += 1
+        fact_payments.append({
+            "payment_id":     fmt_id("PAY", pay_ctr, 6),
+            "payment_date":   str(sim_date),
+            "payment_time":   rand_time_str(8, 17),    # bank processing hours
+            "account_id":     acct_id,
+            "ptp_id":         ptp_id,
+            "agent_id":       pay.get("agent_id"),
+            "amount_paid":    round(applied, 2),
+            "payment_method": pay["method"],
+            "is_cured":       is_cured,
+            "cure_flag":      cure_flag,
+            "dpd_at_payment": state["dpd"],
+        })
 
     # ── 3B. EXPIRE PTPs & BUILD SUPPRESSION SET ────────────────────────────
     # Must happen before self-cure and dialer pool construction.
@@ -429,37 +420,36 @@ for sim_date in DATE_RANGE:
             else:
                 suppressed.add(prec["account_id"])
 
-    # ── 3C. ORGANIC SELF-CURES (weekdays, payday-boosted) ─────────────────
+    # ── 3C. ORGANIC SELF-CURES (payday-boosted) ──────────────────────────
     # Accounts that are in Mora, not suppressed by an active PTP,
     # spontaneously make a payment clearing full arrears.
-    if is_wkday:
-        sc_prob = CFG["self_cure_base_rate"] * p_factor
-        for acct_id, state in account_state.items():
-            if (state["status"] == "Mora"
-                    and state["arrears"] > 0
-                    and acct_id not in suppressed
-                    and random.random() < sc_prob):
+    sc_prob = CFG["self_cure_base_rate"] * p_factor
+    for acct_id, state in account_state.items():
+        if (state["status"] == "Mora"
+                and state["arrears"] > 0
+                and acct_id not in suppressed
+                and random.random() < sc_prob):
 
-                applied          = state["arrears"]
-                state["arrears"] = 0.0
-                state["balance"] = round(max(0.0, state["balance"] - applied), 2)
-                state["status"]  = "Activo"
-                state["dpd"]     = 0
+            applied          = state["arrears"]
+            state["arrears"] = 0.0
+            state["balance"] = round(max(0.0, state["balance"] - applied), 2)
+            state["status"]  = "Activo"
+            state["dpd"]     = 0
 
-                pay_ctr += 1
-                fact_payments.append({
-                    "payment_id":     fmt_id("PAY", pay_ctr, 6),
-                    "payment_date":   str(sim_date),
-                    "payment_time":   rand_time_str(8, 17),
-                    "account_id":     acct_id,
-                    "ptp_id":         None,
-                    "agent_id":       None,
-                    "amount_paid":    round(applied, 2),
-                    "payment_method": random.choices(PAY_METHODS, weights=PAY_WEIGHTS)[0],
-                    "is_cured":       True,
-                    "cure_flag":      "Self_Cure",
-                    "dpd_at_payment": 0,
-                })
+            pay_ctr += 1
+            fact_payments.append({
+                "payment_id":     fmt_id("PAY", pay_ctr, 6),
+                "payment_date":   str(sim_date),
+                "payment_time":   rand_time_str(8, 17),
+                "account_id":     acct_id,
+                "ptp_id":         None,
+                "agent_id":       None,
+                "amount_paid":    round(applied, 2),
+                "payment_method": random.choices(PAY_METHODS, weights=PAY_WEIGHTS)[0],
+                "is_cured":       True,
+                "cure_flag":      "Self_Cure",
+                "dpd_at_payment": 0,
+            })
 
     # ── 3D. BILLING CYCLE CHECK ────────────────────────────────────────────
     # On an account's due_day each month:
@@ -487,16 +477,9 @@ for sim_date in DATE_RANGE:
                   if s["status"] == "Activo" and a not in suppressed]
 
     # ── 3F. AGENT LOOP (Horarios de Operación y Turnos) ──────────────────────
-    dia_semana = sim_date.weekday()  # 0=Lunes, 5=Sábado, 6=Domingo
-
-    # Apagamos el Call Center los Domingos
-    if dia_semana != 6:
-
-        # Lógica de Horarios del Call Center
-        if dia_semana == 5:  # Sábado (Cierra a las 18:00 / 6 PM)
-            shift_start_max = 10  # Si entran a las 10am + 8 hrs = Salen a las 18:00
-        else:  # Lunes a Viernes (Cierra a las 21:00 / 9 PM)
-            shift_start_max = 13  # Si entran a las 1pm + 8 hrs = Salen a las 21:00
+    # Call center operates weekdays only (Monday–Friday)
+    if is_wkday:
+        shift_start_max = 13  # Login by 1pm + 8h shift → logout by 9pm
 
         accts_ptp_today = set()
 
@@ -607,7 +590,7 @@ for sim_date in DATE_RANGE:
 
                     if will_pay:
                         delay = random.randint(*CFG["payment_delay_days"])
-                        pay_date = next_weekday(min(sim_date + timedelta(days=delay), END))
+                        pay_date = min(sim_date + timedelta(days=delay), END)
                         payment_queue[pay_date].append({
                             "account_id": acct_id,
                             "agent_id": agent_id,

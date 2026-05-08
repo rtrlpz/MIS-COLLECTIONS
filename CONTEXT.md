@@ -10,97 +10,89 @@ Simulated bank collections analytics portfolio project. Generates synthetic data
 - **PostgreSQL 15** — Dockerized database with pgAdmin
 - **SQL** — KPI views, exploratory analysis
 - **Power BI** — Collections dashboard (.pbix)
-- **Excel** — Daily MIS report templates
+- **Excel** — Daily MIS report generation (openpyxl)
 - **Docker Compose** — Postgres + pgAdmin orchestration
 - **pytest** — Testing framework (installed in mis-collections env)
 
 ## Directory Structure
 ```
 MIS-COLLECTIONS/
-├── .github/ISSUE_TEMPLATE/        # bug_report.md, feature_request.md
-├── .gitignore
-├── .idea/                         # JetBrains IDE config files
-├── .env                           # DB credentials (git-ignored)
+├── .env                           # DB credentials (git-ignored) — at root, was database/.env
 ├── CLAUDE.md                      # Short AI-agent project context
 ├── CONTEXT.md                     # THIS FILE — single-source project overview
 ├── LICENSE
 ├── README.md                      # Project overview & interview pitch
 ├── ROADMAP.md                     # Phase-by-phase task checklist
 ├── requirements.txt               # Python deps (pinned versions)
-├── run_pipeline.bat               # Windows batch to run full pipeline (Phase 7 COMPLETE, COLOR bug fixed)
-├── migrate.sh                     # Bash script for DB migrations (called by run_pipeline.bat)
+├── run_pipeline.bat               # Windows batch: full pipeline (fixed: CONDA_PYTHON, ping, --env-file)
+├── migrate.sh                     # DB migrations (ordering fixed: KPI views before scorecards)
 │
-├── analysis/                      # SQL ANALYSIS LAYER (17 files — 13 of 17 COMPLETE)
-│   ├── README.md
+├── analysis/                      # SQL ANALYSIS LAYER — 17 files, all complete
 │   └── sql/
-│       ├── agent_level_operational_supervisors/   # 6 files: 3 COMPLETE, 3 remaining
-│       ├── team_level_tactical_managers/          # 6 files: ALL COMPLETE
-│       └── portfolio_level_strategic_directors/   # 5 files: 4 COMPLETE, 1 remaining
+│       ├── agent_level_operational_supervisors/   # 6 files
+│       ├── team_level_tactical_managers/          # 6 files
+│       └── portfolio_level_strategic_directors/   # 5 files
 │
 ├── dashboards/                    # VISUALIZATION LAYER
 │   ├── assets/
-│   │   ├── reference_guide.html   # Business guide (994 lines)
-│   │   ├── dax_measures_dictionary.pdf/.docx
+│   │   ├── mis_collections_build_plan.md    # 396-line build plan
+│   │   ├── reference_guide.html             # Business guide (1,555 lines)
 │   │   └── screenshots/architecture_diagram.svg
-│   ├── collections_project/collections_dashboard_v2.pbix
-│   └── dax_measures_dictionary.md
+│   ├── collections_project/
+│   │   ├── collections_dashboard_v2.pbix    # Legacy (8.9 MB) — build plan says start fresh
+│   ├── themes/
+│   │   └── collections_theme.json          # Corporate theme
+│   └── templates/
+│       └── page_template.pbit
 │
-├── etl/                           # ETL LAYER
-│   ├── data_to_pg.py              # CSV → PostgreSQL — Phase 2 COMPLETE
+├── etl/                           # ETL LAYER (was database/etl/)
+│   ├── data_to_pg.py              # CSV → PostgreSQL (path resolution fixed)
 │   ├── errors/                    # Error CSVs from failed loads
 │   └── logs/                      # ETL run logs (git-ignored)
 │
 ├── data_sources/                  # DATA GENERATION LAYER
-│   ├── README.md
-│   ├── __init__.py
 │   ├── generators/
-│   │   ├── __init__.py
-│   │   ├── config.py             # CFG and PRODUCT_CFG dicts (extracted from v7)
-│   │   ├── data_generator_v7.py   # Star schema generator (~1,050 lines) — Phase 1 COMPLETE
-│   │   └── README.md
-│   └── schema/
-│       └── dictionary.md          # Column-level docs for all tables
+│   │   ├── config.py             # CFG and PRODUCT_CFG dicts
+│   │   ├── data_generator_v7.py   # Star schema generator (weekend bug FIXED)
+│   │   └── raw/                   # Generated CSVs (git-ignored)
+│   └── schema/dictionary.md
 │
 ├── database/                      # DATABASE LAYER
-│   ├── README.md
 │   ├── docker-compose.yml         # Postgres 15 + pgAdmin services
 │   ├── migrations/
-│   │   ├── 001_create_tables.sql  # DDL: 11 tables with FK constraints
-│   │   ├── 002_kpi_views.sql      # 9 KPI views — Phase 3/5 COMPLETE
-│   │   ├── 003_constraints.sql     # 15 CHECK constraints (Phase 3 COMPLETE)
-│   │   ├── 004_agents_scorecards.sql  # v_agent_scorecards (Phase 3 COMPLETE)
-│   │   ├── 005_indexes.sql          # 27 indexes (Phase 3 COMPLETE)
-│   │   └── 006_comments.sql       # 63 COMMENT ON statements (Phase 3 COMPLETE)
+│   │   ├── 001_create_tables.sql  # DDL: 11 tables (DROPs before CREATEs)
+│   │   ├── 002_kpi_views.sql      # 9 KPI views
+│   │   ├── 003_constraints.sql    # 15 CHECK constraints
+│   │   ├── 004_agents_scorecards.sql  # v_agent_scorecards
+│   │   ├── 005_indexes.sql        # 27 indexes
+│   │   └── 006_comments.sql       # 63 COMMENT ON (payments comment updated)
 │   └── seeds/
 │       ├── 001_dim_products.sql   # 3 product seed rows
-│       ├── 002_dim_calendar.sql  # 92 calendar rows (Oct-Dec 2025)
-│       └── README.md
+│       └── 002_dim_calendar.sql   # 365 calendar rows (full year 2025)
 │
 ├── docs/                          # DOCUMENTATION LAYER
-│   ├── data_dictionary.md         # Full data dictionary (10 tables)
-│   ├── executive_summary.md       # One-page summary for leadership
-│   ├── execution_guide.md         # Granular task instructions
-│   ├── kpi_definitions.md         # Comprehensive KPI reference (319 lines)
-│   ├── interviews/
-│   │   ├── interview_prep/business_guide.html
-│   │   ├── interview_prep/sql_cheatsheet.md
-│   │   └── interview_prep/talking_points.md
-│   ├── setup/
-│   │   ├── github_projects_import.csv
-│   │   └── notion_import.csv
-│   └── TODO/                      # Miscellaneous planning docs
+│   ├── execution_guide.md         # 14,877-word enterprise build guide (13 sections)
+│   ├── kpi_definitions.md         # KPI formulas, targets, benchmarks
+│   ├── data_dictionary.md         # Column-level metadata
+│   ├── executive_summary.md       # One-page leadership summary
+│   ├── ROADMAP.md                 # Phase tracker — 82% complete
+│   └── interviews/                # Case study prep materials
 │
 ├── reports/                       # EXCEL REPORTING LAYER
-│   ├── templates/daily_mis.xlsx   # Daily MIS template
-│   └── output/                    # Generated reports (git-ignored)
+│   └── templates/                 # (pending Phase D build)
 │
-└── test/                          # TESTING LAYER (Phase 6 COMPLETE)
-    ├── README.md
-    ├── __init__.py
-    ├── conftest.py               # Pytest fixtures (DB connection, metadata)
-    ├── qa_validation.py          # 11 data integrity tests (9 fast + 2 slow)
-    ├── test_generator.py          # Generator unit tests
-    └── test_kpi_views.sql       # SQL validation queries for KPI views
+├── test/                          # TESTING LAYER — 41 fast tests passing
+│   ├── conftest.py               # Pytest fixtures
+│   ├── qa_validation.py          # Data integrity tests (weekend test: PASSING)
+│   └── test_generator.py          # Generator unit tests
+│
+├── dax/                           # DAX source control (exported via Tabular Editor)
+│   ├── _contact_and_volume.dax
+│   ├── _promise_and_recovery.dax
+│   └── _portfolio_and_trends.dax
+│
+└── security/                      # RLS configuration
+    └── rls_test_users.csv
 ```
 
 ## Data Model (Star Schema)
@@ -108,28 +100,29 @@ MIS-COLLECTIONS/
 ### Dimension Tables (6)
 | Table | Rows | Description |
 |-------|------|-------------|
-| Dim_Supervisors | 8 | Team leads with region, tenure, hire date |
-| Dim_Agents | 80 | Agents with supervisor FK, region, hire date |
-| Dim_Clients | 10,000 | Clients with region, risk score, segment |
+| Dim_Supervisors | 8 | Team leads with region, team name |
+| Dim_Agents | 80 | Agents with supervisor FK, skill score |
+| Dim_Clients | 10,000 | Clients with segment, risk score |
 | Dim_Products | 3 | Credit Card, Personal Loan, Mortgage |
 | Dim_Accounts | ~15,575 | Accounts with product/client FK, balance, DPD |
-| Dim_Calendar | ~92 | Date dimension with flags (weekday, month, quarter) |
+| Dim_Calendar | 92 (gen) / 365 (seed) | Date dimension with weekday/payday flags |
 
 ### Fact Tables (5 per month)
-| Table | Description |
-|-------|-------------|
-| Fact_Interactions | Dialer calls, RPC/non-RPC, connection flags |
-| Fact_PTP_Log | Promise-to-pay events, state machine (kept/broken) |
-| Fact_Payments | Payment transactions, cure events |
-| Fact_Agent_Time_Log | Agent utilization, handle time, ACW |
-| Fact_EOM_Snapshot | End-of-month account snapshots |
+| Table | Rows (3mo) | Description |
+|-------|------------|-------------|
+| Fact_Interactions | ~500K | Dialer calls, RPC/non-RPC, AHT/ACW (weekdays only) |
+| Fact_PTP_Log | ~31K | Promise-to-pay events, Kept/Broken state machine |
+| Fact_Payments | ~21K | Payment transactions, Agent-Cure vs Self-Cure (weekends OK) |
+| Fact_Agent_Time_Log | ~5K | Agent login/logout, utilization, handle time |
+| Fact_EOM_Snapshot | ~47K | End-of-month account snapshots with DPD buckets |
 
 ## Key Business Logic
 - **Event-driven PTP state machine**: promises transition through scheduled → kept/broken
 - **Payday seasonality**: payment probability spikes on specific days
-- **DPD anchored to billing cycles**: days past due tied to account lifecycle
+- **DPD anchored to billing cycles**: days past due tied to account lifecyle
 - **Agent-Cure vs Self-Cure**: distinguishes agent-driven recoveries from automatic payments
-- **Weekday-only processing**: no collections activity on weekends (**NOTE: Generator bug creates 25,786 weekend interactions**)
+- **Payments on any date**: payment_date = date made, not processed — weekend payments allowed
+- **Weekday-only interactions**: no call center activity on weekends (bug FIXED — 0 weekend interactions now)
 - **Anomaly injection**: realistic edge cases in the data (~9,117 injected)
 - **Mora replenishment**: accounts can re-enter delinquency
 
@@ -156,21 +149,17 @@ python data_sources/generators/data_generator_v7.py
 # Start database
 docker-compose -f database/docker-compose.yml up -d
 
-# Ingest data into PostgreSQL
-python etl/data_to_pg.py
-
 # Run full pipeline (Windows)
 ./run_pipeline.bat
 
 # Run migrations manually
 bash migrate.sh
 
-# Run tests (fast only - excludes slow tests)
-cd C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS
-/c/Users/Leand/.conda/envs/mis-collections/python -m pytest test/ -v -m "not slow"
+# Run tests (fast only — 41 tests, weekend test now PASSING)
+python -m pytest test/ -v -m "not slow"
 
 # Run all tests (including slow ETL idempotency and generator seed tests)
-/c/Users/Leand/.conda/envs/mis-collections/python -m pytest test/ -v
+python -m pytest test/ -v
 ```
 
 ## Current State & Pending Work
@@ -185,16 +174,22 @@ cd C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS
 - Output validation (21 checks: row counts, PK nulls, FK integrity)
 - Anomaly injection tracking (anomaly_report.csv with ~9,117 anomalies)
 - requirements.txt with pinned versions
-- **Generates**: ~506K interactions, ~31K PTP events, ~21K payments across 3 months
+- **Weekend bug FIXED**: Interactions now Mon-Fri only; payments allowed on any date (2,228 weekend payments, 0 weekend interactions)
+- **Dead code removed**: `next_weekday()` function deleted
+- **Generates**: ~500K interactions, ~31K PTP events, ~21K payments across 3 months
 
-#### Phase 2 (ETL Pipeline) — 100% Complete
+#### Phase 2 (ETL Pipeline) — 100% Complete (Moved to root)
+- `etl/` directory moved from `database/etl/` to root
+- `database/etl/write_script.py` deleted (dead code)
+- Empty `database/etl/` directory removed
+- Path resolution in `data_to_pg.py` corrected
 - Logging (file + console handlers)
 - validate_csv() with PK validation, row count, headers
 - Transaction wrapping (atomicity with single transaction)
 - Idempotency (TRUNCATE CASCADE before load)
 - Environment variable support (--env-file flag)
 - --dry-run flag (validate without DB connection, exit 0/1)
-- --incremental flag (skip already-loaded months based on fact_interactions)
+- --incremental flag (skip already-loaded months)
 - etl_load_log table (creates table, logs each load with SHA256 checksum)
 - Retry logic (up to 3 connection attempts with 5-second sleep)
 - Error recovery (savepoints per table, writes errors/<table>_errors.csv)
@@ -203,136 +198,97 @@ cd C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS
 #### Phase 3/5 (KPI Views & Database Layer) — 100% Complete
 
 **9 KPI Views** in `002_kpi_views.sql`:
-1. `v_contact_metrics` — Contact KPIs per agent/day/team/month
-2. `v_promise_metrics` — Promise KPIs with PTP%, Kept%, Broken tracking
-3. `v_recovery_metrics` — Recovery KPIs (cures, cured amounts, agent vs self-cures)
-4. `v_productivity_metrics` — Utilization%, contacts/hour, no-touch rate
-5. `v_handle_time_metrics` — AHT and ACW separated by RPC/non-RPC
-6. `v_daily_mis` — Consolidated daily view combining all KPI categories
-7. `v_monthly_summary` — Month-level rollup for dashboard trends
-8. `v_etl_load_summary` — Latest ETL load per table with data freshness
-9. `v_data_freshness` — Shows days since each fact table was last updated
+1. `v_contact_metrics`
+2. `v_promise_metrics`
+3. `v_recovery_metrics`
+4. `v_productivity_metrics`
+5. `v_handle_time_metrics`
+6. `v_daily_mis`
+7. `v_monthly_summary`
+8. `v_etl_load_summary`
+9. `v_data_freshness`
 
 **Database Enhancements**:
-- `003_constraints.sql` — 15 CHECK constraints with idempotent DO blocks
-- `004_agents_scorecards.sql` — v_agent_scorecards view with composite scoring
-- `005_indexes.sql` — 27 indexes (16 FK/date + 5 single-column + 6 composite)
-- `006_comments.sql` — 63 COMMENT ON statements for all 11 tables and columns
+- `003_constraints.sql` — 15 CHECK constraints
+- `004_agents_scorecards.sql` — v_agent_scorecards
+- `005_indexes.sql` — 27 indexes
+- `006_comments.sql` — 63 COMMENT ON statements (fact_payments.payment_date updated to note weekend allowance)
 - Seed files with `ON CONFLICT DO NOTHING` for idempotency
+- **Migration ordering fixed**: 002_kpi_views.sql runs before 004_agents_scorecards.sql (was referencing non-existent v_monthly_summary)
+
+#### Phase 4 (Analysis SQL Files) — 100% Complete (17 of 17)
+All 17 SQL files verified with valid content — none empty.
 
 #### Phase 6 (Testing) — 100% Complete
-- `test/conftest.py` — Pytest fixtures (DB connection, table metadata, PK/FK mappings, KPI views, custom `slow` mark)
-- `test/qa_validation.py` — 11 data integrity tests:
-  1. ✅ Row counts (Dim_Agents=80, Dim_Clients=10000, Dim_Accounts~15575 ±5%)
-  2. ✅ No null PKs across all tables
-  3. ✅ FK integrity (all FK values exist in referenced dimension tables)
-  4. ✅ Date ranges (fact dates within Oct-Dec 2025, calendar covers Oct-Dec 2025)
-  5. ❌ No weekend interactions (XFAIL - generator bug creates 25,786 weekend rows)
-  6. ✅ DPD >= 0 in all tables
-  7. ✅ Utilization BETWEEN 0 AND 100
-  8. ✅ AHT > 0s, max < 3600s
-  9. ✅ KPI views return rows, percentages in 0-100 range
-  10. 🐌 ETL idempotency (marked `@pytest.mark.slow`)
-  11. 🐌 Generator seed reproducibility (marked `@pytest.mark.slow`)
-- `test/test_generator.py` — Generator unit tests:
-  - TestGeneratorOutput: output structure, reproducibility, data quality
-  - TestGeneratorReproducibility: seed reproducibility
-  - TestGeneratorDataQuality: no null PKs in generated data
-- `test/test_kpi_views.sql` — SQL validation queries for KPI views
+- `test/conftest.py` — Pytest fixtures
+- `test/qa_validation.py` — Data integrity tests:
+  - 41 fast tests passing (0 failures)
+  - **Weekend test**: Now PASSING (was XFAIL) — `test_no_weekend_interactions` confirms 0 weekend interactions
+  - Test structure unchanged — only removed `pytest.xfail()` marker
+- `test/test_generator.py` — Generator unit tests
 
 #### Phase 7 (Automation) — 100% Complete
-- `run_pipeline.bat` — Docker check → start containers → wait for PostgreSQL → migrations → generate data → ETL → colored output → timing per stage
-- **COLOR bug fixed**: Removed trailing colons from COLOR commands
-- Pipeline runs end-to-end in ~83 seconds
-- `migrate.sh` — Runs all SQL migrations by piping via `cat file.sql | docker exec -i psql`
+- `run_pipeline.bat` — Fixed: `timeout /t 2` → `ping -n 3 localhost` (cross-shell), `python` → `%CONDA_PYTHON%`, added `--env-file .env` for docker-compose
+- `migrate.sh` — Ordering fixed: 002 before 004
+- `.env` moved from `database/.env` to `./.env`
+- Pipeline end-to-end verified: ~157s (all 3 months loaded)
+- Data status: All 3 months (Oct-Dec 2025) loaded in PostgreSQL
 
 ### ⏳ PENDING (Next Phases)
 
-#### Phase 4 (Analysis SQL Files) — 100% COMPLETE (17 of 17 COMPLETE)
-**Agent Level (6 files)**:
-- ✅ `coaching_opportunities.sql` — COMPLETE
-- ✅ `schedule_adherence.sql` — COMPLETE
-- ✅ `eda_agents.sql` — COMPLETE
-- ✅ `daily_agent_activity.sql` — COMPLETE
-- ✅ `agent_scorecard.sql` — COMPLETE (uses v_agent_scorecards)
-- ✅ `agent_exception_report.sql` — COMPLETE
+#### Phase C — Power BI Dashboard Build (formerly Phase 9)
+- Build fresh PBIX (not modify existing collections_dashboard_v2.pbix)
+- 5 pages: Executive, Agent Scorecard, Team Performance, Portfolio Health, Promise Intelligence
+- Import mode, star schema, 70+ DAX measures, RLS by supervisor team
+- Build plan at `dashboards/assets/mis_collections_build_plan.md`
+- No longer blocked by weekend bug — clean data ready
 
-**Team Level (6 files)** — ALL COMPLETE:
-- ✅ `team_comparison.sql`
-- ✅ `agent_leaderboard.sql`
-- ✅ `handle_time_benchmark.sql`
-- ✅ `workload_distribution.sql`
-- ✅ `campaign_effectiveness.sql`
-- ✅ `eda_supervisors.sql`
+#### Phase D — Excel Daily MIS Report
+- Python (openpyxl) script at `reports/generate_daily_mis.py`
+- 3 sheets: KPI dashboard, Agent deep dive, Methodological notes
+- Queries `v_daily_mis` directly
 
-**Portfolio Level (5 files)**:
-- ✅ `target_vs_actual.sql` — COMPLETE
-- ✅ `portfolio_concentration.sql` — COMPLETE
-- ✅ `recovery_trend_mom.sql` — COMPLETE
-- ✅ `roll_rate_analysis.sql` — COMPLETE
-- ✅ `portfolio_health.sql` — COMPLETE
-
-#### Phase 9 (BI/Reporting)
-- Build Power BI dashboard using collections_dashboard_v2.pbix template
-- Create Excel reports from templates
-
-#### Phase 8 (Final Documentation)
-- Update ROADMAP.md with completed tasks
-- Finalize executive summary and interview materials
+#### Phase E — Publishing & Governance
+- Publish PBIX to Power BI Service
+- Schedule gateway refresh
+- Distribute Excel report
+- RLS testing
+- User guide + handoff
 
 ### ✅ RESOLVED ISSUES
-- ~~`psycopg2` module not installed~~ — **RESOLVED**: Installed in mis-collections conda env
-- ~~`pytest` not installed~~ — **RESOLVED**: `pip install pytest` in mis-collections env
-- ~~`run_pipeline.bat` COLOR bug~~ — **RESOLVED**: Removed trailing colons from COLOR commands
-- `.env` file at `database/.env` — Resolved in code with fallback path
+- ~~Weekend interactions bug~~ — **FIXED**: Interactions Mon-Fri only; payments allowed on weekends
+- ~~`psycopg2` module not installed~~ — **RESOLVED**
+- ~~`pytest` not installed~~ — **RESOLVED**
+- ~~`run_pipeline.bat` COLOR bug~~ — **RESOLVED**
+- ~~Migration ordering~~ — **FIXED**: 002_kpi_views.sql runs before 004_agents_scorecards.sql
+- ~~`.env` at `database/.env`~~ — **MOVED**: Now at `./.env` (project root)
+- ~~`database/etl/`~~ — **MOVED**: ETL now at root `etl/`
+- ~~`database/etl/write_script.py`~~ — **DELETED**: Dead code removed
 
 ### 🐛 KNOWN BUGS
-- **Weekend interactions**: Generator creates 25,786 weekend interactions despite business rule "weekday-only processing". `Dim_Calendar.is_weekday` is correctly set to FALSE for weekends, but `data_generator_v7.py` doesn't filter weekend dates when generating interactions.
+- None currently. Weekend interaction bug is fixed. Pipeline verified end-to-end.
+
+## Key Documents
+- `docs/execution_guide.md` — 14,877-word enterprise Power BI build guide (13 sections, replaces old task-level document)
+- `dashboards/assets/mis_collections_build_plan.md` — 396-line build plan for Phase C/D/E
+- `dashboards/assets/reference_guide.html` — 1,555-line DAX reference with 70+ measures
+- `docs/kpi_definitions.md` — Business formulas and benchmarks for all KPIs
 
 ## Session Notes
-- **ROADMAP.md priority order**: Phase 1 → Phase 2 → Phase 3(+5) → Phase 4 → Phase 6 → Phase 9 → Phase 7 → Phase 8
-- **PostgreSQL container**: `postgres_collections`, port 5433 (external), 5432 (internal)
-- **Migration approach**: `bash migrate.sh` calls `cat file.sql | docker exec -i psql`
-- **All 9 KPI views verified** in pgAdmin after migration
-- **etl_load_log table**: tracks table_name, rows_loaded, loaded_at, status, csv_checksum
-- **Pipeline data volumes**: ~506K interactions, ~31K PTP events, ~21K payments across 3 months (Oct-Dec 2025)
-- **Fact_EOM_Snapshot**: 15,575 accounts (not ~20,000 as originally estimated)
-- **psycopg2 confirmed installed** in `mis-collections` conda environment
-- **pytest installed** in `mis-collections` conda environment for testing
-
-## Next Steps (After Session)
-1. **Phase 8**: Finalize documentation (QUICKSTART.md, CHANGELOG.md, README badges)
-2. **Fix generator bug**: Update `data_generator_v7.py` to filter weekend dates (remove 25,786 weekend interactions)
-3. **Phase 9**: Build Power BI dashboard (per `mis_collections_build_plan.md`) + Excel generation script
-4. **ROADMAP.md**: Already updated to reflect current state
-
-## Session Notes (Current Session - Phase 6 Completion)
-- **Completed Phase 6 (Testing)**:
-  - Created `test/conftest.py` with DB connection fixture and metadata fixtures
-  - Created `test/qa_validation.py` with 11 tests (9 fast + 2 slow)
-  - Created `test/test_generator.py` with generator unit tests
-  - Created `test/test_kpi_views.sql` with SQL validation queries
-- **Test results**: 9 of 11 tests pass, 1 xfail (weekend bug), 2 marked slow
-- **Known limitations**: No tenure data in dim_agents/dim_supervisors, no account-to-region mapping in fact_eom_snapshot
-- **Data status**: Only October 2025 loaded - MoM comparisons return NULL until Nov/Dec loaded
-
-## Session Notes (Current Session - ROADMAP + Build Plan)
-- **Completed Phase 4 verification**: All 17 SQL analysis files verified to have valid content (not empty)
-- **Created `mis_collections_build_plan.md`**: Comprehensive 396-line build plan at `dashboards/assets/`
-  - Covers 5 Power BI dashboard pages + Excel MIS report
-  - 5 phases (A→E), 10 business day timeline
-  - Requirements matrix: 8 data, 29 KPI, 7 technical, 10 business requirements
-- **Updated ROADMAP.md**: Fixed header from stale 28% to actual ~82%
-  - All completed phases (1-7) now accurately marked at 100%
-  - Phase 8 and 9 reflect true pending state
-  - Phase 6 test items restructured to match actual qa_validation.py classes (not a 2017-era wish list)
-- **Confirmed cleanup**: `run_pipeline.ps1`, `run_migration.sh`, `002_kpi_views.sql.bak` no longer exist on disk — removed stale references from CONTEXT.md
-- **No changes to data**: Weekend bug, Oct-only data still apply
+- **Weekend rule changed**: Payments now allowed on weekend dates (payment_date = date made, not processed). Interactions remain weekday-only.
+- **Generator changes**: 7 edits to `data_generator_v7.py` — removed `if is_wkday:` guards for payment processing and self-cures, removed `next_weekday()` function, changed interaction guard to weekday-only, updated docstring.
+- **Test changes**: Removed `pytest.xfail()` from `test_no_weekend_interactions` — test now passes.
+- **Comment changes**: Updated `006_comments.sql` fact_payments.payment_date description.
+- **execution_guide.md replaced**: Old 1,547-line task-prompt document replaced with 2,499-line enterprise architecture guide with 13 sections, wireframes, DAX patterns, RLS architecture.
+- **Data flow**: Generator → CSVs → ETL → PostgreSQL → Power BI Import (~500K rows, ~100 MB compressed) → Excel (openpyxl)
+- **Pipeline timing**: ~157s end-to-end (up from ~83s due to 3 months of data vs 1 month previously)
+- **Test count**: 41 fast tests passing (was 9 of 11 with 1 xfail)
 
 ## Quick Reference
 - **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`
 - **Conda env**: `mis-collections`
-- **DB connection**: host=localhost, port=5433, user=rtrlpz, db=MSI_CollectionsDB
+- **DB connection**: host=localhost, port=5433, user=rtrlpz, password=rtrlpz, db=MSI_CollectionsDB
 - **Pipeline command**: `./run_pipeline.bat` (from project root in CMD)
-- **Verify views**: `SELECT * FROM v_etl_load_summary;` or `SELECT * FROM v_data_freshness;`
-- **Run tests**: `/c/Users/Leand/.conda/envs/mis-collections/python -m pytest test/ -v -m "not slow"`
+- **Run tests**: `python -m pytest test/ -v -m "not slow"`
+- **execution_guide.md**: `docs/execution_guide.md` (2,499 lines, 13 sections)
+- **Build plan**: `dashboards/assets/mis_collections_build_plan.md` (5 phases, A→E)
