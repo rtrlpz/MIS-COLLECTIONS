@@ -201,7 +201,10 @@ dim_supervisors = pd.DataFrame([{
     "region":          random.choice(["North", "South", "East", "West"]),
 } for i in range(1, CFG["num_supervisors"] + 1)])
 
-sup_ids = dim_supervisors["supervisor_id"].tolist()
+sup_ids   = dim_supervisors["supervisor_id"].tolist()
+sup_lookup = dim_supervisors.set_index("supervisor_id")[
+    ["supervisor_name", "team_name", "region"]
+].to_dict(orient="index")
 
 # ── Dim_Agents ───────────────────────────────────────────────────────────────
 agent_rows    = []
@@ -210,12 +213,17 @@ agent_profile = {}   # simulation-internal; not exported directly
 for i in range(1, CFG["num_agents"] + 1):
     eid   = fmt_id("EID", i, 3)
     skill = clamp(random.gauss(1.0, 0.15), 0.70, 1.30)
+    sid   = random.choice(sup_ids)
+    sup   = sup_lookup[sid]
 
     agent_rows.append({
-        "agent_id":      eid,
-        "agent_name":    fake.name(),
-        "supervisor_id": random.choice(sup_ids),
-        "skill_score":   round(skill, 3),    # exported — useful as BI slicer
+        "agent_id":        eid,
+        "agent_name":      fake.name(),
+        "supervisor_id":   sid,
+        "supervisor_name": sup["supervisor_name"],
+        "team_name":       sup["team_name"],
+        "region":          sup["region"],
+        "skill_score":     round(skill, 3),
     })
 
     agent_profile[eid] = {

@@ -28,8 +28,10 @@ CREATE TABLE dim_agents (
     agent_id VARCHAR(15) PRIMARY KEY,
     agent_name VARCHAR(100) NOT NULL,
     supervisor_id VARCHAR(15),
-    skill_score DECIMAL(5,3),
-    CONSTRAINT fk_agents_supervisor FOREIGN KEY (supervisor_id) REFERENCES dim_supervisors(supervisor_id)
+    supervisor_name VARCHAR(100),
+    team_name VARCHAR(50),
+    region VARCHAR(50),
+    skill_score DECIMAL(5,3)
 );
 
 CREATE TABLE dim_clients (

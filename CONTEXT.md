@@ -81,7 +81,7 @@ MIS-COLLECTIONS/
 ├── reports/                       # EXCEL REPORTING LAYER
 │   └── templates/                 # (pending Phase D build)
 │
-├── test/                          # TESTING LAYER — 41 fast tests passing
+├── test/                          # TESTING LAYER — 45 fast tests passing (38 structural + 7 KPI views)
 │   ├── conftest.py               # Pytest fixtures
 │   ├── qa_validation.py          # Data integrity tests (weekend test: PASSING)
 │   └── test_generator.py          # Generator unit tests
@@ -100,8 +100,8 @@ MIS-COLLECTIONS/
 ### Dimension Tables (6)
 | Table | Rows | Description |
 |-------|------|-------------|
-| Dim_Supervisors | 8 | Team leads with region, team name |
-| Dim_Agents | 80 | Agents with supervisor FK, skill score |
+| Dim_Supervisors | 8 | Standalone reference table (no FK linkage to Dim_Agents) |
+| Dim_Agents | 80 | Agents with denormalized supervisor_name, team_name, region, skill score |
 | Dim_Clients | 10,000 | Clients with segment, risk score |
 | Dim_Products | 3 | Credit Card, Personal Loan, Mortgage |
 | Dim_Accounts | ~15,575 | Accounts with product/client FK, balance, DPD |
@@ -110,7 +110,7 @@ MIS-COLLECTIONS/
 ### Fact Tables (5 per month)
 | Table | Rows (3mo) | Description |
 |-------|------------|-------------|
-| Fact_Interactions | ~500K | Dialer calls, RPC/non-RPC, AHT/ACW (weekdays only) |
+| Fact_Interactions | ~422K | Dialer calls, RPC/non-RPC, AHT/ACW (weekdays only) |
 | Fact_PTP_Log | ~31K | Promise-to-pay events, Kept/Broken state machine |
 | Fact_Payments | ~21K | Payment transactions, Agent-Cure vs Self-Cure (weekends OK) |
 | Fact_Agent_Time_Log | ~5K | Agent login/logout, utilization, handle time |
@@ -155,7 +155,7 @@ docker-compose -f database/docker-compose.yml up -d
 # Run migrations manually
 bash migrate.sh
 
-# Run tests (fast only — 41 tests, weekend test now PASSING)
+# Run tests (fast only — 45 tests, weekend test PASSING)
 python -m pytest test/ -v -m "not slow"
 
 # Run all tests (including slow ETL idempotency and generator seed tests)
@@ -176,7 +176,7 @@ python -m pytest test/ -v
 - requirements.txt with pinned versions
 - **Weekend bug FIXED**: Interactions now Mon-Fri only; payments allowed on any date (2,228 weekend payments, 0 weekend interactions)
 - **Dead code removed**: `next_weekday()` function deleted
-- **Generates**: ~500K interactions, ~31K PTP events, ~21K payments across 3 months
+- **Generates**: ~422K interactions, ~31K PTP events, ~22K payments across 3 months
 
 #### Phase 2 (ETL Pipeline) — 100% Complete (Moved to root)
 - `etl/` directory moved from `database/etl/` to root
@@ -197,7 +197,7 @@ python -m pytest test/ -v
 
 #### Phase 3/5 (KPI Views & Database Layer) — 100% Complete
 
-**9 KPI Views** in `002_kpi_views.sql`:
+**9 KPI Views** in `002_kpi_views.sql` (all joins to `dim_supervisors` removed — data sourced from denormalized `dim_agents`):
 1. `v_contact_metrics`
 2. `v_promise_metrics`
 3. `v_recovery_metrics`
@@ -208,11 +208,13 @@ python -m pytest test/ -v
 8. `v_etl_load_summary`
 9. `v_data_freshness`
 
-**Database Enhancements**:
+**Schema Design Changes**:
+- **Dim_Agents denormalized**: `supervisor_name`, `team_name`, `region` moved into `dim_agents` — removes FK to `dim_supervisors` (VertiPaq-friendly, simplifies Power BI DAX)
+- `dim_supervisors` retained as standalone reference table (no enforced FK linkage)
 - `003_constraints.sql` — 15 CHECK constraints
 - `004_agents_scorecards.sql` — v_agent_scorecards
 - `005_indexes.sql` — 27 indexes
-- `006_comments.sql` — 63 COMMENT ON statements (fact_payments.payment_date updated to note weekend allowance)
+- `006_comments.sql` — 63 COMMENT ON statements; dim_agent column comments updated for denormalized fields
 - Seed files with `ON CONFLICT DO NOTHING` for idempotency
 - **Migration ordering fixed**: 002_kpi_views.sql runs before 004_agents_scorecards.sql (was referencing non-existent v_monthly_summary)
 
@@ -222,7 +224,7 @@ All 17 SQL files verified with valid content — none empty.
 #### Phase 6 (Testing) — 100% Complete
 - `test/conftest.py` — Pytest fixtures
 - `test/qa_validation.py` — Data integrity tests:
-  - 41 fast tests passing (0 failures)
+  - 45 fast tests passing (0 failures, 38 structural + 7 KPI views)
   - **Weekend test**: Now PASSING (was XFAIL) — `test_no_weekend_interactions` confirms 0 weekend interactions
   - Test structure unchanged — only removed `pytest.xfail()` marker
 - `test/test_generator.py` — Generator unit tests
@@ -266,7 +268,7 @@ All 17 SQL files verified with valid content — none empty.
 - ~~`database/etl/write_script.py`~~ — **DELETED**: Dead code removed
 
 ### 🐛 KNOWN BUGS
-- None currently. Weekend interaction bug is fixed. Pipeline verified end-to-end.
+- None currently. Weekend interaction bug is fixed. Dim_Agents denormalized. Pipeline verified end-to-end.
 
 ## Key Documents
 - `docs/execution_guide.md` — 14,877-word enterprise Power BI build guide (13 sections, replaces old task-level document)
@@ -280,9 +282,10 @@ All 17 SQL files verified with valid content — none empty.
 - **Test changes**: Removed `pytest.xfail()` from `test_no_weekend_interactions` — test now passes.
 - **Comment changes**: Updated `006_comments.sql` fact_payments.payment_date description.
 - **execution_guide.md replaced**: Old 1,547-line task-prompt document replaced with 2,499-line enterprise architecture guide with 13 sections, wireframes, DAX patterns, RLS architecture.
-- **Data flow**: Generator → CSVs → ETL → PostgreSQL → Power BI Import (~500K rows, ~100 MB compressed) → Excel (openpyxl)
+- **Data flow**: Generator → CSVs → ETL → PostgreSQL → Power BI Import (~422K rows, ~100 MB compressed) → Excel (openpyxl)
 - **Pipeline timing**: ~157s end-to-end (up from ~83s due to 3 months of data vs 1 month previously)
-- **Test count**: 41 fast tests passing (was 9 of 11 with 1 xfail)
+- **Test count**: 45 fast tests passing (was 41 — 38 structural + 7 KPI views, FK test for dim_agents→dim_supervisors removed)
+- **Dim_Agents denormalized**: Added `supervisor_name`, `team_name`, `region` directly to `dim_agents`; removed FK constraint to `dim_supervisors`. All 5 KPI views updated to reference `da.team_name` instead of joining `dim_supervisors`. Generator populates denormalized fields via lookup. Generator seed reproducibility unaffected (using seed 42). Pipeline runs ~37s ETL.
 
 ## Quick Reference
 - **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`

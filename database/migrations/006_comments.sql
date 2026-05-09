@@ -20,10 +20,13 @@ COMMENT ON COLUMN dim_supervisors.team_name IS 'Team name assigned to the superv
 COMMENT ON COLUMN dim_supervisors.region IS 'Geographic region (e.g., North, South, Central)';
 
 -- Dim_Agents
-COMMENT ON TABLE dim_agents IS 'Collection agents with supervisor assignment, skill score, and hire date';
+COMMENT ON TABLE dim_agents IS 'Collection agents with supervisor details, skill score, and hire date';
 COMMENT ON COLUMN dim_agents.agent_id IS 'Unique agent identifier (format: AGT_XXX)';
 COMMENT ON COLUMN dim_agents.agent_name IS 'Full name of the agent';
-COMMENT ON COLUMN dim_agents.supervisor_id IS 'FK to dim_supervisors — team lead managing this agent';
+COMMENT ON COLUMN dim_agents.supervisor_id IS 'Supervisor ID managing this agent';
+COMMENT ON COLUMN dim_agents.supervisor_name IS 'Full name of the agent supervisor (denormalized)';
+COMMENT ON COLUMN dim_agents.team_name IS 'Team name (denormalized from supervisor)';
+COMMENT ON COLUMN dim_agents.region IS 'Geographic region (denormalized from supervisor)';
 COMMENT ON COLUMN dim_agents.skill_score IS 'Agent performance score (0.000-1.000)';
 
 -- Dim_Clients

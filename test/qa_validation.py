@@ -63,7 +63,6 @@ class TestNoNullPKs:
 # =========================================================================
 class TestFKIntegrity:
     @pytest.mark.parametrize("child_table,fk_col,parent_table,pk_col", [
-        ('dim_agents', 'supervisor_id', 'dim_supervisors', 'supervisor_id'),
         ('dim_accounts', 'client_id', 'dim_clients', 'client_id'),
         ('dim_accounts', 'product_id', 'dim_products', 'product_id'),
         ('fact_interactions', 'agent_id', 'dim_agents', 'agent_id'),

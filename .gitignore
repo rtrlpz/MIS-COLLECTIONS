@@ -19,7 +19,7 @@ database/data/
 # Ignore unused documentation and word docs
 docs/*.docx
 docs/unused/*
-docs/TODO/*
+docs/unused/TODO/*
 docs/interviews/*
 dashboards/docs/
 *.docx

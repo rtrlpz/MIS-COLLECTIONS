@@ -13,7 +13,7 @@ WITH agent_daily AS (
         fi.agent_id,
         da.agent_name,
         da.supervisor_id,
-        ds.team_name,
+        da.team_name,
         fi.interaction_date,
         dc.month_num,
         dc.month_name,
@@ -23,9 +23,9 @@ WITH agent_daily AS (
         SUM(fi.rpc_arrears) AS rpc_arrears_total
     FROM fact_interactions fi
     JOIN dim_agents da ON fi.agent_id = da.agent_id
-    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+
     JOIN dim_calendar dc ON fi.interaction_date = dc.date
-    GROUP BY fi.agent_id, da.agent_name, da.supervisor_id, ds.team_name, fi.interaction_date, dc.month_num, dc.month_name
+    GROUP BY fi.agent_id, da.agent_name, da.supervisor_id, da.team_name, fi.interaction_date, dc.month_num, dc.month_name
 ),
 team_daily AS (
     SELECT
@@ -129,7 +129,7 @@ WITH ptp_agent_daily AS (
         fpl.agent_id,
         da.agent_name,
         da.supervisor_id,
-        ds.team_name,
+        da.team_name,
         fpl.ptp_date AS date,
         dc.month_num,
         dc.month_name,
@@ -138,9 +138,9 @@ WITH ptp_agent_daily AS (
         SUM(CASE WHEN fpl.status = 'Broken' THEN 1 ELSE 0 END) AS broken_count
     FROM fact_ptp_log fpl
     JOIN dim_agents da ON fpl.agent_id = da.agent_id
-    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+
     JOIN dim_calendar dc ON fpl.ptp_date = dc.date
-    GROUP BY fpl.agent_id, da.agent_name, da.supervisor_id, ds.team_name, fpl.ptp_date, dc.month_num, dc.month_name
+    GROUP BY fpl.agent_id, da.agent_name, da.supervisor_id, da.team_name, fpl.ptp_date, dc.month_num, dc.month_name
 ),
 rpc_agent_daily AS (
     SELECT
@@ -269,7 +269,7 @@ WITH agent_daily AS (
         fp.agent_id,
         da.agent_name,
         da.supervisor_id,
-        ds.team_name,
+        da.team_name,
         dp.product_id,
         dp.product_name,
         COUNT(*) AS payment_count,
@@ -282,8 +282,8 @@ WITH agent_daily AS (
     JOIN dim_accounts da2 ON fp.account_id = da2.account_id
     JOIN dim_products dp ON da2.product_id = dp.product_id
     LEFT JOIN dim_agents da ON fp.agent_id = da.agent_id
-    LEFT JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
-    GROUP BY fp.payment_date, dc.month_num, dc.month_name, fp.agent_id, da.agent_name, da.supervisor_id, ds.team_name, dp.product_id, dp.product_name
+
+    GROUP BY fp.payment_date, dc.month_num, dc.month_name, fp.agent_id, da.agent_name, da.supervisor_id, da.team_name, dp.product_id, dp.product_name
 ),
 product_daily AS (
     SELECT
@@ -308,7 +308,7 @@ agent_monthly AS (
         fp.agent_id,
         da.agent_name,
         da.supervisor_id,
-        ds.team_name,
+        da.team_name,
         dc.month_num,
         dc.month_name,
         COUNT(*) AS payment_count,
@@ -319,8 +319,8 @@ agent_monthly AS (
     FROM fact_payments fp
     JOIN dim_calendar dc ON fp.payment_date = dc.date
     LEFT JOIN dim_agents da ON fp.agent_id = da.agent_id
-    LEFT JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
-    GROUP BY fp.agent_id, da.agent_name, da.supervisor_id, ds.team_name, dc.month_num, dc.month_name
+
+    GROUP BY fp.agent_id, da.agent_name, da.supervisor_id, da.team_name, dc.month_num, dc.month_name
 ),
 product_monthly AS (
     SELECT
@@ -434,14 +434,14 @@ WITH agent_daily AS (
         atl.agent_id,
         da.agent_name,
         da.supervisor_id,
-        ds.team_name,
+        da.team_name,
         atl.utilization AS utilization_pct,
         atl.operational_hours,
         atl.schedule_hours,
         COALESCE(fi.total_calls, 0) AS total_calls
     FROM fact_agent_time_log atl
     JOIN dim_agents da ON atl.agent_id = da.agent_id
-    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+
     JOIN dim_calendar dc ON atl.log_date = dc.date
     LEFT JOIN (
         SELECT agent_id, interaction_date, SUM(calls_attempted) AS total_calls
@@ -555,16 +555,16 @@ WITH agent_daily AS (
         fi.agent_id,
         da.agent_name,
         da.supervisor_id,
-        ds.team_name,
+        da.team_name,
         ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_rpc,
         ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_nonrpc,
         ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_rpc,
         ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_nonrpc
     FROM fact_interactions fi
     JOIN dim_agents da ON fi.agent_id = da.agent_id
-    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+
     JOIN dim_calendar dc ON fi.interaction_date = dc.date
-    GROUP BY fi.interaction_date, dc.month_num, dc.month_name, fi.agent_id, da.agent_name, da.supervisor_id, ds.team_name
+    GROUP BY fi.interaction_date, dc.month_num, dc.month_name, fi.agent_id, da.agent_name, da.supervisor_id, da.team_name
 ),
 team_daily AS (
     SELECT
@@ -572,16 +572,16 @@ team_daily AS (
         dc.month_num,
         dc.month_name,
         da.supervisor_id,
-        ds.team_name,
+        da.team_name,
         ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_rpc,
         ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_nonrpc,
         ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_rpc,
         ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_nonrpc
     FROM fact_interactions fi
     JOIN dim_agents da ON fi.agent_id = da.agent_id
-    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+
     JOIN dim_calendar dc ON fi.interaction_date = dc.date
-    GROUP BY fi.interaction_date, dc.month_num, dc.month_name, da.supervisor_id, ds.team_name
+    GROUP BY fi.interaction_date, dc.month_num, dc.month_name, da.supervisor_id, da.team_name
 ),
 monthly AS (
     SELECT
@@ -590,16 +590,16 @@ monthly AS (
         fi.agent_id,
         da.agent_name,
         da.supervisor_id,
-        ds.team_name,
+        da.team_name,
         ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_rpc,
         ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_nonrpc,
         ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_rpc,
         ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_nonrpc
     FROM fact_interactions fi
     JOIN dim_agents da ON fi.agent_id = da.agent_id
-    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+
     JOIN dim_calendar dc ON fi.interaction_date = dc.date
-    GROUP BY dc.month_num, dc.month_name, fi.agent_id, da.agent_name, da.supervisor_id, ds.team_name
+    GROUP BY dc.month_num, dc.month_name, fi.agent_id, da.agent_name, da.supervisor_id, da.team_name
 )
 SELECT 'agent' AS granularity, date, month_num, month_name, agent_id, agent_name, supervisor_id, team_name, avg_aht_rpc, avg_aht_nonrpc, avg_acw_rpc, avg_acw_nonrpc
 FROM agent_daily
