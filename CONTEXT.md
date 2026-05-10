@@ -101,7 +101,7 @@ MIS-COLLECTIONS/
 | Table | Rows | Description |
 |-------|------|-------------|
 | Dim_Supervisors | 8 | Standalone reference table (no FK linkage to Dim_Agents) |
-| Dim_Agents | 80 | Agents with denormalized supervisor_name, team_name, region, skill score |
+| Dim_Agents | 80 | Agents with denormalized supervisor_name, team_name, region, tenure_cohort, 3 skill dimensions |
 | Dim_Clients | 10,000 | Clients with segment, risk score |
 | Dim_Products | 3 | Credit Card, Personal Loan, Mortgage |
 | Dim_Accounts | ~15,575 | Accounts with product/client FK, balance, DPD |
@@ -110,9 +110,9 @@ MIS-COLLECTIONS/
 ### Fact Tables (5 per month)
 | Table | Rows (3mo) | Description |
 |-------|------------|-------------|
-| Fact_Interactions | ~300K (calibrated) | Dialer calls, RPC/non-RPC, AHT/ACW (weekdays only) |
+| Fact_Interactions | ~344K (calibrated) | Dialer calls, RPC/non-RPC, AHT/ACW (weekdays only) |
 | Fact_PTP_Log | ~28K (calibrated) | Promise-to-pay events, Kept/Broken state machine |
-| Fact_Payments | ~24K (calibrated) | Payment transactions, Agent-Cure vs Self-Cure (weekends OK) |
+| Fact_Payments | ~23K (calibrated) | Payment transactions, Agent-Cure vs Self-Cure (weekends OK) |
 | Fact_Agent_Time_Log | ~5K | Agent login/logout, utilization, handle time |
 | Fact_EOM_Snapshot | ~47K | End-of-month account snapshots with DPD buckets |
 
@@ -155,7 +155,7 @@ docker-compose -f database/docker-compose.yml up -d
 # Run migrations manually
 bash migrate.sh
 
-# Run tests (fast only — 45 tests, weekend test PASSING)
+# Run tests (fast only — 58 tests passing)
 python -m pytest test/ -v -m "not slow"
 
 # Run all tests (including slow ETL idempotency and generator seed tests)
@@ -176,7 +176,7 @@ python -m pytest test/ -v
 - requirements.txt with pinned versions
 - **Weekend bug FIXED**: Interactions now Mon-Fri only; payments allowed on any date (2,228 weekend payments, 0 weekend interactions)
 - **Dead code removed**: `next_weekday()` function deleted
-- **Generates**: ~300K interactions, ~28K PTP events, ~24K payments across 3 months (post-calibration)
+- **Generates**: ~344K interactions, ~28K PTP events, ~23K payments across 3 months (post-calibration)
 - **Config calibrated** (May 2026): 11 parameter changes + 2 new params to match real-data medians (connects/day ~48, RPC% 45.9, PTP% 73.0, KP% 80.6). See Session Notes for full diff.
 
 #### Phase 2 (ETL Pipeline) — 100% Complete (Moved to root)
@@ -225,9 +225,7 @@ All 17 SQL files verified with valid content — none empty.
 #### Phase 6 (Testing) — 100% Complete
 - `test/conftest.py` — Pytest fixtures
 - `test/qa_validation.py` — Data integrity tests:
-  - 45 fast tests passing (0 failures, 38 structural + 7 KPI views)
-  - **Weekend test**: Now PASSING (was XFAIL) — `test_no_weekend_interactions` confirms 0 weekend interactions
-  - Test structure unchanged — only removed `pytest.xfail()` marker
+  - 58 tests passing (0 failures, 38 structural + 7 KPI views + 10 slow tests + 3 generator seed)
 - `test/test_generator.py` — Generator unit tests
 
 #### Phase 7 (Automation) — 100% Complete
@@ -283,10 +281,11 @@ All 17 SQL files verified with valid content — none empty.
 - **Test changes**: Removed `pytest.xfail()` from `test_no_weekend_interactions` — test now passes.
 - **Comment changes**: Updated `006_comments.sql` fact_payments.payment_date description.
 - **execution_guide.md replaced**: Old 1,547-line task-prompt document replaced with 2,499-line enterprise architecture guide with 13 sections, wireframes, DAX patterns, RLS architecture.
-- **Config calibration (May 2026)**: 11 `config.py` parameter changes + 2 new params to align generated data with real-world medians. Changes: `connection_rate` (0.50,0.90)→(0.45,0.80), `rpc_rate_base` (0.45,0.80)→(0.35,0.65), `ptp_rate_base` (0.60,0.85)→(0.65,0.88), `kp_tendency` (0.55,0.85)→(0.70,0.92), `accts_per_agent_day` (60,100)→(50,80), `attempts_per_acct` (1,3)→(1,2), `break_minutes` (45,90)→(20,45), `acw_rpc.mu` 90→125, `aht_nrpc.mu` 52→58, `self_cure_base_rate` 0.0006→0.0010, `grace_period_days` (2,4)→(3,7). Added `self_cure_payday_boost: 2.5`, `monthly_drift_std: 0.08`. Expected row counts shift: Interactions ~422K→~300K, PTP ~31K→~28K, Payments ~21K→~24K.
+- **Config calibration (May 2026)**: 11 `config.py` parameter changes + 2 new params to align generated data with real-world medians. Changes: `connection_rate` (0.50,0.90)→(0.45,0.80), `rpc_rate_base` (0.45,0.80)→(0.35,0.65), `ptp_rate_base` (0.60,0.85)→(0.65,0.88), `kp_tendency` (0.55,0.85)→(0.70,0.92), `accts_per_agent_day` (60,100)→(50,80), `attempts_per_acct` (1,3)→(1,2), `break_minutes` (45,90)→(20,45), `acw_rpc.mu` 90→125, `aht_nrpc.mu` 52→58, `self_cure_base_rate` 0.0006→0.0010, `grace_period_days` (2,4)→(3,7). Added `self_cure_payday_boost: 2.5`, `monthly_drift_std: 0.08`. Actual row counts (v7, seed 42): Interactions 344K, PTP 28K, Payments 23K.
+- **Skill split + tenure cohorts**: Single `skill_score` replaced with 3 independent dimensions (`contact_skill`, `negotiation_skill`, `efficiency_skill`). Added `tenure_cohort` (Low/Mid/High) to Dim_Agents. Tenure adjusts base rate ranges within config bounds; skills applied multiplicatively. Efficiency skill inversely scales AHT/ACW (lower = faster handle times).
 - **Data flow**: Generator → CSVs → ETL → PostgreSQL → Power BI Import (~422K rows, ~100 MB compressed pre-calibration) → Excel (openpyxl)
 - **Pipeline timing**: ~157s end-to-end pre-calibration (up from ~83s due to 3 months vs 1 month; may be faster post-calibration with fewer interactions generated)
-- **Test count**: 45 fast tests passing (was 41 — 38 structural + 7 KPI views, FK test for dim_agents→dim_supervisors removed)
+- **Test count**: 58 tests passing (was 45 — added 13 structural tests, ETL idempotency, and generator seed reproducibility tests)
 - **Dim_Agents denormalized**: Added `supervisor_name`, `team_name`, `region` directly to `dim_agents`; removed FK constraint to `dim_supervisors`. All 5 KPI views updated to reference `da.team_name` instead of joining `dim_supervisors`. Generator populates denormalized fields via lookup. Generator seed reproducibility unaffected (using seed 42). Pipeline runs ~37s ETL.
 
 ## Quick Reference

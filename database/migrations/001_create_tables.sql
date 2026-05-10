@@ -31,7 +31,10 @@ CREATE TABLE dim_agents (
     supervisor_name VARCHAR(100),
     team_name VARCHAR(50),
     region VARCHAR(50),
-    skill_score DECIMAL(5,3)
+    tenure_cohort VARCHAR(10),
+    contact_skill DECIMAL(5,3),
+    negotiation_skill DECIMAL(5,3),
+    efficiency_skill DECIMAL(5,3)
 );
 
 CREATE TABLE dim_clients (

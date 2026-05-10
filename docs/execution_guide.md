@@ -684,9 +684,12 @@ Use ALTER TABLE <table> ADD CONSTRAINT chk_<table>_<column> CHECK (...);
 ```
 Create database/migrations/006_comments.sql with COMMENT ON statements for all 11 tables and their columns.
 Example format:
-  COMMENT ON TABLE dim_agents IS 'Collection agents with supervisor assignment, skill score, and hire date';
+  COMMENT ON TABLE dim_agents IS 'Collection agents with supervisor assignment, tenure cohort, skill dimensions, and hire date';
   COMMENT ON COLUMN dim_agents.agent_id IS 'Unique agent identifier (format: AGT_XXX)';
-  COMMENT ON COLUMN dim_agents.skill_score IS 'Agent performance score (0.000-1.000)';
+  COMMENT ON COLUMN dim_agents.contact_skill IS 'Contact skill multiplier (0.700-1.300) — scales connection_rate and rpc_rate';
+  COMMENT ON COLUMN dim_agents.negotiation_skill IS 'Negotiation skill multiplier (0.700-1.300) — scales ptp_rate and kp_tendency';
+  COMMENT ON COLUMN dim_agents.efficiency_skill IS 'Efficiency skill multiplier (0.800-1.200) — scales AHT/ACW (lower = faster)';
+  COMMENT ON COLUMN dim_agents.tenure_cohort IS 'Performance cohort: Low/Mid/High';
 
 Generate comments for every table and every column based on the schema in 001_create_tables.sql.
 Keep comments concise but descriptive -- explain what the column stores, not just its name.

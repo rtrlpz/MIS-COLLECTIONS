@@ -23,7 +23,7 @@
 - DB: localhost:5433, user=rtrlpz, password=rtrlpz, db=MSI_CollectionsDB
 - Star schema: 6 dim tables, 5 fact tables, 9 KPI views
 - Weekend bug FIXED: interactions Mon-Fri only, payments allowed on weekends
-- 41 fast QA tests passing (0 failures), 2 slow tests
+- 58 QA tests passing (0 failures) — 58 total, including KPI views, ETL idempotency, and generator seed tests
 - Config calibrated May 2026 — 11 param changes + 2 new params to match real data (see CONTEXT.md Session Notes)
 - Pipeline runs in ~157s end-to-end (3 months data)
 - All 3 months (Oct-Dec 2025) loaded in PostgreSQL

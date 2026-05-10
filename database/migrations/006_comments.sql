@@ -20,14 +20,17 @@ COMMENT ON COLUMN dim_supervisors.team_name IS 'Team name assigned to the superv
 COMMENT ON COLUMN dim_supervisors.region IS 'Geographic region (e.g., North, South, Central)';
 
 -- Dim_Agents
-COMMENT ON TABLE dim_agents IS 'Collection agents with supervisor details, skill score, and hire date';
+COMMENT ON TABLE dim_agents IS 'Collection agents with supervisor details, tenure cohort, skill dimensions, and hire date';
 COMMENT ON COLUMN dim_agents.agent_id IS 'Unique agent identifier (format: AGT_XXX)';
 COMMENT ON COLUMN dim_agents.agent_name IS 'Full name of the agent';
 COMMENT ON COLUMN dim_agents.supervisor_id IS 'Supervisor ID managing this agent';
 COMMENT ON COLUMN dim_agents.supervisor_name IS 'Full name of the agent supervisor (denormalized)';
 COMMENT ON COLUMN dim_agents.team_name IS 'Team name (denormalized from supervisor)';
 COMMENT ON COLUMN dim_agents.region IS 'Geographic region (denormalized from supervisor)';
-COMMENT ON COLUMN dim_agents.skill_score IS 'Agent performance score (0.000-1.000)';
+COMMENT ON COLUMN dim_agents.tenure_cohort IS 'Performance cohort: Low/Mid/High (adjusts base rate ranges)';
+COMMENT ON COLUMN dim_agents.contact_skill IS 'Contact skill multiplier (0.700-1.300) — scales connection_rate and rpc_rate';
+COMMENT ON COLUMN dim_agents.negotiation_skill IS 'Negotiation skill multiplier (0.700-1.300) — scales ptp_rate and kp_tendency';
+COMMENT ON COLUMN dim_agents.efficiency_skill IS 'Efficiency skill multiplier (0.800-1.200) — scales AHT/ACW (lower = faster)';
 
 -- Dim_Clients
 COMMENT ON TABLE dim_clients IS 'Bank clients with risk profile and segmentation data';

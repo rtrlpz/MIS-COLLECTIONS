@@ -312,7 +312,10 @@ Power BI performance is directly proportional to model design quality. A star sc
 │  agent_id (PK)   │────►│  interaction_id PK  │
 │  agent_name      │     │  interaction_date FK│←──── Dim_Calendar
 │  supervisor_id FK│──┘  │  agent_id FK        │←──── Dim_Agents
-│  skill_score     │     │  account_id FK      │←──── Dim_Accounts
+│  tenure_cohort   │     │  account_id FK      │←──── Dim_Accounts
+│  contact_skill   │     │                     │
+│  negotiation_…   │     │                     │
+│  efficiency_…    │     │                     │
 └──────────────────┘     │  calls_attempted    │
          │               │  rpc_flag           │
          │               │  aht_seconds        │

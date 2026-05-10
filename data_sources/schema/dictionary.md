@@ -43,9 +43,12 @@
 | agent_id | VARCHAR | PK — `EID-001` … `EID-080` |
 | agent_name | VARCHAR | Full name |
 | supervisor_id | VARCHAR | FK → Dim_Supervisors |
-| skill_score | DECIMAL | 0.70–1.30 — multiplicative modifier on all behavioral rates |
+| tenure_cohort | VARCHAR | Low / Mid / High — adjusts base rate ranges within config bounds |
+| contact_skill | DECIMAL | 0.700–1.300 — multiplies connection_rate and rpc_rate (Gaussian ~N(1.0, 0.15)) |
+| negotiation_skill | DECIMAL | 0.700–1.300 — multiplies ptp_rate and kp_tendency (Gaussian ~N(1.0, 0.15)) |
+| efficiency_skill | DECIMAL | 0.800–1.200 — multiplies AHT/ACW inversely (lower = faster handle times, Gaussian ~N(1.0, 0.10)) |
 
-> `skill_score` is the single multiplier applied to connection_rate, rpc_rate, ptp_rate, and kp_tendency at agent creation. Higher skill = better at every stage of the funnel. Useful as a BI slicer to compare above/below-average cohorts.
+> Three independent skill dimensions replace the old single `skill_score`. Each agent draws from three separate Gaussians, allowing nuanced profiles (e.g., high contact skill but low efficiency). Tenure cohorts stratify base rate ranges into thirds — Low draws from the bottom third, Mid from the middle, High from the top third. Useful as BI slicers for funnel and productivity analysis.
 
 ---
 

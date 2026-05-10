@@ -210,33 +210,61 @@ sup_lookup = dim_supervisors.set_index("supervisor_id")[
 agent_rows    = []
 agent_profile = {}   # simulation-internal; not exported directly
 
+TENURE_COHORTS = ["Low", "Mid", "High"]
+TENURE_WEIGHTS = [0.30, 0.40, 0.30]
+
+
+def tenure_adjusted_range(cohort, lo, hi):
+    span = hi - lo
+    if cohort == "Low":
+        return (lo, lo + span * 0.33)
+    elif cohort == "Mid":
+        return (lo + span * 0.33, lo + span * 0.67)
+    else:
+        return (lo + span * 0.67, hi)
+
+
 for i in range(1, CFG["num_agents"] + 1):
-    eid   = fmt_id("EID", i, 3)
-    skill = clamp(random.gauss(1.0, 0.15), 0.70, 1.30)
-    sid   = random.choice(sup_ids)
-    sup   = sup_lookup[sid]
+    eid = fmt_id("EID", i, 3)
+    contact_skill = clamp(random.gauss(1.0, 0.15), 0.70, 1.30)
+    negotiation_skill = clamp(random.gauss(1.0, 0.15), 0.70, 1.30)
+    efficiency_skill = clamp(random.gauss(1.0, 0.10), 0.80, 1.20)
+    tenure_cohort = random.choices(TENURE_COHORTS, weights=TENURE_WEIGHTS)[0]
+    sid = random.choice(sup_ids)
+    sup = sup_lookup[sid]
 
     agent_rows.append({
-        "agent_id":        eid,
-        "agent_name":      fake.name(),
-        "supervisor_id":   sid,
-        "supervisor_name": sup["supervisor_name"],
-        "team_name":       sup["team_name"],
-        "region":          sup["region"],
-        "skill_score":     round(skill, 3),
+        "agent_id":          eid,
+        "agent_name":        fake.name(),
+        "supervisor_id":     sid,
+        "supervisor_name":   sup["supervisor_name"],
+        "team_name":         sup["team_name"],
+        "region":            sup["region"],
+        "tenure_cohort":     tenure_cohort,
+        "contact_skill":     round(contact_skill, 3),
+        "negotiation_skill": round(negotiation_skill, 3),
+        "efficiency_skill":  round(efficiency_skill, 3),
     })
 
+    c_lo, c_hi = tenure_adjusted_range(tenure_cohort, *CFG["connection_rate"])
+    r_lo, r_hi = tenure_adjusted_range(tenure_cohort, *CFG["rpc_rate_base"])
+    p_lo, p_hi = tenure_adjusted_range(tenure_cohort, *CFG["ptp_rate_base"])
+    k_lo, k_hi = tenure_adjusted_range(tenure_cohort, *CFG["kp_tendency"])
+
     agent_profile[eid] = {
-        "skill":           skill,
-        "connection_rate": clamp(random.uniform(*CFG["connection_rate"]) * skill, 0.20, 0.90),
-        "rpc_rate":        clamp(random.uniform(*CFG["rpc_rate_base"])   * skill, 0.15, 0.85),
-        "ptp_rate":        clamp(random.uniform(*CFG["ptp_rate_base"])   * skill, 0.20, 0.90),
-        "kp_tendency":     clamp(random.uniform(*CFG["kp_tendency"])     * skill, 0.30, 0.95),
-        "utilization":     random.uniform(*CFG["utilization"]),
-        "aht_rpc_adj":  random.gauss(0, CFG["aht_rpc_adj_std"]),
-        "aht_nrpc_adj": random.gauss(0, CFG["aht_nrpc_adj_std"]),
-        "acw_rpc_adj":  random.gauss(0, CFG["acw_rpc_adj_std"]),
-        "acw_nrpc_adj": random.gauss(0, CFG["acw_nrpc_adj_std"]),
+        "contact_skill":     contact_skill,
+        "negotiation_skill": negotiation_skill,
+        "efficiency_skill":  efficiency_skill,
+        "tenure_cohort":     tenure_cohort,
+        "connection_rate":   clamp(random.uniform(c_lo, c_hi) * contact_skill, 0.20, 0.90),
+        "rpc_rate":          clamp(random.uniform(r_lo, r_hi) * contact_skill, 0.15, 0.85),
+        "ptp_rate":          clamp(random.uniform(p_lo, p_hi) * negotiation_skill, 0.20, 0.90),
+        "kp_tendency":       clamp(random.uniform(k_lo, k_hi) * negotiation_skill, 0.30, 0.95),
+        "utilization":       random.uniform(*CFG["utilization"]),
+        "aht_rpc_adj":       random.gauss(0, CFG["aht_rpc_adj_std"]),
+        "aht_nrpc_adj":      random.gauss(0, CFG["aht_nrpc_adj_std"]),
+        "acw_rpc_adj":       random.gauss(0, CFG["acw_rpc_adj_std"]),
+        "acw_nrpc_adj":      random.gauss(0, CFG["acw_nrpc_adj_std"]),
     }
 
 dim_agents = pd.DataFrame(agent_rows)
@@ -549,6 +577,10 @@ for sim_date in DATE_RANGE:
                     aht = gauss_secs(CFG["aht_nrpc"]["mu"], CFG["aht_nrpc"]["sigma"], prof["aht_nrpc_adj"])
                     acw = gauss_secs(CFG["acw_nrpc"]["mu"], CFG["acw_nrpc"]["sigma"], prof["acw_nrpc_adj"])
 
+                eff = prof["efficiency_skill"]
+                aht = max(5, int(aht * eff))
+                acw = max(5, int(acw * eff))
+
                 agent_tht_s += aht + acw
 
                 int_ctr += 1
@@ -779,7 +811,7 @@ logger.info("  Fact tables finalized in %.1f seconds", time.time() - t_stage)
 currency_cols = [
     "min_payment", "initial_balance", "balance", "arrears",
     "promised_amount", "amount_paid", "rpc_arrears", "rpc_arrears_at_contact",
-    "annual_rate_pct", "skill_score", "risk_score", "payday_factor",
+    "annual_rate_pct", "contact_skill", "negotiation_skill", "efficiency_skill", "risk_score", "payday_factor",
 ]
 
 # Date columns (ISO 8601: YYYY-MM-DD)
