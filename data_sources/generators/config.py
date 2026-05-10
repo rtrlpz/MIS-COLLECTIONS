@@ -16,24 +16,26 @@ CFG = {
     # Portfolio dynamics
     "mora_rate":                0.25,
     "mora_replenishment_rate":  0.0018,   # daily: Activo -> Mora
-    "self_cure_base_rate":      0.0006,   # daily: spontaneous full-arrears payment
+    "self_cure_base_rate":      0.0010,   # daily: spontaneous full-arrears payment
+    "self_cure_payday_boost":   2.5,      # 60% of self-cures cluster on payday weeks
+    "monthly_drift_std":        0.08,     # ±8% monthly rate drift per agent
 
     # Dialer targeting
-    "accts_per_agent_day": (60, 100),
+    "accts_per_agent_day": (50, 80),
     "mora_contact_pct":    0.72,
-    "attempts_per_acct":   (1, 3),
+    "attempts_per_acct":   (1, 2),
 
     # Agent profile ranges (skill multiplier applied on top)
-    "connection_rate": (0.50, 0.90),
-    "rpc_rate_base":   (0.45, 0.80),
-    "ptp_rate_base":   (0.60, 0.85),
-    "kp_tendency":     (0.55, 0.85),
+    "connection_rate": (0.45, 0.80),
+    "rpc_rate_base":   (0.35, 0.65),
+    "ptp_rate_base":   (0.65, 0.88),
+    "kp_tendency":     (0.70, 0.92),
     "utilization":     (0.85, 0.97),
 
     # Handle-time normal distributions (seconds)
     "aht_rpc":  {"mu": 245, "sigma": 52},
-    "aht_nrpc": {"mu":  52, "sigma": 18},
-    "acw_rpc":  {"mu":  90, "sigma": 30},
+    "aht_nrpc": {"mu":  58, "sigma": 18},
+    "acw_rpc":  {"mu": 125, "sigma": 30},
     "acw_nrpc": {"mu":  22, "sigma":  8},
 
     # Per-agent personal AHT/ACW offsets (Gauss std dev)
@@ -44,12 +46,12 @@ CFG = {
 
     # PTP mechanics
     "promise_window_days": (3, 14),   # days client requests to pay
-    "grace_period_days":   (2,  4),   # bank buffer after promise window
+    "grace_period_days":   (3,  7),   # bank buffer after promise window
     "payment_delay_days":  (0, 16),   # actual payment arrival lag
 
     "kp_noise_std":   0.05,
     "schedule_hours": 8.0,
-    "break_minutes":  (45, 90),
+    "break_minutes":  (20, 45),
 
     # Anomaly injection (escalation AHT spikes)
     "anomaly_prob": 0.018,
