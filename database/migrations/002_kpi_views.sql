@@ -135,7 +135,8 @@ WITH ptp_agent_daily AS (
         dc.month_name,
         COUNT(*) AS ptp_count,
         SUM(CASE WHEN fpl.status = 'Kept' THEN 1 ELSE 0 END) AS kept_count,
-        SUM(CASE WHEN fpl.status = 'Broken' THEN 1 ELSE 0 END) AS broken_count
+        SUM(CASE WHEN fpl.status = 'Broken' THEN 1 ELSE 0 END) AS broken_count,
+        SUM(CASE WHEN fpl.status = 'Kept' THEN LEAST(fpl.promised_amount, fpl.rpc_arrears_at_contact) ELSE 0 END) AS capped_kp
     FROM fact_ptp_log fpl
     JOIN dim_agents da ON fpl.agent_id = da.agent_id
 
@@ -146,7 +147,8 @@ rpc_agent_daily AS (
     SELECT
         agent_id,
         interaction_date,
-        COUNT(*) AS rpc_count
+        COUNT(*) AS rpc_count,
+        SUM(rpc_arrears) AS rpc_arrears_total
     FROM fact_interactions
     WHERE rpc_flag = TRUE
     GROUP BY agent_id, interaction_date
@@ -155,7 +157,8 @@ rpc_team_daily AS (
     SELECT
         da.supervisor_id,
         fi.interaction_date,
-        COUNT(*) AS rpc_count
+        COUNT(*) AS rpc_count,
+        SUM(fi.rpc_arrears) AS rpc_arrears_total
     FROM fact_interactions fi
     JOIN dim_agents da ON fi.agent_id = da.agent_id
     WHERE fi.rpc_flag = TRUE
@@ -165,7 +168,8 @@ rpc_monthly AS (
     SELECT
         fi.agent_id,
         dc.month_num,
-        COUNT(*) AS rpc_count
+        COUNT(*) AS rpc_count,
+        SUM(fi.rpc_arrears) AS rpc_arrears_total
     FROM fact_interactions fi
     JOIN dim_calendar dc ON fi.interaction_date = dc.date
     WHERE fi.rpc_flag = TRUE
@@ -180,7 +184,8 @@ ptp_team_daily AS (
         month_name,
         SUM(ptp_count) AS ptp_count,
         SUM(kept_count) AS kept_count,
-        SUM(broken_count) AS broken_count
+        SUM(broken_count) AS broken_count,
+        SUM(capped_kp) AS capped_kp
     FROM ptp_agent_daily
     GROUP BY supervisor_id, team_name, date, month_num, month_name
 ),
@@ -194,7 +199,8 @@ ptp_monthly AS (
         month_name,
         SUM(ptp_count) AS ptp_count,
         SUM(kept_count) AS kept_count,
-        SUM(broken_count) AS broken_count
+        SUM(broken_count) AS broken_count,
+        SUM(capped_kp) AS capped_kp
     FROM ptp_agent_daily
     GROUP BY agent_id, agent_name, supervisor_id, team_name, month_num, month_name
 )
@@ -211,8 +217,10 @@ SELECT
     ROUND(pad.ptp_count * 100.0 / NULLIF(rad.rpc_count, 0), 2) AS ptp_pct,
     pad.kept_count,
     pad.broken_count,
-    ROUND(pad.kept_count * 100.0 / NULLIF(pad.ptp_count, 0), 2) AS kept_pct,
-    NULL AS bucket_conversion
+    ROUND(pad.kept_count * 100.0 / NULLIF(pad.kept_count + pad.broken_count, 0), 2) AS kept_pct,
+    ROUND(pad.kept_count * 100.0 / NULLIF(rad.rpc_count, 0), 2) AS bucket_conversion,
+    ROUND(pad.capped_kp::numeric, 2) AS capped_kp,
+    ROUND(pad.capped_kp::numeric / NULLIF(rad.rpc_arrears_total, 0), 4) AS capped_kp_rpc_arrears
 FROM ptp_agent_daily pad
 LEFT JOIN rpc_agent_daily rad ON pad.agent_id = rad.agent_id AND pad.date = rad.interaction_date
 
@@ -231,8 +239,10 @@ SELECT
     ROUND(ptd.ptp_count * 100.0 / NULLIF(rtd.rpc_count, 0), 2) AS ptp_pct,
     ptd.kept_count,
     ptd.broken_count,
-    ROUND(ptd.kept_count * 100.0 / NULLIF(ptd.ptp_count, 0), 2) AS kept_pct,
-    NULL AS bucket_conversion
+    ROUND(ptd.kept_count * 100.0 / NULLIF(ptd.kept_count + ptd.broken_count, 0), 2) AS kept_pct,
+    ROUND(ptd.kept_count * 100.0 / NULLIF(rtd.rpc_count, 0), 2) AS bucket_conversion,
+    ROUND(ptd.capped_kp::numeric, 2) AS capped_kp,
+    ROUND(ptd.capped_kp::numeric / NULLIF(rtd.rpc_arrears_total, 0), 4) AS capped_kp_rpc_arrears
 FROM ptp_team_daily ptd
 LEFT JOIN rpc_team_daily rtd ON ptd.supervisor_id = rtd.supervisor_id AND ptd.date = rtd.interaction_date
 
@@ -251,8 +261,10 @@ SELECT
     ROUND(pm.ptp_count * 100.0 / NULLIF(rm.rpc_count, 0), 2) AS ptp_pct,
     pm.kept_count,
     pm.broken_count,
-    ROUND(pm.kept_count * 100.0 / NULLIF(pm.ptp_count, 0), 2) AS kept_pct,
-    NULL AS bucket_conversion
+    ROUND(pm.kept_count * 100.0 / NULLIF(pm.kept_count + pm.broken_count, 0), 2) AS kept_pct,
+    ROUND(pm.kept_count * 100.0 / NULLIF(rm.rpc_count, 0), 2) AS bucket_conversion,
+    ROUND(pm.capped_kp::numeric, 2) AS capped_kp,
+    ROUND(pm.capped_kp::numeric / NULLIF(rm.rpc_arrears_total, 0), 4) AS capped_kp_rpc_arrears
 FROM ptp_monthly pm
 LEFT JOIN rpc_monthly rm ON pm.agent_id = rm.agent_id AND pm.month_num = rm.month_num;
 
@@ -312,10 +324,10 @@ agent_monthly AS (
         dc.month_num,
         dc.month_name,
         COUNT(*) AS payment_count,
-        SUM(CASE WHEN fp.is_cured THEN 1 ELSE 0 END) AS cure_count,
+        COUNT(DISTINCT CASE WHEN fp.is_cured THEN fp.account_id ELSE NULL END) AS cure_count,
         SUM(CASE WHEN fp.is_cured THEN fp.amount_paid ELSE 0 END) AS cured_amount,
-        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN 1 ELSE 0 END) AS agent_cure_count,
-        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN 1 ELSE 0 END) AS self_cure_count
+        COUNT(DISTINCT CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN fp.account_id ELSE NULL END) AS agent_cure_count,
+        COUNT(DISTINCT CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN fp.account_id ELSE NULL END) AS self_cure_count
     FROM fact_payments fp
     JOIN dim_calendar dc ON fp.payment_date = dc.date
     LEFT JOIN dim_agents da ON fp.agent_id = da.agent_id
@@ -329,10 +341,10 @@ product_monthly AS (
         dc.month_num,
         dc.month_name,
         COUNT(*) AS payment_count,
-        SUM(CASE WHEN fp.is_cured THEN 1 ELSE 0 END) AS cure_count,
+        COUNT(DISTINCT CASE WHEN fp.is_cured THEN fp.account_id ELSE NULL END) AS cure_count,
         SUM(CASE WHEN fp.is_cured THEN fp.amount_paid ELSE 0 END) AS cured_amount,
-        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN 1 ELSE 0 END) AS agent_cure_count,
-        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN 1 ELSE 0 END) AS self_cure_count
+        COUNT(DISTINCT CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN fp.account_id ELSE NULL END) AS agent_cure_count,
+        COUNT(DISTINCT CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN fp.account_id ELSE NULL END) AS self_cure_count
     FROM fact_payments fp
     JOIN dim_calendar dc ON fp.payment_date = dc.date
     JOIN dim_accounts da2 ON fp.account_id = da2.account_id
@@ -491,11 +503,7 @@ SELECT
     CASE
         WHEN operational_hours > 0 THEN ROUND(total_calls::numeric / operational_hours, 2)
         ELSE 0
-    END AS contacts_per_agent_hour,
-    CASE
-        WHEN schedule_hours > 0 THEN ROUND((1 - (utilization_pct / 100)) * 100, 2)
-        ELSE 0
-    END AS no_touch_letter_rate
+    END AS contacts_per_agent_hour
 FROM agent_daily
 
 UNION ALL
@@ -513,11 +521,7 @@ SELECT
     CASE
         WHEN operational_hours > 0 THEN ROUND(total_calls::numeric / operational_hours, 2)
         ELSE 0
-    END AS contacts_per_agent_hour,
-    CASE
-        WHEN schedule_hours > 0 THEN ROUND((1 - (utilization_pct / 100)) * 100, 2)
-        ELSE 0
-    END AS no_touch_letter_rate
+    END AS contacts_per_agent_hour
 FROM team_daily
 
 UNION ALL
@@ -535,11 +539,7 @@ SELECT
     CASE
         WHEN operational_hours > 0 THEN ROUND(total_calls::numeric / operational_hours, 2)
         ELSE 0
-    END AS contacts_per_agent_hour,
-    CASE
-        WHEN schedule_hours > 0 THEN ROUND((1 - (utilization_pct / 100)) * 100, 2)
-        ELSE 0
-    END AS no_touch_letter_rate
+    END AS contacts_per_agent_hour
 FROM monthly;
 
 -- ========================================================================
@@ -637,6 +637,9 @@ SELECT
     pm.kept_count,
     pm.broken_count,
     pm.kept_pct,
+    pm.bucket_conversion,
+    pm.capped_kp,
+    pm.capped_kp_rpc_arrears,
     rm.cure_count,
     rm.cured_amount,
     rm.cure_rate,
@@ -644,7 +647,6 @@ SELECT
     rm.self_cure_count,
     pr.utilization_pct,
     pr.contacts_per_agent_hour,
-    pr.no_touch_letter_rate,
     ht.avg_aht_rpc,
     ht.avg_aht_nonrpc,
     ht.avg_acw_rpc,
@@ -686,6 +688,8 @@ WITH agent_monthly AS (
         ROUND(AVG(pm.ptp_pct), 2) AS avg_ptp_pct,
         SUM(pm.kept_count) AS kept_count,
         ROUND(AVG(pm.kept_pct), 2) AS avg_kept_pct,
+        ROUND(AVG(pm.bucket_conversion), 2) AS avg_bucket_conversion,
+        SUM(pm.capped_kp) AS capped_kp,
         SUM(rm.cure_count) AS cure_count,
         ROUND(AVG(rm.cure_rate), 2) AS avg_cure_rate,
         SUM(rm.agent_cure_count) AS agent_cure_count,
@@ -722,6 +726,8 @@ team_monthly AS (
         ROUND(AVG(pm.ptp_pct), 2) AS avg_ptp_pct,
         SUM(pm.kept_count) AS kept_count,
         ROUND(AVG(pm.kept_pct), 2) AS avg_kept_pct,
+        ROUND(AVG(pm.bucket_conversion), 2) AS avg_bucket_conversion,
+        SUM(pm.capped_kp) AS capped_kp,
         SUM(rm.cure_count) AS cure_count,
         ROUND(AVG(rm.cure_rate), 2) AS avg_cure_rate,
         SUM(rm.agent_cure_count) AS agent_cure_count,
@@ -758,6 +764,8 @@ portfolio_monthly AS (
         ROUND(AVG(pm.ptp_pct), 2) AS avg_ptp_pct,
         SUM(pm.kept_count) AS kept_count,
         ROUND(AVG(pm.kept_pct), 2) AS avg_kept_pct,
+        ROUND(AVG(pm.bucket_conversion), 2) AS avg_bucket_conversion,
+        SUM(pm.capped_kp) AS capped_kp,
         SUM(rm.cure_count) AS cure_count,
         ROUND(AVG(rm.cure_rate), 2) AS avg_cure_rate,
         SUM(rm.agent_cure_count) AS agent_cure_count,

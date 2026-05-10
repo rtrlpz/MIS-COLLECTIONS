@@ -183,11 +183,11 @@ class TestCallDuration:
 class TestKPIViewOutput:
     @pytest.mark.parametrize("view_name,pct_columns", [
         ('v_contact_metrics', ['rpc_pct']),
-        ('v_promise_metrics', ['ptp_pct', 'kept_pct']),
+        ('v_promise_metrics', ['ptp_pct', 'kept_pct', 'bucket_conversion']),
         ('v_recovery_metrics', ['cure_rate']),
-        ('v_productivity_metrics', ['utilization_pct', 'no_touch_letter_rate']),
+        ('v_productivity_metrics', ['utilization_pct']),
         ('v_handle_time_metrics', []),
-        ('v_daily_mis', ['rpc_pct', 'ptp_pct', 'kept_pct', 'cure_rate', 'utilization_pct', 'no_touch_letter_rate']),
+        ('v_daily_mis', ['rpc_pct', 'ptp_pct', 'kept_pct', 'cure_rate', 'utilization_pct']),
         ('v_monthly_summary', ['avg_rpc_pct', 'avg_ptp_pct', 'avg_kept_pct', 'avg_cure_rate', 'avg_utilization_pct']),
         ('v_etl_load_summary', []),
         ('v_data_freshness', []),
@@ -199,11 +199,11 @@ class TestKPIViewOutput:
 
     @pytest.mark.parametrize("view_name,pct_columns", [
         ('v_contact_metrics', ['rpc_pct']),
-        ('v_promise_metrics', ['ptp_pct', 'kept_pct']),
+        ('v_promise_metrics', ['ptp_pct', 'kept_pct', 'bucket_conversion']),
         ('v_recovery_metrics', ['cure_rate']),
-        ('v_productivity_metrics', ['utilization_pct', 'no_touch_letter_rate']),
+        ('v_productivity_metrics', ['utilization_pct']),
         ('v_handle_time_metrics', []),
-        ('v_daily_mis', ['rpc_pct', 'ptp_pct', 'kept_pct', 'cure_rate', 'utilization_pct', 'no_touch_letter_rate']),
+        ('v_daily_mis', ['rpc_pct', 'ptp_pct', 'kept_pct', 'cure_rate', 'utilization_pct']),
         ('v_monthly_summary', ['avg_rpc_pct', 'avg_ptp_pct', 'avg_kept_pct', 'avg_cure_rate', 'avg_utilization_pct']),
         ('v_etl_load_summary', []),
         ('v_data_freshness', []),
