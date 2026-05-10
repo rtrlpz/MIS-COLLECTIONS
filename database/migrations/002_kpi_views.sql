@@ -670,6 +670,7 @@ LEFT JOIN (
 -- ========================================================================
 -- 7. v_monthly_summary
 -- Purpose: Month-level rollup of all KPIs for dashboard trends and MoM comparisons
+-- Single-pass: queries each underlying view once, rolls up via GROUP BY
 -- ========================================================================
 CREATE OR REPLACE VIEW v_monthly_summary AS
 WITH agent_monthly AS (
@@ -680,25 +681,26 @@ WITH agent_monthly AS (
         cm.agent_name,
         cm.supervisor_id,
         cm.team_name,
-        SUM(cm.total_calls) AS total_calls,
-        SUM(cm.connected_calls) AS connected_calls,
-        SUM(cm.rpc_count) AS rpc_count,
-        ROUND(AVG(cm.rpc_pct), 2) AS avg_rpc_pct,
-        SUM(pm.ptp_count) AS ptp_count,
-        ROUND(AVG(pm.ptp_pct), 2) AS avg_ptp_pct,
-        SUM(pm.kept_count) AS kept_count,
-        ROUND(AVG(pm.kept_pct), 2) AS avg_kept_pct,
-        ROUND(AVG(pm.bucket_conversion), 2) AS avg_bucket_conversion,
-        SUM(pm.capped_kp) AS capped_kp,
-        SUM(rm.cure_count) AS cure_count,
-        ROUND(AVG(rm.cure_rate), 2) AS avg_cure_rate,
-        SUM(rm.agent_cure_count) AS agent_cure_count,
-        SUM(rm.self_cure_count) AS self_cure_count,
-        ROUND(AVG(pr.utilization_pct), 2) AS avg_utilization_pct,
-        ROUND(AVG(ht.avg_aht_rpc), 2) AS avg_aht_rpc,
-        ROUND(AVG(ht.avg_aht_nonrpc), 2) AS avg_aht_nonrpc,
-        ROUND(AVG(ht.avg_acw_rpc), 2) AS avg_acw_rpc,
-        ROUND(AVG(ht.avg_acw_nonrpc), 2) AS avg_acw_nonrpc
+        cm.total_calls,
+        cm.connected_calls,
+        cm.rpc_count,
+        cm.rpc_pct,
+        pm.ptp_count,
+        pm.ptp_pct,
+        pm.kept_count,
+        pm.broken_count,
+        pm.kept_pct,
+        pm.bucket_conversion,
+        pm.capped_kp,
+        rm.cure_count,
+        rm.cure_rate,
+        rm.agent_cure_count,
+        rm.self_cure_count,
+        pr.utilization_pct,
+        ht.avg_aht_rpc,
+        ht.avg_aht_nonrpc,
+        ht.avg_acw_rpc,
+        ht.avg_acw_nonrpc
     FROM (SELECT * FROM v_contact_metrics WHERE granularity = 'monthly') cm
     LEFT JOIN (SELECT * FROM v_promise_metrics WHERE granularity = 'monthly') pm 
         ON cm.agent_id = pm.agent_id AND cm.month_num = pm.month_num
@@ -708,89 +710,84 @@ WITH agent_monthly AS (
         ON cm.agent_id = pr.agent_id AND cm.month_num = pr.month_num
     LEFT JOIN (SELECT * FROM v_handle_time_metrics WHERE granularity = 'monthly') ht 
         ON cm.agent_id = ht.agent_id AND cm.month_num = ht.month_num
-    GROUP BY cm.month_num, cm.month_name, cm.agent_id, cm.agent_name, cm.supervisor_id, cm.team_name
-),
-team_monthly AS (
-    SELECT
-        cm.month_num,
-        cm.month_name,
-        NULL AS agent_id,
-        NULL AS agent_name,
-        cm.supervisor_id,
-        cm.team_name,
-        SUM(cm.total_calls) AS total_calls,
-        SUM(cm.connected_calls) AS connected_calls,
-        SUM(cm.rpc_count) AS rpc_count,
-        ROUND(AVG(cm.rpc_pct), 2) AS avg_rpc_pct,
-        SUM(pm.ptp_count) AS ptp_count,
-        ROUND(AVG(pm.ptp_pct), 2) AS avg_ptp_pct,
-        SUM(pm.kept_count) AS kept_count,
-        ROUND(AVG(pm.kept_pct), 2) AS avg_kept_pct,
-        ROUND(AVG(pm.bucket_conversion), 2) AS avg_bucket_conversion,
-        SUM(pm.capped_kp) AS capped_kp,
-        SUM(rm.cure_count) AS cure_count,
-        ROUND(AVG(rm.cure_rate), 2) AS avg_cure_rate,
-        SUM(rm.agent_cure_count) AS agent_cure_count,
-        SUM(rm.self_cure_count) AS self_cure_count,
-        ROUND(AVG(pr.utilization_pct), 2) AS avg_utilization_pct,
-        ROUND(AVG(ht.avg_aht_rpc), 2) AS avg_aht_rpc,
-        ROUND(AVG(ht.avg_aht_nonrpc), 2) AS avg_aht_nonrpc,
-        ROUND(AVG(ht.avg_acw_rpc), 2) AS avg_acw_rpc,
-        ROUND(AVG(ht.avg_acw_nonrpc), 2) AS avg_acw_nonrpc
-    FROM (SELECT * FROM v_contact_metrics WHERE granularity = 'monthly') cm
-    LEFT JOIN (SELECT * FROM v_promise_metrics WHERE granularity = 'monthly') pm 
-        ON cm.supervisor_id = pm.supervisor_id AND cm.month_num = pm.month_num
-    LEFT JOIN (SELECT * FROM v_recovery_metrics WHERE granularity = 'monthly_agent') rm 
-        ON cm.supervisor_id = rm.supervisor_id AND cm.month_num = rm.month_num
-    LEFT JOIN (SELECT * FROM v_productivity_metrics WHERE granularity = 'monthly') pr 
-        ON cm.supervisor_id = pr.supervisor_id AND cm.month_num = pr.month_num
-    LEFT JOIN (SELECT * FROM v_handle_time_metrics WHERE granularity = 'monthly') ht 
-        ON cm.supervisor_id = ht.supervisor_id AND cm.month_num = ht.month_num
-    GROUP BY cm.month_num, cm.month_name, cm.supervisor_id, cm.team_name
-),
-portfolio_monthly AS (
-    SELECT
-        cm.month_num,
-        cm.month_name,
-        NULL AS agent_id,
-        NULL AS agent_name,
-        NULL AS supervisor_id,
-        NULL AS team_name,
-        SUM(cm.total_calls) AS total_calls,
-        SUM(cm.connected_calls) AS connected_calls,
-        SUM(cm.rpc_count) AS rpc_count,
-        ROUND(AVG(cm.rpc_pct), 2) AS avg_rpc_pct,
-        SUM(pm.ptp_count) AS ptp_count,
-        ROUND(AVG(pm.ptp_pct), 2) AS avg_ptp_pct,
-        SUM(pm.kept_count) AS kept_count,
-        ROUND(AVG(pm.kept_pct), 2) AS avg_kept_pct,
-        ROUND(AVG(pm.bucket_conversion), 2) AS avg_bucket_conversion,
-        SUM(pm.capped_kp) AS capped_kp,
-        SUM(rm.cure_count) AS cure_count,
-        ROUND(AVG(rm.cure_rate), 2) AS avg_cure_rate,
-        SUM(rm.agent_cure_count) AS agent_cure_count,
-        SUM(rm.self_cure_count) AS self_cure_count,
-        ROUND(AVG(pr.utilization_pct), 2) AS avg_utilization_pct,
-        ROUND(AVG(ht.avg_aht_rpc), 2) AS avg_aht_rpc,
-        ROUND(AVG(ht.avg_aht_nonrpc), 2) AS avg_aht_nonrpc,
-        ROUND(AVG(ht.avg_acw_rpc), 2) AS avg_acw_rpc,
-        ROUND(AVG(ht.avg_acw_nonrpc), 2) AS avg_acw_nonrpc
-    FROM (SELECT * FROM v_contact_metrics WHERE granularity = 'monthly') cm
-    LEFT JOIN (SELECT * FROM v_promise_metrics WHERE granularity = 'monthly') pm 
-        ON cm.month_num = pm.month_num
-    LEFT JOIN (SELECT * FROM v_recovery_metrics WHERE granularity = 'monthly_agent') rm 
-        ON cm.month_num = rm.month_num
-    LEFT JOIN (SELECT * FROM v_productivity_metrics WHERE granularity = 'monthly') pr 
-        ON cm.month_num = pr.month_num
-    LEFT JOIN (SELECT * FROM v_handle_time_metrics WHERE granularity = 'monthly') ht 
-        ON cm.month_num = ht.month_num
-    GROUP BY cm.month_num, cm.month_name
 )
-SELECT 'agent' AS granularity, * FROM agent_monthly
+SELECT 'agent' AS granularity,
+    month_num, month_name, agent_id, agent_name, supervisor_id, team_name,
+    total_calls, connected_calls, rpc_count,
+    ROUND(rpc_pct, 2) AS avg_rpc_pct,
+    ptp_count,
+    ROUND(ptp_pct, 2) AS avg_ptp_pct,
+    kept_count, broken_count,
+    ROUND(kept_pct, 2) AS avg_kept_pct,
+    ROUND(bucket_conversion, 2) AS avg_bucket_conversion,
+    capped_kp,
+    cure_count,
+    ROUND(cure_rate, 2) AS avg_cure_rate,
+    agent_cure_count, self_cure_count,
+    ROUND(utilization_pct, 2) AS avg_utilization_pct,
+    ROUND(avg_aht_rpc, 2) AS avg_aht_rpc,
+    ROUND(avg_aht_nonrpc, 2) AS avg_aht_nonrpc,
+    ROUND(avg_acw_rpc, 2) AS avg_acw_rpc,
+    ROUND(avg_acw_nonrpc, 2) AS avg_acw_nonrpc
+FROM agent_monthly
+
 UNION ALL
-SELECT 'team' AS granularity, * FROM team_monthly
+
+SELECT 'team' AS granularity,
+    month_num, month_name,
+    NULL AS agent_id, NULL AS agent_name,
+    supervisor_id, team_name,
+    SUM(total_calls) AS total_calls,
+    SUM(connected_calls) AS connected_calls,
+    SUM(rpc_count) AS rpc_count,
+    ROUND(AVG(rpc_pct), 2) AS avg_rpc_pct,
+    SUM(ptp_count) AS ptp_count,
+    ROUND(AVG(ptp_pct), 2) AS avg_ptp_pct,
+    SUM(kept_count) AS kept_count,
+    SUM(broken_count) AS broken_count,
+    ROUND(AVG(kept_pct), 2) AS avg_kept_pct,
+    ROUND(AVG(bucket_conversion), 2) AS avg_bucket_conversion,
+    SUM(capped_kp) AS capped_kp,
+    SUM(cure_count) AS cure_count,
+    ROUND(AVG(cure_rate), 2) AS avg_cure_rate,
+    SUM(agent_cure_count) AS agent_cure_count,
+    SUM(self_cure_count) AS self_cure_count,
+    ROUND(AVG(utilization_pct), 2) AS avg_utilization_pct,
+    ROUND(AVG(avg_aht_rpc), 2) AS avg_aht_rpc,
+    ROUND(AVG(avg_aht_nonrpc), 2) AS avg_aht_nonrpc,
+    ROUND(AVG(avg_acw_rpc), 2) AS avg_acw_rpc,
+    ROUND(AVG(avg_acw_nonrpc), 2) AS avg_acw_nonrpc
+FROM agent_monthly
+GROUP BY month_num, month_name, supervisor_id, team_name
+
 UNION ALL
-SELECT 'portfolio' AS granularity, * FROM portfolio_monthly;
+
+SELECT 'portfolio' AS granularity,
+    month_num, month_name,
+    NULL AS agent_id, NULL AS agent_name,
+    NULL AS supervisor_id, NULL AS team_name,
+    SUM(total_calls) AS total_calls,
+    SUM(connected_calls) AS connected_calls,
+    SUM(rpc_count) AS rpc_count,
+    ROUND(AVG(rpc_pct), 2) AS avg_rpc_pct,
+    SUM(ptp_count) AS ptp_count,
+    ROUND(AVG(ptp_pct), 2) AS avg_ptp_pct,
+    SUM(kept_count) AS kept_count,
+    SUM(broken_count) AS broken_count,
+    ROUND(AVG(kept_pct), 2) AS avg_kept_pct,
+    ROUND(AVG(bucket_conversion), 2) AS avg_bucket_conversion,
+    SUM(capped_kp) AS capped_kp,
+    SUM(cure_count) AS cure_count,
+    ROUND(AVG(cure_rate), 2) AS avg_cure_rate,
+    SUM(agent_cure_count) AS agent_cure_count,
+    SUM(self_cure_count) AS self_cure_count,
+    ROUND(AVG(utilization_pct), 2) AS avg_utilization_pct,
+    ROUND(AVG(avg_aht_rpc), 2) AS avg_aht_rpc,
+    ROUND(AVG(avg_aht_nonrpc), 2) AS avg_aht_nonrpc,
+    ROUND(AVG(avg_acw_rpc), 2) AS avg_acw_rpc,
+    ROUND(AVG(avg_acw_nonrpc), 2) AS avg_acw_nonrpc
+FROM agent_monthly
+GROUP BY month_num, month_name;
 
 -- ========================================================================
 -- 8. v_etl_load_summary

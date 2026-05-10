@@ -63,7 +63,7 @@
 - [x] `v_contact_metrics` — RPC, RPC%, RPC/OpHr, RPC Arrears (agent/day, team/day, month)
 - [x] `v_promise_metrics` — PTP count, PTP%, Kept/Broken count, KP% (agent/day, team/day, month)
 - [x] `v_recovery_metrics` — Cures, cured amount, cure rate, agent vs self-cure (4 granularities)
-- [x] `v_productivity_metrics` — Utilization%, No Touch Letter rate, contacts/agent/hour
+- [x] `v_productivity_metrics` — Utilization%, contacts/agent/hour
 - [x] `v_handle_time_metrics` — AHT-RPC, AHT-NonRPC, ACW-RPC, ACW-NonRPC
 - [x] `v_daily_mis` — Consolidated daily view combining all 5 KPI categories
 - [x] `v_monthly_summary` — Month-level rollup (agent, team, portfolio granularities)

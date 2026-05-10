@@ -766,7 +766,7 @@ Include all 3 granularities in the view using GROUPING SETS or separate CTEs.
 ```
 Write v_promise_metrics:
   - Joins: fact_ptp_log + dim_agents + dim_supervisors + dim_calendar
-  - Metrics: ptp_count, ptp_pct (ptp_count / NULLIF(rpc_count, 0)), kept_count, broken_count, kept_pct, bucket_conversion
+  - Metrics: ptp_count, ptp_pct (ptp_count / NULLIF(rpc_count, 0)), kept_count, broken_count, kept_pct (Kept / (Kept + Broken)), bucket_conversion (Kept / RPCs), capped_kp, capped_kp_rpc_arrears
   - Group by agent/day, team/day, and month
   - Status values: 'Kept', 'Broken', 'Scheduled'
 ```
@@ -786,8 +786,7 @@ Write v_recovery_metrics:
 ```
 Write v_productivity_metrics:
   - Joins: fact_agent_time_log + fact_interactions + dim_agents + dim_supervisors + dim_calendar
-  - Metrics: utilization_pct, contacts_per_agent_hour, no_touch_letter_rate
-  - no_touch_letter_rate = 1 - (letters_sent / accounts_assigned) -- approximate from available data
+  - Metrics: utilization_pct, contacts_per_agent_hour
   - Group by agent/day, team/day, and month
 ```
 

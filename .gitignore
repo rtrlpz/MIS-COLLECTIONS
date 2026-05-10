@@ -45,7 +45,12 @@ reports/outputs/*.csv
 reports/templates/*.xlsx
 reports/templates/*.csv
 
+# Ignore pytest cache
+.pytest_cache
 
+# Opencode temporary files
+*.tmp
+.opencode/
 
-
-
+# Temporary ignore for testing
+dashboards/fix_syntetic_data.md
