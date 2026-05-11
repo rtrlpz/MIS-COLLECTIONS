@@ -86,10 +86,8 @@ MIS-COLLECTIONS/
 │   ├── qa_validation.py          # Data integrity tests (weekend test: PASSING)
 │   └── test_generator.py          # Generator unit tests
 │
-├── dax/                           # DAX source control (exported via Tabular Editor)
-│   ├── _contact_and_volume.dax
-│   ├── _promise_and_recovery.dax
-│   └── _portfolio_and_trends.dax
+├── dashboards/assets/
+│   ├── dax_measures_dictionary.md # 73 DAX measures documented
 │
 └── security/                      # RLS configuration
     └── rls_test_users.csv
@@ -288,6 +286,7 @@ All 17 SQL files verified with valid content — none empty.
 - **Monthly agent drift**: At the start of each calendar month, a ±8% multiplier (`monthly_drift_std: 0.08`) is drawn per agent and applied persistently to `connection_rate`, `rpc_rate`, `ptp_rate`, and `kp_tendency` for the entire month. Mirrors real RPC% swings of 38%–67% month-to-month.
 - **THT normalization**: `fact_agent_time_log.tht_hours` now computed from actual `SUM(aht + acw)` across all interactions per agent-day; `utilization = actual_tht_s / (op_hrs * 3600)` (real ratio, capped at 1.0). Removed synthetic `off_phone_shrinkage` formula.
 - **Self-cure payday boost**: On payday weeks (days 13-17 and last 3 calendar days), `self_cure_base_rate` multiplied by 2.5x (`self_cure_payday_boost`). Clusters ~47% of self-cures on payday periods (vs ~23% uniform baseline), matching real consumer behavior.
+- **DAX type safety fixes**: All `rpc_flag = "true"`/`"false"` string comparisons replaced with `TRUE()`/`FALSE()` boolean literals in `dax_measures_dictionary.md` (lines 12, 15, 19-22). Added `[Cured Amounts]` measure (cured-only filtered SUM). `Total Amount Paid` annotated as all-payments; `Cured Amount Prior Month`, `Cured Amount MoM %`, `Cured Amount YTD` now reference `[Cured Amounts]` instead of `[Total Amount Paid]`.
 - **Data flow**: Generator → CSVs → ETL → PostgreSQL → Power BI Import (~422K rows, ~100 MB compressed pre-calibration) → Excel (openpyxl)
 - **Pipeline timing**: ~126s end-to-end (calibrated generator with 3 months; ~67s gen + ~59s ETL)
 - **Test count**: 58 tests passing (was 45 — added 13 structural tests, ETL idempotency, and generator seed reproducibility tests)

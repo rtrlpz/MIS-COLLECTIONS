@@ -169,7 +169,7 @@
 - [x] `docs/execution_guide.md` — Granular task instructions
 - [x] `data_sources/schema/dictionary.md` — Column-level docs for all tables
 - [x] `dashboards/assets/reference_guide.html` — 994-line DAX + dashboard blueprint reference
-- [x] `dashboards/dax_measures_dictionary.md` — 70 DAX measures across 3 measure tables
+- [x] `dashboards/assets/dax_measures_dictionary.md` — 73 DAX measures (type-safe, Cured Amounts added)
 - [x] `dashboards/assets/mis_collections_build_plan.md` — 396-line build plan for Phases 8–9
 
 - [ ] `QUICKSTART.md` — 5-minute setup (prerequisites + 3 commands)
@@ -186,7 +186,7 @@
 ### Build Plan Complete
 - [x] `dashboards/assets/mis_collections_build_plan.md` — 10-day build plan with phases, designs, requirements
 - [x] Architecture defined: single .pbix, 5 pages, 3 Excel sheets
-- [x] 70 DAX measures documented in `dax_measures_dictionary.md`
+- [x] 73 DAX measures documented in `dax_measures_dictionary.md` (type-safe, Cured Amounts added)
 - [x] 5 dashboard page designs with visual-by-visual layout specs
 - [x] Excel report design (3-sheet workbook, Python openpyxl)
 
