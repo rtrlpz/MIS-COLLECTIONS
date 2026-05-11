@@ -49,7 +49,7 @@ class TestGeneratorOutput:
             assert csv_file.exists(), f"{table}.csv not found"
             assert csv_file.stat().st_size > 0, f"{table}.csv is empty"
 
-        # Check monthly fact tables exist
+        # Check month directories created
         month_dirs = [d for d in output_dir.iterdir() if d.is_dir() and d.name != 'shared']
         assert len(month_dirs) > 0, "No monthly directories created"
 
@@ -58,6 +58,71 @@ class TestGeneratorOutput:
                 csv_file = month_dir / f"{table}.csv"
                 assert csv_file.exists(), f"{table}.csv not found in {month_dir.name}"
                 assert csv_file.stat().st_size > 0, f"{table}.csv is empty in {month_dir.name}"
+
+        # Cleanup
+        shutil.rmtree(output_dir)
+
+
+class TestGeneratorRowCounts:
+    """Test row counts in generated CSV output match expected ranges."""
+
+    EXPECTED_COUNTS = {
+        'Dim_Supervisors': 8,
+        'Dim_Agents': 80,
+        'Dim_Clients': 10000,
+        'Dim_Products': 3,
+        'Dim_Calendar': 92,
+        'Dim_Accounts': 15567,
+        'Fact_Interactions': 344040,
+        'Fact_PTP_Log': 27508,
+        'Fact_Payments': 22491,
+        'Fact_Agent_Time_Log': 5280,
+        'Fact_EOM_Snapshot': 46701,
+    }
+    TOLERANCE = 0.05  # ±5% for fact tables
+
+    def test_generated_csv_row_counts(self):
+        """Run generator and verify CSV row counts."""
+        output_dir = ROOT_PATH / "data_sources" / "generators" / "raw_test_row_counts"
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+
+        result = subprocess.run(
+            ["python", str(GENERATOR_SCRIPT), "--seed", "42", "--output-dir", str(output_dir)],
+            capture_output=True, text=True, timeout=300
+        )
+        assert result.returncode == 0, f"Generator failed: {result.stderr}"
+
+        import pandas as pd
+
+        # Check dimension table counts (exact match)
+        shared_dir = output_dir / "shared"
+        for table in ['Dim_Supervisors', 'Dim_Agents', 'Dim_Clients', 'Dim_Products', 'Dim_Calendar']:
+            df = pd.read_csv(shared_dir / f"{table}.csv")
+            assert len(df) == self.EXPECTED_COUNTS[table], \
+                f"{table}: expected {self.EXPECTED_COUNTS[table]}, got {len(df)}"
+
+        # Dim_Accounts has slight per-run variation
+        df_accts = pd.read_csv(shared_dir / "Dim_Accounts.csv")
+        expected = self.EXPECTED_COUNTS['Dim_Accounts']
+        tol = expected * self.TOLERANCE
+        assert abs(len(df_accts) - expected) <= tol, \
+            f"Dim_Accounts: expected ~{expected}, got {len(df_accts)}"
+
+        # Check fact table counts aggregated across months
+        month_dirs = sorted(d for d in output_dir.iterdir() if d.is_dir() and d.name != 'shared')
+        assert len(month_dirs) == 3, f"Expected 3 month dirs, got {len(month_dirs)}"
+
+        for table in ['Fact_Interactions', 'Fact_PTP_Log', 'Fact_Payments',
+                       'Fact_Agent_Time_Log', 'Fact_EOM_Snapshot']:
+            total = 0
+            for month_dir in month_dirs:
+                df = pd.read_csv(month_dir / f"{table}.csv")
+                total += len(df)
+            expected = self.EXPECTED_COUNTS[table]
+            tol = expected * self.TOLERANCE
+            assert abs(total - expected) <= tol, \
+                f"{table}: expected ~{expected}, got {total}"
 
         # Cleanup
         shutil.rmtree(output_dir)

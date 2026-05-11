@@ -218,7 +218,10 @@ SELECT
     pad.kept_count,
     pad.broken_count,
     ROUND(pad.kept_count * 100.0 / NULLIF(pad.kept_count + pad.broken_count, 0), 2) AS kept_pct,
-    ROUND(pad.kept_count * 100.0 / NULLIF(rad.rpc_count, 0), 2) AS bucket_conversion,
+    ROUND(
+        (pad.kept_count * 100.0 / NULLIF(pad.kept_count + pad.broken_count, 0))
+        * pad.ptp_count / NULLIF(rad.rpc_count, 0),
+    2) AS bucket_conversion,
     ROUND(pad.capped_kp::numeric, 2) AS capped_kp,
     ROUND(pad.capped_kp::numeric / NULLIF(rad.rpc_arrears_total, 0), 4) AS capped_kp_rpc_arrears
 FROM ptp_agent_daily pad
@@ -240,7 +243,10 @@ SELECT
     ptd.kept_count,
     ptd.broken_count,
     ROUND(ptd.kept_count * 100.0 / NULLIF(ptd.kept_count + ptd.broken_count, 0), 2) AS kept_pct,
-    ROUND(ptd.kept_count * 100.0 / NULLIF(rtd.rpc_count, 0), 2) AS bucket_conversion,
+    ROUND(
+        (ptd.kept_count * 100.0 / NULLIF(ptd.kept_count + ptd.broken_count, 0))
+        * ptd.ptp_count / NULLIF(rtd.rpc_count, 0),
+    2) AS bucket_conversion,
     ROUND(ptd.capped_kp::numeric, 2) AS capped_kp,
     ROUND(ptd.capped_kp::numeric / NULLIF(rtd.rpc_arrears_total, 0), 4) AS capped_kp_rpc_arrears
 FROM ptp_team_daily ptd
@@ -262,7 +268,10 @@ SELECT
     pm.kept_count,
     pm.broken_count,
     ROUND(pm.kept_count * 100.0 / NULLIF(pm.kept_count + pm.broken_count, 0), 2) AS kept_pct,
-    ROUND(pm.kept_count * 100.0 / NULLIF(rm.rpc_count, 0), 2) AS bucket_conversion,
+    ROUND(
+        (pm.kept_count * 100.0 / NULLIF(pm.kept_count + pm.broken_count, 0))
+        * pm.ptp_count / NULLIF(rm.rpc_count, 0),
+    2) AS bucket_conversion,
     ROUND(pm.capped_kp::numeric, 2) AS capped_kp,
     ROUND(pm.capped_kp::numeric / NULLIF(rm.rpc_arrears_total, 0), 4) AS capped_kp_rpc_arrears
 FROM ptp_monthly pm
@@ -285,10 +294,10 @@ WITH agent_daily AS (
         dp.product_id,
         dp.product_name,
         COUNT(*) AS payment_count,
-        SUM(CASE WHEN fp.is_cured THEN 1 ELSE 0 END) AS cure_count,
+        COUNT(DISTINCT CASE WHEN fp.is_cured THEN fp.account_id ELSE NULL END) AS cure_count,
         SUM(CASE WHEN fp.is_cured THEN fp.amount_paid ELSE 0 END) AS cured_amount,
-        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN 1 ELSE 0 END) AS agent_cure_count,
-        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN 1 ELSE 0 END) AS self_cure_count
+        COUNT(DISTINCT CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN fp.account_id ELSE NULL END) AS agent_cure_count,
+        COUNT(DISTINCT CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN fp.account_id ELSE NULL END) AS self_cure_count
     FROM fact_payments fp
     JOIN dim_calendar dc ON fp.payment_date = dc.date
     JOIN dim_accounts da2 ON fp.account_id = da2.account_id
@@ -305,10 +314,10 @@ product_daily AS (
         dp.product_id,
         dp.product_name,
         COUNT(*) AS payment_count,
-        SUM(CASE WHEN fp.is_cured THEN 1 ELSE 0 END) AS cure_count,
+        COUNT(DISTINCT CASE WHEN fp.is_cured THEN fp.account_id ELSE NULL END) AS cure_count,
         SUM(CASE WHEN fp.is_cured THEN fp.amount_paid ELSE 0 END) AS cured_amount,
-        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN 1 ELSE 0 END) AS agent_cure_count,
-        SUM(CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN 1 ELSE 0 END) AS self_cure_count
+        COUNT(DISTINCT CASE WHEN fp.is_cured AND fp.agent_id IS NOT NULL THEN fp.account_id ELSE NULL END) AS agent_cure_count,
+        COUNT(DISTINCT CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN fp.account_id ELSE NULL END) AS self_cure_count
     FROM fact_payments fp
     JOIN dim_calendar dc ON fp.payment_date = dc.date
     JOIN dim_accounts da2 ON fp.account_id = da2.account_id
@@ -435,7 +444,7 @@ FROM product_monthly pm;
 
 -- ========================================================================
 -- 4. v_productivity_metrics
--- Purpose: Productivity KPIs - utilization, contacts per hour, no-touch rate
+-- Purpose: Productivity KPIs - utilization, contacts per hour
 -- ========================================================================
 CREATE OR REPLACE VIEW v_productivity_metrics AS
 WITH agent_daily AS (

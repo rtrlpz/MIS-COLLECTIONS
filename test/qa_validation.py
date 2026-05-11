@@ -287,3 +287,106 @@ class TestGeneratorSeed:
         # Cleanup
         shutil.rmtree(output_dir_1)
         shutil.rmtree(output_dir_2)
+
+
+# =========================================================================
+# Test 12: Metric Percentile Ranges
+# =========================================================================
+class TestMetricRanges:
+    """Verify key metric medians fall within calibrated ranges."""
+
+    def test_median_rpc_pct_in_range(self, cursor):
+        cursor.execute(
+            "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY rpc_pct) "
+            "FROM v_contact_metrics WHERE rpc_pct IS NOT NULL"
+        )
+        median = cursor.fetchone()[0]
+        assert 35 <= median <= 60, f"Median RPC% = {median}, expected [35, 60]"
+
+    def test_median_ptp_pct_in_range(self, cursor):
+        cursor.execute(
+            "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ptp_pct) "
+            "FROM v_promise_metrics WHERE ptp_pct IS NOT NULL"
+        )
+        median = cursor.fetchone()[0]
+        assert 20 <= median <= 65, f"Median PTP% = {median}, expected [20, 65]"
+
+    def test_median_kp_pct_in_range(self, cursor):
+        cursor.execute(
+            "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY kept_pct) "
+            "FROM v_promise_metrics WHERE kept_pct IS NOT NULL"
+        )
+        median = cursor.fetchone()[0]
+        assert 65 <= median <= 90, f"Median KP% = {median}, expected [65, 90]"
+
+    def test_median_utilization_in_range(self, cursor):
+        cursor.execute(
+            "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY utilization_pct * 100) "
+            "FROM v_productivity_metrics WHERE utilization_pct IS NOT NULL"
+        )
+        median = cursor.fetchone()[0]
+        assert 30 <= median <= 60, f"Median Utilization% = {median}, expected [30, 60]"
+
+    def test_median_cures_per_tht_in_range(self, cursor):
+        cursor.execute("""
+            WITH agent_cures AS (
+                SELECT agent_id,
+                       COUNT(DISTINCT account_id) AS cure_count
+                FROM fact_payments
+                WHERE is_cured = TRUE AND agent_id IS NOT NULL
+                GROUP BY agent_id
+            ),
+            agent_tht AS (
+                SELECT agent_id,
+                       SUM(tht_hours) AS total_tht
+                FROM fact_agent_time_log
+                GROUP BY agent_id
+            )
+            SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (
+                ORDER BY cure_count::numeric / NULLIF(total_tht, 0)
+            )
+            FROM agent_cures c
+            JOIN agent_tht t USING (agent_id)
+        """)
+        median = cursor.fetchone()[0]
+        assert 0.08 <= median <= 0.30, f"Median Cures per THT = {median}, expected [0.08, 0.30]"
+
+    def test_median_acw_rpc_seconds_in_range(self, cursor):
+        cursor.execute(
+            "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY acw_seconds) "
+            "FROM fact_interactions WHERE rpc_flag = TRUE"
+        )
+        median = cursor.fetchone()[0]
+        assert 80 <= median <= 180, f"Median ACW RPC seconds = {median}, expected [80, 180]"
+
+
+# =========================================================================
+# Test 13: Capped KP > 0
+# =========================================================================
+class TestCappedKPPositive:
+    """Verify capped_kp produces positive values."""
+
+    def test_capped_kp_positive(self, cursor):
+        cursor.execute(
+            "SELECT SUM(capped_kp) FROM v_promise_metrics "
+            "WHERE granularity = 'monthly'"
+        )
+        total = cursor.fetchone()[0]
+        assert total is not None and total > 0, \
+            f"Total capped_kp (monthly) = {total}, expected > 0"
+
+
+# =========================================================================
+# Test 14: BB Conversion Rate > 0
+# =========================================================================
+class TestBBConversionPositive:
+    """Verify BB Conversion Rate (bucket_conversion) produces positive values."""
+
+    def test_bb_conversion_rate_positive(self, cursor):
+        cursor.execute(
+            "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bucket_conversion) "
+            "FROM v_promise_metrics WHERE granularity = 'monthly' AND bucket_conversion IS NOT NULL"
+        )
+        median = cursor.fetchone()[0]
+        assert median is not None and median > 0, \
+            f"Median BB Conversion Rate (monthly) = {median}, expected > 0"

@@ -132,7 +132,7 @@ COMMENT ON COLUMN fact_agent_time_log.logout_time IS 'Time agent logged out of t
 COMMENT ON COLUMN fact_agent_time_log.break_minutes IS 'Total break time in minutes for the day';
 COMMENT ON COLUMN fact_agent_time_log.operational_hours IS 'Total productive hours (login - break)';
 COMMENT ON COLUMN fact_agent_time_log.tht_hours IS 'Total Handle Time: talk + ACW across all calls';
-COMMENT ON COLUMN fact_agent_time_log.utilization IS 'Utilization percentage: (THT / Operational Hours) * 100';
+COMMENT ON COLUMN fact_agent_time_log.utilization IS 'Utilization ratio: THT / Operational Hours (decimal 0-1)';
 COMMENT ON COLUMN fact_agent_time_log.schedule_hours IS 'Scheduled shift hours for the day';
 
 -- Fact_EOM_Snapshot

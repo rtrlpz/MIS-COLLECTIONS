@@ -23,9 +23,11 @@
 - DB: localhost:5433, user=rtrlpz, password=rtrlpz, db=MSI_CollectionsDB
 - Star schema: 6 dim tables, 5 fact tables, 9 KPI views
 - Weekend bug FIXED: interactions Mon-Fri only, payments allowed on weekends
-- 58 QA tests passing (0 failures) — 58 total, including KPI views, ETL idempotency, and generator seed tests
+- 68 fast tests + 4 slow = 72 total passing (0 failures) — includes metric percentile ranges, capped KP, BB Conversion
 - Config calibrated May 2026 — 11 param changes + 2 new params to match real data (see CONTEXT.md Session Notes)
+- SQL view fixes: cure count uses COUNT(DISTINCT account_id), BB Conversion uses kept_pct * ptp_pct / 100
 - Monthly drift: ±8% per-agent rate drift each month (RPC% swings 38–67%)
+- Generator CSV row counts validated at ±5% tolerance (seed 42 baseline)
 - Pipeline runs in ~157s end-to-end (3 months data)
 - All 3 months (Oct-Dec 2025) loaded in PostgreSQL
 - `.env` at project root (was database/.env)
@@ -33,6 +35,7 @@
 
 ## Key Documents
 - `docs/execution_guide.md` — 14,877-word enterprise build guide (13 sections)
+- `dashboards/assets/dax_measures_dictionary.md` — 73 DAX measures (type-safe)
 - `dashboards/assets/mis_collections_build_plan.md` — 5-phase Power BI build plan
 - `CONTEXT.md` — Full project context, conventions, session history
 

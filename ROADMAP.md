@@ -1,6 +1,6 @@
 # Project Roadmap — Collections Analytics Portfolio
 
-> **Current Completeness: ~82%** | Last updated: 2026-05-07
+> **Current Completeness: ~85%** | Last updated: 2026-05-10
 >
 > Phases 1–7: **100% Complete** | Phase 8: **~50%** | Phase 9: **Plan Ready, Build Pending**
 
@@ -77,6 +77,7 @@
 - [x] `006_comments.sql` — 63 COMMENT ON statements for all 11 tables and columns
 - [x] `seeds/001_dim_products.sql` — 3 product seed rows (`ON CONFLICT DO NOTHING`)
 - [x] `seeds/002_dim_calendar.sql` — 92 calendar rows (Oct–Dec 2025)
+- [x] **View formula fixes**: Cure count uses `COUNT(DISTINCT account_id)` instead of `SUM(is_cured)` — eliminates double-counting. BB Conversion uses `kept_pct * ptp_pct / 100` matching DAX `[PTP%] * [KP%]`. Removed misnamed "no-touch rate" from `v_productivity_metrics` comment.
 
 ---
 
@@ -110,33 +111,37 @@
 ## PHASE 6 — Testing ✅ COMPLETE
 
 ### Test Files Created
-- [x] `test/conftest.py` (141 lines) — Pytest fixtures: DB cursor, table metadata, PK/FK mappings, KPI views, custom `slow` mark
-- [x] `test/qa_validation.py` (293 lines) — 11 data integrity tests
-- [x] `test/test_generator.py` (136 lines) — Generator unit tests
+- [x] `test/conftest.py` — Pytest fixtures: DB cursor, table metadata, PK/FK mappings, KPI views, GENERATOR_ROW_COUNTS, METRIC_RANGES, custom `slow` mark
+- [x] `test/qa_validation.py` — 14 data integrity + metric percentile test classes
+- [x] `test/test_generator.py` — Generator unit tests + CSV row count validation
 - [x] `test/test_kpi_views.sql` (168 lines) — SQL validation queries for KPI views
 - [x] `test/README.md` — Test documentation
 
-### QA Validation Tests (9 fast + 2 slow)
+### QA Validation Tests (12 fast + 2 slow)
 | # | Test Class | Validates | Status |
 | :--- | :--- | :--- | :--- |
 | 1 | `TestRowCounts` | Dim_Agents=80, Dim_Clients=10000, Dim_Accounts~15575 ±5% | ✅ Pass |
 | 2 | `TestNoNullPKs` | No nulls in PK columns across all 11 tables | ✅ Pass |
-| 3 | `TestFKIntegrity` | 16 FK relationships have no orphans | ✅ Pass |
+| 3 | `TestFKIntegrity` | 15 FK relationships have no orphans | ✅ Pass |
 | 4 | `TestDateRanges` | Fact dates within Oct–Dec 2025, calendar covers full period | ✅ Pass |
-| 5 | `TestWeekdayOnly` | No interactions on weekends | ⚠️ XFAIL (known bug) |
+| 5 | `TestWeekdayOnly` | No interactions on weekends | ✅ Pass |
 | 6 | `TestDPDLogic` | DPD >= 0 in fact_interactions, fact_payments, fact_eom_snapshot | ✅ Pass |
-| 7 | `TestUtilizationBounds` | Utilization between 0 and 100 | ✅ Pass |
+| 7 | `TestUtilizationBounds` | Utilization between 0 and 1 (decimal) | ✅ Pass |
 | 8 | `TestCallDuration` | AHT > 0s, max < 3600s | ✅ Pass |
 | 9 | `TestKPIViewOutput` | All 9 views return rows, percentage columns in 0–100 | ✅ Pass |
-| 10 | `TestETLIdempotency` | Running ETL twice = same row counts (slow) | ✅ Pass |
-| 11 | `TestGeneratorSeed` | Same seed produces identical CSV checksums (slow) | ✅ Pass |
+| 10 | `TestMetricRanges` | RPC% 35-60, PTP% 20-65, KP% 65-90, Util% 30-60, Cures/THT 0.08-0.30, ACW RPC 80-180 | ✅ Pass |
+| 11 | `TestCappedKPPositive` | SUM(capped_kp) > 0 | ✅ Pass |
+| 12 | `TestBBConversionPositive` | median(bucket_conversion) > 0 | ✅ Pass |
+| 13 | `TestETLIdempotency` | Running ETL twice = same row counts (slow) | ✅ Pass |
+| 14 | `TestGeneratorSeed` | Same seed produces identical CSV checksums (slow) | ✅ Pass |
 
 ### Generator Unit Tests (test_generator.py)
 | # | Test Class | Validates |
 | :--- | :--- | :--- |
 | 1 | `TestGeneratorOutput` | Generator exists, `--help` works, produces CSVs with correct structure |
-| 2 | `TestGeneratorReproducibility` | Seed 42 produces identical output across two runs |
-| 3 | `TestGeneratorDataQuality` | No null PKs in generated CSVs across all dimension tables |
+| 2 | `TestGeneratorRowCounts` | CSV row counts match seed 42 baseline (±5% tolerance) for all 10 tables |
+| 3 | `TestGeneratorReproducibility` | Seed 42 produces identical output across two runs |
+| 4 | `TestGeneratorDataQuality` | No null PKs in generated CSVs across all dimension tables |
 
 ### Run Tests
 ```bash

@@ -35,8 +35,10 @@ MIS-COLLECTIONS/
 │
 ├── dashboards/                    # VISUALIZATION LAYER
 │   ├── assets/
+│   │   ├── dax_measures_dictionary.md       # 73 DAX measures (type-safe TRUE()/FALSE())
 │   │   ├── mis_collections_build_plan.md    # 396-line build plan
 │   │   ├── reference_guide.html             # Business guide (1,555 lines)
+│   │   ├── fix_syntetic_data.md             # Generator calibration plan
 │   │   └── screenshots/architecture_diagram.svg
 │   ├── collections_project/
 │   │   ├── collections_dashboard_v2.pbix    # Legacy (8.9 MB) — build plan says start fresh
@@ -81,13 +83,10 @@ MIS-COLLECTIONS/
 ├── reports/                       # EXCEL REPORTING LAYER
 │   └── templates/                 # (pending Phase D build)
 │
-├── test/                          # TESTING LAYER — 45 fast tests passing (38 structural + 7 KPI views)
-│   ├── conftest.py               # Pytest fixtures
-│   ├── qa_validation.py          # Data integrity tests (weekend test: PASSING)
-│   └── test_generator.py          # Generator unit tests
-│
-├── dashboards/assets/
-│   ├── dax_measures_dictionary.md # 73 DAX measures documented
+├── test/                          # TESTING LAYER — 68 fast tests passing
+│   ├── conftest.py               # Pytest fixtures + GENERATOR_ROW_COUNTS + METRIC_RANGES
+│   ├── qa_validation.py          # Data integrity + metric percentile-range tests
+│   └── test_generator.py          # Generator unit tests + CSV row count validation
 │
 └── security/                      # RLS configuration
     └── rls_test_users.csv
@@ -128,7 +127,7 @@ MIS-COLLECTIONS/
 - **Contact**: Total connections, RPC, RPC%, RPC/Operating Hour, RPC Arrears
 - **Promise**: PTP, PTP%, Kept, Broken, Kept%, Broken-to-Bucket conversion
 - **Recovery**: Cures, Cured amount, Cures/Total Handle Time
-- **Productivity**: Utilization%, No Touch Letter rate
+- **Productivity**: Utilization%, Contacts per Agent Hour
 - **Handle Time**: AHT-RPC, AHT-NonRPC, ACW-RPC, ACW-NonRPC
 
 ## Conventions
@@ -153,7 +152,7 @@ docker-compose -f database/docker-compose.yml up -d
 # Run migrations manually
 bash migrate.sh
 
-# Run tests (fast only — 58 tests passing)
+# Run tests (fast only — 68 tests passing)
 python -m pytest test/ -v -m "not slow"
 
 # Run all tests (including slow ETL idempotency and generator seed tests)
@@ -223,10 +222,11 @@ python -m pytest test/ -v
 All 17 SQL files verified with valid content — none empty.
 
 #### Phase 6 (Testing) — 100% Complete
-- `test/conftest.py` — Pytest fixtures
+- `test/conftest.py` — Pytest fixtures, GENERATOR_ROW_COUNTS, METRIC_RANGES constants
 - `test/qa_validation.py` — Data integrity tests:
-  - 58 tests passing (0 failures, 38 structural + 7 KPI views + 10 slow tests + 3 generator seed)
-- `test/test_generator.py` — Generator unit tests
+  - 68 fast tests passing (0 failures): structural integrity + 9 KPI views + metric percentile ranges + capped KP + BB Conversion
+  - 4 slow tests (ETL idempotency, generator seed reproducibility)
+- `test/test_generator.py` — Generator unit tests + CSV row count validation (TestGeneratorRowCounts)
 
 #### Phase 7 (Automation) — 100% Complete
 - `run_pipeline.bat` — Fixed: `timeout /t 2` → `ping -n 3 localhost` (cross-shell), `python` → `%CONDA_PYTHON%`, added `--env-file .env` for docker-compose
@@ -267,7 +267,7 @@ All 17 SQL files verified with valid content — none empty.
 - ~~`database/etl/write_script.py`~~ — **DELETED**: Dead code removed
 
 ### 🐛 KNOWN BUGS
-- None currently. Weekend interaction bug is fixed. Dim_Agents denormalized. Pipeline verified end-to-end.
+- None currently. Weekend interaction bug fixed. Dim_Agents denormalized. Pipeline verified end-to-end. KPI views corrected: cure count uses `COUNT(DISTINCT account_id)` (no double-count), BB Conversion uses correct `kept_pct * ptp_pct / 100` formula.
 
 ## Key Documents
 - `docs/execution_guide.md` — 14,877-word enterprise Power BI build guide (13 sections, replaces old task-level document)
@@ -289,8 +289,11 @@ All 17 SQL files verified with valid content — none empty.
 - **DAX type safety fixes**: All `rpc_flag = "true"`/`"false"` string comparisons replaced with `TRUE()`/`FALSE()` boolean literals in `dax_measures_dictionary.md` (lines 12, 15, 19-22). Added `[Cured Amounts]` measure (cured-only filtered SUM). `Total Amount Paid` annotated as all-payments; `Cured Amount Prior Month`, `Cured Amount MoM %`, `Cured Amount YTD` now reference `[Cured Amounts]` instead of `[Total Amount Paid]`.
 - **Data flow**: Generator → CSVs → ETL → PostgreSQL → Power BI Import (~422K rows, ~100 MB compressed pre-calibration) → Excel (openpyxl)
 - **Pipeline timing**: ~126s end-to-end (calibrated generator with 3 months; ~67s gen + ~59s ETL)
-- **Test count**: 58 tests passing (was 45 — added 13 structural tests, ETL idempotency, and generator seed reproducibility tests)
+- **Test count**: 68 fast tests passing (was 58 — added CSV row count validation, 6 metric percentile-range tests, capped KP test, BB Conversion test)
 - **Dim_Agents denormalized**: Added `supervisor_name`, `team_name`, `region` directly to `dim_agents`; removed FK constraint to `dim_supervisors`. All 5 KPI views updated to reference `da.team_name` instead of joining `dim_supervisors`. Generator populates denormalized fields via lookup. Generator seed reproducibility unaffected (using seed 42). Pipeline runs ~37s ETL.
+- **SQL view fixes (Commit 0a)**: `v_recovery_metrics` cure count in agent_daily/product_daily changed from `SUM(is_cured)` to `COUNT(DISTINCT account_id)` — matches monthly_agent CTE, eliminates double-counting accounts cured multiple times same day. `v_promise_metrics` bucket_conversion changed from `kept_count*100/rpc_count` to `kept_pct * ptp_count / rpc_count` — correctly reflects BB Conversion Rate as `[PTP%] * [KP%]`. `v_productivity_metrics` comment stripped of misnamed "no-touch rate" reference. `006_comments.sql` utilization column comment corrected to "decimal 0-1" (was incorrectly labeled as percentage).
+- **Test calibration (Commit 5)**: Added `TestGeneratorRowCounts` — validates CSV row counts for all 10 tables at ±5% tolerance against seed 42 baseline. Added `TestMetricRanges` — 6 percentile-range tests (RPC% 35-60, PTP% 20-65, KP% 65-90, Utilization% 30-60, Cures/THT 0.08-0.30, ACW RPC 80-180). Added `TestCappedKPPositive` (SUM capped_kp > 0). Added `TestBBConversionPositive` (median bucket_conversion > 0). All ranges calibrated against current 1-month DB data.
+- **Generator row counts (seed 42, 3mo, v7 calibrated)**: Dim tables exact (8/80/10000/3/92/15567), Facts ±5% (Interactions 344040, PTP 27508, Payments 22491, Agent Time 5280, EOM Snapshot 46701).
 
 ## Quick Reference
 - **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`

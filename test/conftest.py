@@ -136,3 +136,29 @@ def fact_date_columns():
 @pytest.fixture(scope='session')
 def root_path():
     return ROOT_PATH
+
+
+# Expected row counts for generator output (seed 42, 3 months, calibrated v7)
+GENERATOR_ROW_COUNTS = {
+    'dim_supervisors': 8,
+    'dim_agents': 80,
+    'dim_clients': 10000,
+    'dim_products': 3,
+    'dim_accounts': 15567,
+    'dim_calendar': 92,
+    'fact_interactions': 344040,
+    'fact_ptp_log': 27508,
+    'fact_payments': 22491,
+    'fact_agent_time_log': 5280,
+    'fact_eom_snapshot': 46701,
+}
+
+# Metric percentile ranges (calibrated May 2026)
+METRIC_RANGES = {
+    'rpc_pct': (35, 60),
+    'ptp_pct': (20, 65),
+    'kp_pct': (65, 90),
+    'utilization_pct': (30, 60),
+    'cures_per_tht': (0.08, 0.30),
+    'acw_rpc_seconds': (80, 180),
+}
