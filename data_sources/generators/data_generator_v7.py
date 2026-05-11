@@ -479,7 +479,11 @@ for sim_date in DATE_RANGE:
     # ── 3C. ORGANIC SELF-CURES (payday-boosted) ──────────────────────────
     # Accounts that are in Mora, not suppressed by an active PTP,
     # spontaneously make a payment clearing full arrears.
+    # On payday periods (p_factor > 1.0), multiply rate by 2.5x
+    # to cluster ~60% of self-cures on payday weeks.
     sc_prob = CFG["self_cure_base_rate"] * p_factor
+    if p_factor > 1.0:
+        sc_prob *= CFG["self_cure_payday_boost"]
     for acct_id, state in account_state.items():
         if (state["status"] == "Mora"
                 and state["arrears"] > 0
