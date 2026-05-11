@@ -392,11 +392,31 @@ ptp_registry  = {}               # ptp_id → dict (status mutated in-place)
 payment_queue = defaultdict(list) # date → [payment events]
 int_ctr = ptp_ctr = pay_ctr = 0
 
+agent_drift   = {}               # agent_id → monthly multiplier (regenerated each month)
+current_month = None
+
 for sim_date in DATE_RANGE:
 
     is_wkday  = is_weekday(sim_date)
     p_factor  = payday_factor(sim_date)
     eom_today = (sim_date == last_day(sim_date))
+
+    # ── MONTHLY DRIFT UPDATE ──────────────────────────────────────────────
+    # At the start of each calendar month, apply ±8% persistent drift
+    # to each agent's connection_rate, rpc_rate, ptp_rate, kp_tendency.
+    # Single draw per agent per month — drift is constant all month.
+    if sim_date.month != current_month:
+        current_month = sim_date.month
+        for agent_id in agent_ids:
+            agent_drift[agent_id] = clamp(
+                1.0 + random.gauss(0, CFG["monthly_drift_std"]), 0.75, 1.30
+            )
+        logger.debug(
+            f"Monthly drift applied for month {current_month}: "
+            f"min={min(agent_drift.values()):.3f} "
+            f"max={max(agent_drift.values()):.3f} "
+            f"mean={sum(agent_drift.values())/len(agent_drift):.3f}"
+        )
 
     # ── 3A. PROCESS SCHEDULED PAYMENTS ────────────────────────────────────
     for pay in payment_queue.pop(sim_date, []):
@@ -521,6 +541,7 @@ for sim_date in DATE_RANGE:
 
         for agent_id in agent_ids:
             prof = agent_profile[agent_id]
+            dr = agent_drift[agent_id]
 
             # --- DEFINIMOS EL TURNO DEL AGENTE PRIMERO ---
             # El agente hace login entre las 8am y el límite máximo del día
@@ -551,9 +572,9 @@ for sim_date in DATE_RANGE:
                 call_outcome = None
 
                 for _ in range(n_att):
-                    if random.random() < prof["connection_rate"]:
+                    if random.random() < prof["connection_rate"] * dr:
                         connected = True
-                        adj_rpc = clamp(prof["rpc_rate"] * rpc_boost * evasion, 0.05, 0.92)
+                        adj_rpc = clamp(prof["rpc_rate"] * dr * rpc_boost * evasion, 0.05, 0.92)
 
                         if random.random() < adj_rpc:
                             rpc_flag = True
@@ -610,7 +631,7 @@ for sim_date in DATE_RANGE:
                         and state["arrears"] > 0
                         and acct_id not in suppressed
                         and acct_id not in accts_ptp_today
-                        and random.random() < prof["ptp_rate"]):
+                        and random.random() < prof["ptp_rate"] * dr):
 
                     ptp_ctr += 1
                     ptp_id = fmt_id("PTP", ptp_ctr, 6)
@@ -624,7 +645,7 @@ for sim_date in DATE_RANGE:
                     hi = state["arrears"]
                     amt = round(random.uniform(lo, hi) if lo < hi else hi, 2)
 
-                    kp_p = clamp(prof["kp_tendency"] + random.gauss(0, CFG["kp_noise_std"]), 0.05, 0.98)
+                    kp_p = clamp(prof["kp_tendency"] * dr + random.gauss(0, CFG["kp_noise_std"]), 0.05, 0.98)
                     kp_p = clamp(kp_p * p_factor, 0.05, 0.98)
                     will_pay = random.random() < kp_p
 

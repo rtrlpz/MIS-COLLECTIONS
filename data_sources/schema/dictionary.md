@@ -48,7 +48,7 @@
 | negotiation_skill | DECIMAL | 0.700–1.300 — multiplies ptp_rate and kp_tendency (Gaussian ~N(1.0, 0.15)) |
 | efficiency_skill | DECIMAL | 0.800–1.200 — multiplies AHT/ACW inversely (lower = faster handle times, Gaussian ~N(1.0, 0.10)) |
 
-> Three independent skill dimensions replace the old single `skill_score`. Each agent draws from three separate Gaussians, allowing nuanced profiles (e.g., high contact skill but low efficiency). Tenure cohorts stratify base rate ranges into thirds — Low draws from the bottom third, Mid from the middle, High from the top third. Useful as BI slicers for funnel and productivity analysis.
+> Three independent skill dimensions replace the old single `skill_score`. Each agent draws from three separate Gaussians, allowing nuanced profiles (e.g., high contact skill but low efficiency). Tenure cohorts stratify base rate ranges into thirds — Low draws from the bottom third, Mid from the middle, High from the top third. Each calendar month, every agent gets a ±8% drift multiplier (`monthly_drift_std: 0.08`) applied persistently to `connection_rate`, `rpc_rate`, `ptp_rate`, and `kp_tendency` — matching real RPC% swings of 38%–67%. Useful as BI slicers for funnel and productivity analysis.
 
 ---
 
