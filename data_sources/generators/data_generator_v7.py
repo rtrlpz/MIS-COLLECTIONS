@@ -692,8 +692,9 @@ for sim_date in DATE_RANGE:
             break_hrs = break_mins / 60.0
 
             op_hrs = round(CFG["schedule_hours"] - break_hrs, 2)
-            off_phone_shrinkage = random.uniform(0.05, 0.15)
-            tht_hours = round(op_hrs * (1 - off_phone_shrinkage), 2)
+            op_secs = op_hrs * 3600
+            actual_tht_hrs = round(agent_tht_s / 3600.0, 4)
+            utilization = round(min(agent_tht_s / op_secs, 1.0), 4)
 
             fact_time_log.append({
                 "log_id": fmt_id("TML", len(fact_time_log) + 1, 6),
@@ -703,8 +704,8 @@ for sim_date in DATE_RANGE:
                 "logout_time": f"{oh:02d}:{random.randint(0, 59):02d}:00",
                 "break_minutes": break_mins,
                 "operational_hours": op_hrs,
-                "tht_hours": tht_hours,
-                "utilization": round(tht_hours / op_hrs, 2),
+                "tht_hours": actual_tht_hrs,
+                "utilization": utilization,
                 "schedule_hours": CFG["schedule_hours"],
             })
 
