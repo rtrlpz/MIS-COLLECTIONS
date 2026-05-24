@@ -50,6 +50,17 @@ PK_MAPPING = {
     'Fact_Agent_Time_Log': 'log_id',
 }
 
+MONTH_ORDER = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6,
+    'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12
+}
+
+def month_dir_sort_key(d: Path) -> tuple:
+    parts = d.name.split('_')
+    if len(parts) >= 2 and parts[0].lower() in MONTH_ORDER:
+        return (int(parts[1]), MONTH_ORDER[parts[0].lower()])
+    return (9999, 0)
+
 def validate_csv(file_path: Path, table_name: str) -> tuple:
     if not file_path.exists():
         return False, f"File not found: {file_path}"
@@ -133,22 +144,12 @@ def ingest_data_to_pg(df: pd.DataFrame, table_name: str, conn):
 
     cursor = conn.cursor()
     try:
-        # Set savepoint for this table
-        cursor.execute("SAVEPOINT sp")
-
-        try:
-            cursor.execute(f"TRUNCATE TABLE {pg_table_name} CASCADE")
-            logging.info(f"  [INFO] Truncated {pg_table_name}")
-        except psycopg2.Error as te:
-            logging.warning(f"  [WARN] Could not truncate: {te}")
-
         cursor.copy_from(file=buffer, table=pg_table_name, sep=',', columns=df.columns.tolist(), null='')
         conn.commit()
         logging.info(f"  [OK] {pg_table_name}: {len(df):,} records inserted.")
         return True, len(df)
     except Exception as e:
-        # Rollback to savepoint (only this table fails, not entire transaction)
-        cursor.execute("ROLLBACK TO SAVEPOINT sp")
+        conn.rollback()
         logging.error(f"  [ERROR] Ingesting {pg_table_name}: {e}")
 
         # Write problematic data to errors directory
@@ -180,9 +181,10 @@ def run_dry_run():
                 all_passed = False
         else:
             month_dirs = [d for d in DATA_DIR.iterdir() if d.is_dir() and d.name != 'shared']
+            month_dirs.sort(key=month_dir_sort_key)
             table_records = 0
             table_found = False
-            for m_dir in sorted(month_dirs):
+            for m_dir in month_dirs:
                 csv_file = m_dir / f'{table_name}.csv'
                 if csv_file.exists():
                     is_valid, msg = validate_csv(csv_file, table_name)
@@ -283,10 +285,20 @@ def main():
             else:
                 logging.info(f"Processing transactional table: {table_name}")
                 month_dirs = [d for d in DATA_DIR.iterdir() if d.is_dir() and d.name != 'shared']
+                month_dirs.sort(key=month_dir_sort_key)
+                pg_table_name = table_name.lower()
+                truncate_cursor = conn.cursor()
+                try:
+                    truncate_cursor.execute(f"TRUNCATE TABLE {pg_table_name} CASCADE")
+                    logging.info(f"  [INFO] Truncated {pg_table_name}")
+                except Exception as e:
+                    logging.warning(f"  [WARN] Could not truncate {pg_table_name}: {e}")
+                finally:
+                    truncate_cursor.close()
                 records_found = False
                 table_records = 0
                 months_skipped = []
-                for m_dir in sorted(month_dirs):
+                for m_dir in month_dirs:
                     if args.incremental and m_dir.name.isdigit():
                         month_num = int(m_dir.name)
                         if month_num in existing_months:
