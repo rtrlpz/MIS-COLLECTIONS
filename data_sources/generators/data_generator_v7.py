@@ -428,17 +428,21 @@ for sim_date in DATE_RANGE:
         if state["arrears"] <= 0:
             continue    # already cured by an earlier payment this day
 
-        applied          = min(pay["amount"], state["arrears"])
-        state["arrears"] = round(state["arrears"] - applied, 2)
-        state["balance"] = round(max(0.0, state["balance"] - applied), 2)
-        is_cured         = state["arrears"] <= 0
+        arrears_before       = state["arrears"]
+        balance_before       = state["balance"]
+        dpd_before           = state["dpd"]
+        applied_to_arrears   = min(pay["amount"], arrears_before)
+        excess_to_principal  = round(max(0.0, pay["amount"] - applied_to_arrears), 2)
+        state["arrears"]     = round(arrears_before - applied_to_arrears, 2)
+        state["balance"]     = round(max(0.0, balance_before - pay["amount"]), 2)
+        is_cured             = state["arrears"] <= 0
 
         if is_cured:
             state["status"] = "Activo"
             state["dpd"]    = 0
 
-        # Cure classification
-        if is_cured and ptp_rec and ptp_rec["status"] == "Pending":
+        # Cure classification — all PTP-linked payments are agent-assisted
+        if is_cured and ptp_rec is not None:
             cure_flag = "Agent_Cure"
         elif is_cured and ptp_rec is None:
             cure_flag = "Self_Cure"
@@ -448,7 +452,7 @@ for sim_date in DATE_RANGE:
         # Resolve PTP: Kept if on-time AND payment covers ≥95% of promised
         if ptp_rec and ptp_rec["status"] == "Pending":
             on_time  = sim_date <= ptp_rec["grace_until"]
-            full_pay = applied >= ptp_rec["promised_amount"] * 0.95
+            full_pay = pay["amount"] >= ptp_rec["promised_amount"] * 0.95
             ptp_rec["status"] = "Kept" if (on_time and full_pay) else "Broken"
 
         pay_ctr += 1
@@ -459,11 +463,11 @@ for sim_date in DATE_RANGE:
             "account_id":     acct_id,
             "ptp_id":         ptp_id,
             "agent_id":       pay.get("agent_id"),
-            "amount_paid":    round(applied, 2),
+            "amount_paid":    round(pay["amount"], 2),
             "payment_method": pay["method"],
             "is_cured":       is_cured,
             "cure_flag":      cure_flag,
-            "dpd_at_payment": state["dpd"],
+            "dpd_at_payment": dpd_before,
         })
 
     # ── 3B. EXPIRE PTPs & BUILD SUPPRESSION SET ────────────────────────────

@@ -54,3 +54,4 @@ reports/templates/*.csv
 
 # Temporary ignore for testing
 dashboards/fix_syntetic_data.md
+
