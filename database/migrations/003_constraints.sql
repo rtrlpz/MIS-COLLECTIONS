@@ -42,6 +42,21 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_payments_dpd_at_payment') THEN
         ALTER TABLE fact_payments ADD CONSTRAINT chk_fact_payments_dpd_at_payment CHECK (dpd_at_payment >= 0);
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_payments_balance_after') THEN
+        ALTER TABLE fact_payments ADD CONSTRAINT chk_fact_payments_balance_after CHECK (balance_after >= 0);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_payments_arrears_after') THEN
+        ALTER TABLE fact_payments ADD CONSTRAINT chk_fact_payments_arrears_after CHECK (arrears_after >= 0);
+    END IF;
+END $$;
+
+-- Foreign key: fact_payments.ptp_id -> fact_ptp_log.ptp_id
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_fact_payments_ptp') THEN
+        ALTER TABLE fact_payments ADD CONSTRAINT fk_fact_payments_ptp
+            FOREIGN KEY (ptp_id) REFERENCES fact_ptp_log(ptp_id);
+    END IF;
 END $$;
 
 -- Fact_Agent_Time_Log constraints

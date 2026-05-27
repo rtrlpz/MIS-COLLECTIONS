@@ -457,17 +457,24 @@ for sim_date in DATE_RANGE:
 
         pay_ctr += 1
         fact_payments.append({
-            "payment_id":     fmt_id("PAY", pay_ctr, 6),
-            "payment_date":   str(sim_date),
-            "payment_time":   rand_time_str(8, 17),    # bank processing hours
-            "account_id":     acct_id,
-            "ptp_id":         ptp_id,
-            "agent_id":       pay.get("agent_id"),
-            "amount_paid":    round(pay["amount"], 2),
-            "payment_method": pay["method"],
-            "is_cured":       is_cured,
-            "cure_flag":      cure_flag,
-            "dpd_at_payment": dpd_before,
+            "payment_id":         fmt_id("PAY", pay_ctr, 6),
+            "payment_date":       str(sim_date),
+            "payment_time":       rand_time_str(8, 17),    # bank processing hours
+            "account_id":         acct_id,
+            "ptp_id":             ptp_id,
+            "agent_id":           pay.get("agent_id"),
+            "amount_paid":        round(pay["amount"], 2),
+            "payment_method":     pay["method"],
+            "is_cured":           is_cured,
+            "cure_flag":          cure_flag,
+            "dpd_at_payment":     dpd_before,
+            "balance_before":     round(balance_before, 2),
+            "balance_after":      round(state["balance"], 2),
+            "arrears_before":     round(arrears_before, 2),
+            "arrears_after":      round(state["arrears"], 2),
+            "amount_to_arrears":  round(applied_to_arrears, 2),
+            "amount_to_principal":round(excess_to_principal, 2),
+            "dpd_after_payment":  state["dpd"],
         })
 
     # ── 3B. EXPIRE PTPs & BUILD SUPPRESSION SET ────────────────────────────
@@ -494,25 +501,34 @@ for sim_date in DATE_RANGE:
                 and acct_id not in suppressed
                 and random.random() < sc_prob):
 
-            applied          = state["arrears"]
-            state["arrears"] = 0.0
-            state["balance"] = round(max(0.0, state["balance"] - applied), 2)
-            state["status"]  = "Activo"
-            state["dpd"]     = 0
+            sc_balance_before = state["balance"]
+            sc_arrears_before = state["arrears"]
+            applied           = state["arrears"]
+            state["arrears"]  = 0.0
+            state["balance"]  = round(max(0.0, state["balance"] - applied), 2)
+            state["status"]   = "Activo"
+            state["dpd"]      = 0
 
             pay_ctr += 1
             fact_payments.append({
-                "payment_id":     fmt_id("PAY", pay_ctr, 6),
-                "payment_date":   str(sim_date),
-                "payment_time":   rand_time_str(8, 17),
-                "account_id":     acct_id,
-                "ptp_id":         None,
-                "agent_id":       None,
-                "amount_paid":    round(applied, 2),
-                "payment_method": random.choices(PAY_METHODS, weights=PAY_WEIGHTS)[0],
-                "is_cured":       True,
-                "cure_flag":      "Self_Cure",
-                "dpd_at_payment": 0,
+                "payment_id":         fmt_id("PAY", pay_ctr, 6),
+                "payment_date":       str(sim_date),
+                "payment_time":       rand_time_str(8, 17),
+                "account_id":         acct_id,
+                "ptp_id":             None,
+                "agent_id":           None,
+                "amount_paid":        round(applied, 2),
+                "payment_method":     random.choices(PAY_METHODS, weights=PAY_WEIGHTS)[0],
+                "is_cured":           True,
+                "cure_flag":          "Self_Cure",
+                "dpd_at_payment":     0,
+                "balance_before":     round(sc_balance_before, 2),
+                "balance_after":      round(state["balance"], 2),
+                "arrears_before":     round(sc_arrears_before, 2),
+                "arrears_after":      0.0,
+                "amount_to_arrears":  round(applied, 2),
+                "amount_to_principal":0.0,
+                "dpd_after_payment":  0,
             })
 
     # ── 3D. BILLING CYCLE CHECK ────────────────────────────────────────────

@@ -133,10 +133,15 @@ CREATE TABLE fact_payments (
     is_cured BOOLEAN,
     cure_flag VARCHAR(20),
     dpd_at_payment INT,
+    balance_before DECIMAL(12,2),
+    balance_after DECIMAL(12,2),
+    arrears_before DECIMAL(12,2),
+    arrears_after DECIMAL(12,2),
+    amount_to_arrears DECIMAL(12,2),
+    amount_to_principal DECIMAL(12,2),
+    dpd_after_payment INT,
     CONSTRAINT fk_pay_accounts FOREIGN KEY (account_id) REFERENCES dim_accounts(account_id),
     CONSTRAINT fk_pay_date FOREIGN KEY (payment_date) REFERENCES dim_calendar(date)
-    -- Intentionally left off the explicit ptp_id FK constraint here to prevent insertion order headaches,
-    -- but it connects perfectly in Power BI.
 );
 
 CREATE TABLE fact_agent_time_log (
