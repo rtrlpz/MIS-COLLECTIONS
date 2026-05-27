@@ -1,6 +1,6 @@
 # Project Roadmap — Collections Analytics Portfolio
 
-> **Current Completeness: ~85%** | Last updated: 2026-05-10
+> **Current Completeness: ~88%** | Last updated: 2026-05-26
 >
 > Phases 1–7: **100% Complete** | Phase 8: **~50%** | Phase 9: **Plan Ready, Build Pending**
 
@@ -14,7 +14,8 @@
 | **2** | ETL Pipeline | ✅ 100% | Maintenance only |
 | **3/5** | DB Schema + KPI Views | ✅ 100% | Maintenance only |
 | **4** | Analysis SQL (17 files) | ✅ 100% | None |
-| **6** | Testing | ✅ 100% | None |
+| **5** | Generator Enhancements | ✅ 100% | Progressive severity, monitoring pool, utilization cap |
+| **6** | Testing | ✅ 100% | 4 invariant tests added (cure-flag, PTP, grace, re-entry) |
 | **7** | Automation | ✅ 100% | None |
 | **8** | Documentation | 🟡 ~50% | See Phase 8 below |
 | **9** | BI / Reporting | 🔵 ~10% | Build dashboards + Excel script per build plan |
@@ -35,7 +36,7 @@
 - [x] `data_sources/generators/README.md`
 - [x] Output: ~506K interactions, ~31K PTP events, ~21K payments across 3 months
 
-> **Known issue:** `data_generator_v7.py` does not filter weekend dates, creating ~25,786 weekend interactions despite `Dim_Calendar.is_weekday = FALSE`. Fix exists in CONTEXT.md as a known bug — generator patch is optional since weekend rows don't break KPIs.
+> **Enhancements post-v7**: See Phase 5 section for progressive severity, monitoring pool, and utilization cap.
 
 ---
 
@@ -76,7 +77,7 @@
 - [x] `005_indexes.sql` — 27 indexes (16 FK/date + 5 single-column + 6 composite)
 - [x] `006_comments.sql` — 63 COMMENT ON statements for all 11 tables and columns
 - [x] `seeds/001_dim_products.sql` — 3 product seed rows (`ON CONFLICT DO NOTHING`)
-- [x] `seeds/002_dim_calendar.sql` — 92 calendar rows (Oct–Dec 2025)
+- [x] `seeds/002_dim_calendar.sql` — 122 calendar rows (Sep–Dec 2025)
 - [x] **View formula fixes**: Cure count uses `COUNT(DISTINCT account_id)` instead of `SUM(is_cured)` — eliminates double-counting. BB Conversion uses `kept_pct * ptp_pct / 100` matching DAX `[PTP%] * [KP%]`. Removed misnamed "no-touch rate" from `v_productivity_metrics` comment.
 
 ---
@@ -108,16 +109,35 @@
 
 ---
 
+## PHASE 5 — Generator Enhancements ✅ COMPLETE
+
+### Progressive Severity (cure_count Decay)
+- [x] Accounts track `cure_count` — incremented each time an account transitions from Mora to Activo
+- [x] Self-cure rate decays by `0.5^cure_count` (min 0.1) — repeat offenders less likely to self-cure
+- [x] Agent connection rate penalized by `1.0 - 0.2*cure_count` (min 0.4) — evasive accounts harder to reach
+- [x] AHT/ACW boosted by `1.0 + 0.15*cure_count` — escalated collection stages take longer
+
+### Monitoring Pool Restriction
+- [x] `other_pool` limited to accounts that have ever been in Mora (`ever_mora` tracking set)
+- [x] `ever_mora` initialized with all starting Mora accounts
+- [x] Accounts entering Mora via replenishment are added to `ever_mora`
+- [x] Clean Activo accounts no longer receive collections calls
+
+### Utilization Cap
+- [x] Utilization clamped at 0.95 (was 1.0) to reflect unavoidable idle/wrap-up time
+
+---
+
 ## PHASE 6 — Testing ✅ COMPLETE
 
 ### Test Files Created
 - [x] `test/conftest.py` — Pytest fixtures: DB cursor, table metadata, PK/FK mappings, KPI views, GENERATOR_ROW_COUNTS, METRIC_RANGES, custom `slow` mark
-- [x] `test/qa_validation.py` — 14 data integrity + metric percentile test classes
-- [x] `test/test_generator.py` — Generator unit tests + CSV row count validation
+- [x] `test/qa_validation.py` — Data integrity + metric percentile test classes (66 tests: 64 fast + 2 slow)
+- [x] `test/test_generator.py` — Generator unit tests + CSV row count validation + Phase 6 invariant tests (10 tests)
 - [x] `test/test_kpi_views.sql` (168 lines) — SQL validation queries for KPI views
 - [x] `test/README.md` — Test documentation
 
-### QA Validation Tests (12 fast + 2 slow)
+### QA Validation Tests (64 fast + 2 slow)
 | # | Test Class | Validates | Status |
 | :--- | :--- | :--- | :--- |
 | 1 | `TestRowCounts` | Dim_Agents=80, Dim_Clients=10000, Dim_Accounts~15575 ±5% | ✅ Pass |
@@ -135,13 +155,14 @@
 | 13 | `TestETLIdempotency` | Running ETL twice = same row counts (slow) | ✅ Pass |
 | 14 | `TestGeneratorSeed` | Same seed produces identical CSV checksums (slow) | ✅ Pass |
 
-### Generator Unit Tests (test_generator.py)
+### Generator Unit Tests (test_generator.py — 10 tests)
 | # | Test Class | Validates |
 | :--- | :--- | :--- |
 | 1 | `TestGeneratorOutput` | Generator exists, `--help` works, produces CSVs with correct structure |
 | 2 | `TestGeneratorRowCounts` | CSV row counts match seed 42 baseline (±5% tolerance) for all 10 tables |
 | 3 | `TestGeneratorReproducibility` | Seed 42 produces identical output across two runs |
 | 4 | `TestGeneratorDataQuality` | No null PKs in generated CSVs across all dimension tables |
+| 5 | `TestGeneratorPostFixInvariants` (4 tests) | Cure-flag completeness, PTP-payment consistency, grace-period integrity, re-entry rate bounds (10-25%) |
 
 ### Run Tests
 ```bash

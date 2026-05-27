@@ -199,3 +199,83 @@ class TestGeneratorDataQuality:
 
         # Cleanup
         shutil.rmtree(output_dir)
+
+
+class TestGeneratorPostFixInvariants:
+    """Test data invariants guaranteed by Phase 1-5 fixes."""
+
+    ROOT_PATH = Path(__file__).resolve().parent.parent
+    GENERATOR_SCRIPT = ROOT_PATH / "data_sources" / "generators" / "data_generator_v7.py"
+
+    @pytest.fixture(scope='class', autouse=True)
+    def generated_data(self):
+        """Run generator once per class."""
+        output_dir = self.ROOT_PATH / "data_sources" / "generators" / "raw_test_invariants"
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+        result = subprocess.run(
+            ["python", str(self.GENERATOR_SCRIPT), "--seed", "42", "--output-dir", str(output_dir)],
+            capture_output=True, text=True, timeout=300
+        )
+        assert result.returncode == 0, f"Generator failed: {result.stderr}"
+        yield output_dir
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+
+    def test_cure_flag_completeness(self, generated_data):
+        """No row with is_cured=True has cure_flag='None'."""
+        import pandas as pd
+        month_dirs = sorted(d for d in generated_data.iterdir() if d.is_dir() and d.name != 'shared')
+        for md in month_dirs:
+            df = pd.read_csv(md / "Fact_Payments.csv")
+            bad = df[(df['is_cured'] == True) & (df['cure_flag'] == 'None')]
+            assert len(bad) == 0, f"{md.name}: {len(bad)} rows with is_cured=True and cure_flag=None"
+
+    def test_ptp_payment_consistency(self, generated_data):
+        """Kept PTPs have amount_paid >= 95% of promised_amount."""
+        import pandas as pd
+        month_dirs = sorted(d for d in generated_data.iterdir() if d.is_dir() and d.name != 'shared')
+        for md in month_dirs:
+            pay = pd.read_csv(md / "Fact_Payments.csv")
+            ptp = pd.read_csv(md / "Fact_PTP_Log.csv")
+            merged = pay[pay['ptp_id'].notna()].merge(ptp, on='ptp_id', how='left', suffixes=('_pay', '_ptp'))
+            kept = merged[merged['status'] == 'Kept']
+            underpaid = kept[kept['amount_paid'] < kept['promised_amount'] * 0.95]
+            assert len(underpaid) == 0, f"{md.name}: {len(underpaid)} kept PTPs underpaid"
+
+    def test_grace_period_integrity(self, generated_data):
+        """All grace_until_date >= promised_date."""
+        import pandas as pd
+        month_dirs = sorted(d for d in generated_data.iterdir() if d.is_dir() and d.name != 'shared')
+        for md in month_dirs:
+            ptp = pd.read_csv(md / "Fact_PTP_Log.csv")
+            ptp['grace_until_date'] = pd.to_datetime(ptp['grace_until_date'])
+            ptp['promised_date'] = pd.to_datetime(ptp['promised_date'])
+            bad = ptp[ptp['grace_until_date'] < ptp['promised_date']]
+            assert len(bad) == 0, f"{md.name}: {len(bad)} PTPs with grace < promise"
+
+    def test_reentry_rate_bounds(self, generated_data):
+        """Accounts cured between consecutive months have 10-25% re-entry by N+1."""
+        import pandas as pd
+        month_dirs = sorted(d for d in generated_data.iterdir() if d.is_dir() and d.name != 'shared')
+        month_names = sorted(md.name for md in month_dirs)
+        if len(month_names) < 3:
+            return
+
+        eoms = {}
+        for md in month_dirs:
+            eoms[md.name] = pd.read_csv(md / "Fact_EOM_Snapshot.csv")
+
+        mora_m0 = set(eoms[month_names[0]][eoms[month_names[0]]['status'] == 'Mora']['account_id'])
+        activo_m1 = set(eoms[month_names[1]][eoms[month_names[1]]['status'] == 'Activo']['account_id'])
+        cured_01 = mora_m0 & activo_m1
+
+        if len(cured_01) == 0:
+            return
+
+        mora_m2 = set(eoms[month_names[2]][eoms[month_names[2]]['status'] == 'Mora']['account_id'])
+        reentries = cured_01 & mora_m2
+        rate = len(reentries) / len(cured_01) * 100
+
+        assert 10 <= rate <= 25, \
+            f"Re-entry rate {rate:.1f}% outside 10-25% range ({len(reentries)}/{len(cured_01)})"

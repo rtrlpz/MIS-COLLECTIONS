@@ -23,7 +23,7 @@
 - DB: localhost:5433, user=rtrlpz, password=rtrlpz, db=MSI_CollectionsDB
 - Star schema: 6 dim tables, 5 fact tables, 9 KPI views
 - Weekend bug FIXED: interactions Mon-Fri only, payments allowed on weekends
-- 68 fast tests + 4 slow = 72 total passing (0 failures) — includes metric percentile ranges, capped KP, BB Conversion
+- 74 fast tests + 2 slow = 76 total passing (0 failures) — includes 4 Phase 6 invariant tests
 - Config calibrated May 2026 — 11 param changes + 2 new params to match real data (see CONTEXT.md Session Notes)
 - SQL view fixes: cure count uses COUNT(DISTINCT account_id), BB Conversion uses kept_pct * ptp_pct / 100
 - Monthly drift: ±8% per-agent rate drift each month (RPC% swings 38–67%)
@@ -32,6 +32,10 @@
 - All 3 months (Oct-Dec 2025) loaded in PostgreSQL
 - `.env` at project root (was database/.env)
 - ETL at `etl/` (was database/etl/)
+- **Phase 5** — Progressive severity (cure_count decay), other_pool restricted to ever-Mora accounts, utilization capped at 0.95
+- **Phase 6** — 4 new invariant tests: cure-flag completeness, PTP-payment consistency, grace-period integrity, re-entry rate bounds (10-25%)
+- Dim_Calendar: 122 rows (Sep–Dec 2025)
+- Generator seed 42 row counts: Interactions 342,996 / PTP 22,150 / Payments 19,504 / Agent Time 5,280 / EOM 46,701
 
 ## Key Documents
 - `docs/execution_guide.md` — 14,877-word enterprise build guide (13 sections)

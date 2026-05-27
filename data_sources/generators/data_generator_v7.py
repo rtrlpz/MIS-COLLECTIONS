@@ -349,9 +349,12 @@ for client_id in client_ids:
             "product_type":       p_type,
             "due_day":            due_day,
             "billing_periods":    set(),    # (year, month) already billed — prevents double increment
+            "cure_count":         0,
         }
 
         acct_ctr += 1
+
+ever_mora = {a for a, s in account_state.items() if s["status"] == "Mora"}
 
 dim_accounts = pd.DataFrame(account_rows)
 all_acct_ids = list(account_state.keys())
@@ -445,8 +448,9 @@ for sim_date in DATE_RANGE:
         is_cured             = state["arrears"] <= 0
 
         if is_cured:
-            state["status"] = "Activo"
-            state["dpd"]    = 0
+            state["status"]    = "Activo"
+            state["dpd"]       = 0
+            state["cure_count"] += 1
 
         # Cure classification — all PTP-linked payments are agent-assisted
         if is_cured and ptp_rec is not None:
@@ -506,7 +510,7 @@ for sim_date in DATE_RANGE:
         if (state["status"] == "Mora"
                 and state["arrears"] > 0
                 and acct_id not in suppressed
-                and random.random() < sc_prob):
+                and random.random() < sc_prob * max(0.1, 0.5 ** state["cure_count"])):
 
             sc_balance_before = state["balance"]
             sc_arrears_before = state["arrears"]
@@ -515,6 +519,7 @@ for sim_date in DATE_RANGE:
             state["balance"]  = round(max(0.0, state["balance"] - applied), 2)
             state["status"]   = "Activo"
             state["dpd"]      = 0
+            state["cure_count"] += 1
 
             pay_ctr += 1
             fact_payments.append({
@@ -561,7 +566,7 @@ for sim_date in DATE_RANGE:
     mora_pool  = [a for a, s in account_state.items()
                   if s["status"] == "Mora"   and a not in suppressed]
     other_pool = [a for a, s in account_state.items()
-                  if s["status"] == "Activo" and a not in suppressed]
+                  if s["status"] == "Activo" and a not in suppressed and a in ever_mora]
 
     # ── 3F. AGENT LOOP (Horarios de Operación y Turnos) ──────────────────────
     # Call center operates weekdays only (Monday–Friday)
@@ -597,13 +602,14 @@ for sim_date in DATE_RANGE:
                 n_att = random.randint(*CFG["attempts_per_acct"])
                 rpc_boost = PRODUCT_CFG[p_type]["rpc_boost"]
                 evasion = 0.70 if state["dpd"] > 90 else 1.0
+                reentry_penalty = max(0.4, 1.0 - 0.2 * state["cure_count"])
 
                 connected = False
                 rpc_flag = False
                 call_outcome = None
 
                 for _ in range(n_att):
-                    if random.random() < prof["connection_rate"] * dr:
+                    if random.random() < prof["connection_rate"] * dr * reentry_penalty:
                         connected = True
                         adj_rpc = clamp(prof["rpc_rate"] * dr * rpc_boost * evasion, 0.05, 0.92)
 
@@ -629,9 +635,10 @@ for sim_date in DATE_RANGE:
                     aht = gauss_secs(CFG["aht_nrpc"]["mu"], CFG["aht_nrpc"]["sigma"], prof["aht_nrpc_adj"])
                     acw = gauss_secs(CFG["acw_nrpc"]["mu"], CFG["acw_nrpc"]["sigma"], prof["acw_nrpc_adj"])
 
+                reentry_aht_boost = 1.0 + 0.15 * state["cure_count"]
                 eff = prof["efficiency_skill"]
-                aht = max(5, int(aht * eff))
-                acw = max(5, int(acw * eff))
+                aht = max(5, int(aht * eff * reentry_aht_boost))
+                acw = max(5, int(acw * eff * reentry_aht_boost))
 
                 agent_tht_s += aht + acw
 
@@ -725,7 +732,7 @@ for sim_date in DATE_RANGE:
             op_hrs = round(CFG["schedule_hours"] - break_hrs, 2)
             op_secs = op_hrs * 3600
             actual_tht_hrs = round(agent_tht_s / 3600.0, 4)
-            utilization = round(min(agent_tht_s / op_secs, 1.0), 4)
+            utilization = round(min(agent_tht_s / op_secs, 0.95), 4)
 
             fact_time_log.append({
                 "log_id": fmt_id("TML", len(fact_time_log) + 1, 6),
@@ -754,6 +761,7 @@ for sim_date in DATE_RANGE:
                 )
                 if p_type == "Tarjeta":
                     new_arrears = max(round(state["balance"] * 0.005, 2), new_arrears)
+                ever_mora.add(acct_id)
                 state.update({
                     "status":          "Mora",
                     "arrears":         new_arrears,

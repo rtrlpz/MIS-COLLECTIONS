@@ -83,10 +83,10 @@ MIS-COLLECTIONS/
 ├── reports/                       # EXCEL REPORTING LAYER
 │   └── templates/                 # (pending Phase D build)
 │
-├── test/                          # TESTING LAYER — 68 fast tests passing
+├── test/                          # TESTING LAYER — 74 fast tests passing
 │   ├── conftest.py               # Pytest fixtures + GENERATOR_ROW_COUNTS + METRIC_RANGES
 │   ├── qa_validation.py          # Data integrity + metric percentile-range tests
-│   └── test_generator.py          # Generator unit tests + CSV row count validation
+│   └── test_generator.py          # Generator unit tests + Phase 6 invariant tests (10 total)
 │
 └── security/                      # RLS configuration
     └── rls_test_users.csv
@@ -102,14 +102,14 @@ MIS-COLLECTIONS/
 | Dim_Clients | 10,000 | Clients with segment, risk score |
 | Dim_Products | 3 | Credit Card, Personal Loan, Mortgage |
 | Dim_Accounts | ~15,575 | Accounts with product/client FK, balance, DPD |
-| Dim_Calendar | 92 (gen) / 365 (seed) | Date dimension with weekday/payday flags |
+| Dim_Calendar | 122 (gen) / 365 (seed) | Date dimension with weekday/payday flags (Sep–Dec 2025) |
 
 ### Fact Tables (5 per month)
 | Table | Rows (3mo) | Description |
 |-------|------------|-------------|
-| Fact_Interactions | ~344K (calibrated) | Dialer calls, RPC/non-RPC, AHT/ACW (weekdays only) |
-| Fact_PTP_Log | ~28K (calibrated) | Promise-to-pay events, Kept/Broken state machine |
-| Fact_Payments | ~23K (calibrated) | Payment transactions, Agent-Cure vs Self-Cure (weekends OK) |
+| Fact_Interactions | ~343K (seed 42) | Dialer calls, RPC/non-RPC, AHT/ACW (weekdays only) |
+| Fact_PTP_Log | ~22K (seed 42) | Promise-to-pay events, Kept/Broken state machine |
+| Fact_Payments | ~20K (seed 42) | Payment transactions, Agent-Cure vs Self-Cure (weekends OK) |
 | Fact_Agent_Time_Log | ~5K | Agent login/logout, utilization, handle time |
 | Fact_EOM_Snapshot | ~47K | End-of-month account snapshots with DPD buckets |
 
@@ -122,6 +122,9 @@ MIS-COLLECTIONS/
 - **Weekday-only interactions**: no call center activity on weekends (bug FIXED — 0 weekend interactions now)
 - **Anomaly injection**: realistic edge cases in the data (~9,117 injected)
 - **Mora replenishment**: accounts can re-enter delinquency
+- **Progressive severity**: self-cure rate decays by `0.5^cure_count` (min 0.1); agent connection rate penalized for repeat-offender accounts; AHT/ACW increases for escalated collection stages
+- **Monitoring pool**: `other_pool` restricted to accounts that have ever been in Mora — no calling clean Activo accounts
+- **Utilization cap**: clamped at 0.95 to reflect unavoidable idle/wrap-up time
 
 ## KPI Framework
 - **Contact**: Total connections, RPC, RPC%, RPC/Operating Hour, RPC Arrears
@@ -152,7 +155,7 @@ docker-compose -f database/docker-compose.yml up -d
 # Run migrations manually
 bash migrate.sh
 
-# Run tests (fast only — 68 tests passing)
+# Run tests (fast only — 74 tests passing)
 python -m pytest test/ -v -m "not slow"
 
 # Run all tests (including slow ETL idempotency and generator seed tests)
@@ -224,9 +227,11 @@ All 17 SQL files verified with valid content — none empty.
 #### Phase 6 (Testing) — 100% Complete
 - `test/conftest.py` — Pytest fixtures, GENERATOR_ROW_COUNTS, METRIC_RANGES constants
 - `test/qa_validation.py` — Data integrity tests:
-  - 68 fast tests passing (0 failures): structural integrity + 9 KPI views + metric percentile ranges + capped KP + BB Conversion
-  - 4 slow tests (ETL idempotency, generator seed reproducibility)
-- `test/test_generator.py` — Generator unit tests + CSV row count validation (TestGeneratorRowCounts)
+  - 64 fast tests passing (0 failures): structural integrity + 9 KPI views + metric percentile ranges + capped KP + BB Conversion
+  - 2 slow tests (ETL idempotency, generator seed reproducibility)
+- `test/test_generator.py` — Generator unit tests + CSV row count validation + 4 Phase 6 invariant tests:
+  - `TestGeneratorOutput` (3 tests), `TestGeneratorRowCounts` (1 test), `TestGeneratorReproducibility` (1 test), `TestGeneratorDataQuality` (1 test)
+  - `TestGeneratorPostFixInvariants` (4 tests): cure-flag completeness, PTP-payment consistency, grace-period integrity, re-entry rate bounds
 
 #### Phase 7 (Automation) — 100% Complete
 - `run_pipeline.bat` — Fixed: `timeout /t 2` → `ping -n 3 localhost` (cross-shell), `python` → `%CONDA_PYTHON%`, added `--env-file .env` for docker-compose
@@ -235,12 +240,27 @@ All 17 SQL files verified with valid content — none empty.
 - Pipeline end-to-end verified: ~157s (all 3 months loaded)
 - Data status: All 3 months (Oct-Dec 2025) loaded in PostgreSQL
 
+### ✅ DONE (After Phase 7)
+
+#### Phase 5 (Generator Enhancements) — 100% Complete
+- **Progressive severity**: Self-cure rate decays by `0.5^cure_count` (min 0.1); agent connection rate penalized for repeat-offender accounts; AHT/ACW increases for escalated collection stages
+- **Monitoring pool**: `other_pool` restricted to accounts that have ever been in Mora (`ever_mora` tracking) — no calling clean Activo accounts
+- **Utilization cap**: Clamped at 0.95 to reflect unavoidable idle/wrap-up time
+- 6 edits to `data_generator_v7.py`
+
+#### Phase 6 (Invariant Tests) — 100% Complete
+- `TestGeneratorPostFixInvariants` class with 4 tests:
+  - **Cure-flag completeness**: 0 rows with `is_cured=True` and `cure_flag="None"`
+  - **PTP-payment consistency**: All kept PTPs have `amount_paid >= 95%` of `promised_amount`
+  - **Grace-period integrity**: All `grace_until_date >= promised_date`
+  - **Re-entry rate bounds**: 10-25% of cured accounts re-default within 1 month
+
 ### ⏳ PENDING (Next Phases)
 
 #### Phase C — Power BI Dashboard Build (formerly Phase 9)
 - Build fresh PBIX (not modify existing collections_dashboard_v2.pbix)
 - 5 pages: Executive, Agent Scorecard, Team Performance, Portfolio Health, Promise Intelligence
-- Import mode, star schema, 70+ DAX measures, RLS by supervisor team
+- Import mode, star schema, 70+ DAX, RLS by supervisor team
 - Build plan at `dashboards/assets/mis_collections_build_plan.md`
 - No longer blocked by weekend bug — clean data ready
 
@@ -289,11 +309,13 @@ All 17 SQL files verified with valid content — none empty.
 - **DAX type safety fixes**: All `rpc_flag = "true"`/`"false"` string comparisons replaced with `TRUE()`/`FALSE()` boolean literals in `dax_measures_dictionary.md` (lines 12, 15, 19-22). Added `[Cured Amounts]` measure (cured-only filtered SUM). `Total Amount Paid` annotated as all-payments; `Cured Amount Prior Month`, `Cured Amount MoM %`, `Cured Amount YTD` now reference `[Cured Amounts]` instead of `[Total Amount Paid]`.
 - **Data flow**: Generator → CSVs → ETL → PostgreSQL → Power BI Import (~422K rows, ~100 MB compressed pre-calibration) → Excel (openpyxl)
 - **Pipeline timing**: ~126s end-to-end (calibrated generator with 3 months; ~67s gen + ~59s ETL)
-- **Test count**: 68 fast tests passing (was 58 — added CSV row count validation, 6 metric percentile-range tests, capped KP test, BB Conversion test)
+- **Test count**: 74 fast tests passing (was 68 — added 4 Phase 6 invariant tests). 2 slow tests (ETL idempotency, generator seed).
 - **Dim_Agents denormalized**: Added `supervisor_name`, `team_name`, `region` directly to `dim_agents`; removed FK constraint to `dim_supervisors`. All 5 KPI views updated to reference `da.team_name` instead of joining `dim_supervisors`. Generator populates denormalized fields via lookup. Generator seed reproducibility unaffected (using seed 42). Pipeline runs ~37s ETL.
 - **SQL view fixes (Commit 0a)**: `v_recovery_metrics` cure count in agent_daily/product_daily changed from `SUM(is_cured)` to `COUNT(DISTINCT account_id)` — matches monthly_agent CTE, eliminates double-counting accounts cured multiple times same day. `v_promise_metrics` bucket_conversion changed from `kept_count*100/rpc_count` to `kept_pct * ptp_count / rpc_count` — correctly reflects BB Conversion Rate as `[PTP%] * [KP%]`. `v_productivity_metrics` comment stripped of misnamed "no-touch rate" reference. `006_comments.sql` utilization column comment corrected to "decimal 0-1" (was incorrectly labeled as percentage).
 - **Test calibration (Commit 5)**: Added `TestGeneratorRowCounts` — validates CSV row counts for all 10 tables at ±5% tolerance against seed 42 baseline. Added `TestMetricRanges` — 6 percentile-range tests (RPC% 35-60, PTP% 20-65, KP% 65-90, Utilization% 30-60, Cures/THT 0.08-0.30, ACW RPC 80-180). Added `TestCappedKPPositive` (SUM capped_kp > 0). Added `TestBBConversionPositive` (median bucket_conversion > 0). All ranges calibrated against current 1-month DB data.
-- **Generator row counts (seed 42, 3mo, v7 calibrated)**: Dim tables exact (8/80/10000/3/92/15567), Facts ±5% (Interactions 344040, PTP 27508, Payments 22491, Agent Time 5280, EOM Snapshot 46701).
+- **Generator row counts (seed 42, 3mo, v7 calibrated)**: Dim tables exact (8/80/10000/3/122/15567), Facts ±5% (Interactions 342996, PTP 22150, Payments 19504, Agent Time 5280, EOM Snapshot 46701).
+- **Phase 5 — Generator enhancements**: 6 edits to `data_generator_v7.py`. (1) `other_pool` restricted to accounts that have ever been in Mora (`ever_mora` set tracks initial Mora + replenishments). (2) Self-cure rate decays by `0.5^cure_count` (min 0.1) for repeat offenders. (3) Agent connection rate penalized by `1.0 - 0.2*cure_count` (min 0.4). (4) AHT/ACW boosted by `1.0 + 0.15*cure_count` for escalated accounts. (5) `cure_count` tracked per account, incremented on each cure (self-cure or agent-assisted). (6) Utilization cap lowered from 1.0 to 0.95.
+- **Phase 6 — Invariant tests**: Added `TestGeneratorPostFixInvariants` class (4 tests) to `test/test_generator.py`. Test 20 (cure-flag completeness): 0 rows with `is_cured=True` and `cure_flag="None"`. Test 21 (PTP-payment consistency): all kept PTPs have `amount_paid >= 95%` of `promised_amount`. Test 22 (grace-period integrity): all `grace_until_date >= promised_date`. Test 23 (re-entry rate bounds): 10-25% of cured accounts re-default within 1 month. All 4 tests pass with seed 42.
 
 ## Quick Reference
 - **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`
