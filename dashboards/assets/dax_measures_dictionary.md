@@ -102,3 +102,24 @@ Based on the v7 Star Schema table names (`Fact_Interactions`, `Fact_PTP_Log`, `F
 | **RPC%, Connection Rate%, AHT, ACW, Utilization, Occupancy** | `_Contact & Volume` |
 | **KP%, PTP%, BB Conversion, Capped KP$, Capped KP/Arrears, Cures, Cured Amount, Self-Cure, Agent-Cure, Payment methods** | `_Promise & Recovery` |
 | **Portfolio Balance, Arrears, Mora Rate, DPD buckets, all MoM/YTD trends** | `_Portfolio & Trends` |
+
+---
+
+## Power BI Model Notes (v7 Star Schema)
+
+### 1. EOM Snapshot — Single Consolidated Table
+Do **NOT** import `Fact_EOM_Snapshot` as 3 separate month tables. Import it as one consolidated table from PostgreSQL (`fact_eom_snapshot`) so cross-month filters work correctly.  
+If importing from CSVs, concatenate `october_2025/Fact_EOM_Snapshot.csv`, `november_2025/Fact_EOM_Snapshot.csv`, `december_2025/Fact_EOM_Snapshot.csv` into one table in Power Query.
+
+### 2. Calendar — Extended Range
+`Dim_Calendar` includes September 2025 so `DATEADD(..., -1, MONTH)` resolves correctly for October. The generator creates this range automatically. No manual extension needed.
+
+### 3. Portfolio Time Intelligence
+Use `snapshot_date`-based measures for portfolio trends (e.g., `CALCULATE(SUM(...), snapshot_date = MAX(snapshot_date))`) rather than calendar-date-based `DATEADD`. The `_Portfolio & Trends` measures for "Prior Month" and "MoM" work correctly because they use `MAX(snapshot_date)` and `EOMONTH` against the consolidated EOM table.
+
+### 4. Fact_Payments Audit Columns (v7.2+)
+Columns added for payment audit trail:
+- `balance_before`, `balance_after` — account balance snapshots
+- `arrears_before`, `arrears_after` — arrears snapshots
+- `amount_to_arrears`, `amount_to_principal` — payment allocation breakdown
+- `dpd_after_payment` — DPD after payment applied

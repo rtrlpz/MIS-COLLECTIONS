@@ -132,6 +132,13 @@ START      = CFG["start_date"]
 END        = CFG["end_date"]
 DATE_RANGE = [START + timedelta(days=i) for i in range((END - START).days + 1)]
 
+# Extended calendar for Power BI time intelligence (PREVIOUSMONTH etc.)
+# Includes one month before START so DATEADD(..., -1, MONTH) resolves correctly.
+_month   = START.month - 1 if START.month > 1 else 12
+_year    = START.year if START.month > 1 else START.year - 1
+CAL_START = date(_year, _month, 1)
+CAL_RANGE = [CAL_START + timedelta(days=i) for i in range((END - CAL_START).days + 1)]
+
 
 def fmt_id(prefix, n, w):
     return f"{prefix}-{str(n).zfill(w)}"
@@ -355,7 +362,7 @@ logger.info("  Dimension tables built in %.1f seconds", time.time() - t_stage)
 
 # ── Dim_Calendar ─────────────────────────────────────────────────────────────
 cal_rows = []
-for d in DATE_RANGE:
+for d in CAL_RANGE:
     max_d = calendar.monthrange(d.year, d.month)[1]
     cal_rows.append({
         "date":           str(d),

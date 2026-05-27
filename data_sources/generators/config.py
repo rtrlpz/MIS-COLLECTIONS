@@ -16,13 +16,13 @@ CFG = {
     # Portfolio dynamics
     "mora_rate":                0.25,
     "mora_replenishment_rate":  0.0018,   # daily: Activo -> Mora
-    "self_cure_base_rate":      0.0010,   # daily: spontaneous full-arrears payment
+    "self_cure_base_rate":      0.020,    # daily: spontaneous full-arrears payment
     "self_cure_payday_boost":   2.5,      # 60% of self-cures cluster on payday weeks
     "monthly_drift_std":        0.08,     # ±8% monthly rate drift per agent
 
     # Dialer targeting
     "accts_per_agent_day": (50, 80),
-    "mora_contact_pct":    0.72,
+    "mora_contact_pct":    0.90,
     "attempts_per_acct":   (1, 2),
 
     # Agent profile ranges (skill multiplier applied on top)
