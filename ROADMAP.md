@@ -1,8 +1,8 @@
 # Project Roadmap — Collections Analytics Portfolio
 
-> **Current Completeness: ~88%** | Last updated: 2026-05-26
+> **Current Completeness: ~90%** | Last updated: 2026-07-14
 >
-> Phases 1–7: **100% Complete** | Phase 8: **~50%** | Phase 9: **Plan Ready, Build Pending**
+> Phases 1–7: **100% Complete** | Phase 8: **~50%** | Phase 9: **Plan + DAX Complete, Build Pending**
 
 ---
 
@@ -17,8 +17,8 @@
 | **5** | Generator Enhancements | ✅ 100% | Progressive severity, monitoring pool, utilization cap |
 | **6** | Testing | ✅ 100% | 4 invariant tests added (cure-flag, PTP, grace, re-entry) |
 | **7** | Automation | ✅ 100% | None |
-| **8** | Documentation | 🟡 ~50% | See Phase 8 below |
-| **9** | BI / Reporting | 🔵 ~10% | Build dashboards + Excel script per build plan |
+| **8** | Documentation | 🟡 ~60% | DAX v2 docs added; QUICKSTART, TROUBLESHOOTING, CHANGELOG pending |
+| **9** | BI / Reporting | 🟡 Plan+DAX Done, Build Pending | 87 DAX v2 measures ready, dashboard build next |
 
 ---
 
@@ -185,7 +185,7 @@
 
 ---
 
-## PHASE 8 — Documentation 🟡 ~50% Complete
+## PHASE 8 — Documentation 🟡 ~60% Complete
 
 - [x] `CONTEXT.md` — Single-source project overview for AI-assisted development
 - [x] `README.md` — Project overview & interview pitch
@@ -197,6 +197,8 @@
 - [x] `dashboards/assets/reference_guide.html` — 994-line DAX + dashboard blueprint reference
 - [x] `dashboards/assets/dax_measures_dictionary.md` — 73 DAX measures (type-safe, Cured Amounts added)
 - [x] `dashboards/assets/mis_collections_build_plan.md` — 396-line build plan for Phases 8–9
+- [x] `dashboards/assets/dax/collections_dax_v2.csv` — 87 DAX measures across 5 tables (source of truth)
+- [x] `dashboards/assets/docs/dax_measures_dictionary_v2.md` — Full documentation with formulas, formats, dependencies
 
 - [ ] `QUICKSTART.md` — 5-minute setup (prerequisites + 3 commands)
 - [ ] `TROUBLESHOOTING.md` — Docker errors, port conflicts, ETL failures, DB reset
@@ -207,18 +209,20 @@
 
 ---
 
-## PHASE 9 — BI / Reporting 🔵 Plan Ready, Build Pending
+## PHASE 9 — BI / Reporting 🔵 Build Pending
 
 ### Build Plan Complete
 - [x] `dashboards/assets/mis_collections_build_plan.md` — 10-day build plan with phases, designs, requirements
 - [x] Architecture defined: single .pbix, 5 pages, 3 Excel sheets
-- [x] 73 DAX measures documented in `dax_measures_dictionary.md` (type-safe, Cured Amounts added)
+- [x] **DAX v2 complete**: 87 measures across 5 tables — `dashboards/assets/dax/collections_dax_v2.csv` (source of truth)
+- [x] `dashboards/assets/docs/dax_measures_dictionary_v2.md` — Full documentation with formulas, formats, dependencies
+- [x] Legacy v1 files preserved as backups (`collections_dax.csv`, `dax_measures_dictionary.md`)
 - [x] 5 dashboard page designs with visual-by-visual layout specs
 - [x] Excel report design (3-sheet workbook, Python openpyxl)
 
 ### Build — Pending
 - [ ] Import data model into Power BI (star schema, 11 tables)
-- [ ] Implement all DAX measures in 3 measure tables
+- [ ] Implement all DAX measures in 5 measure tables
 - [ ] Build Page 1 — Executive Overview (KPI cards, trend lines, waterfall, treemap)
 - [ ] Build Page 2 — Agent Scorecard (conditional table, gauges, coaching alerts)
 - [ ] Build Page 3 — Team Leaderboard (scatter, box plot, z-score table)
@@ -233,4 +237,4 @@
 
 ---
 
-*Last updated: 2026-05-07*
+*Last updated: 2026-07-14*

@@ -260,7 +260,7 @@ All 17 SQL files verified with valid content — none empty.
 #### Phase C — Power BI Dashboard Build (formerly Phase 9)
 - Build fresh PBIX (not modify existing collections_dashboard_v2.pbix)
 - 5 pages: Executive, Agent Scorecard, Team Performance, Portfolio Health, Promise Intelligence
-- Import mode, star schema, 70+ DAX, RLS by supervisor team
+- Import mode, star schema, 87 DAX measures across 5 tables, RLS by supervisor team
 - Build plan at `dashboards/assets/mis_collections_build_plan.md`
 - No longer blocked by weekend bug — clean data ready
 
@@ -316,11 +316,12 @@ All 17 SQL files verified with valid content — none empty.
 - **Generator row counts (seed 42, 3mo, v7 calibrated)**: Dim tables exact (8/80/10000/3/122/15567), Facts ±5% (Interactions 342996, PTP 22150, Payments 19504, Agent Time 5280, EOM Snapshot 46701).
 - **Phase 5 — Generator enhancements**: 6 edits to `data_generator_v7.py`. (1) `other_pool` restricted to accounts that have ever been in Mora (`ever_mora` set tracks initial Mora + replenishments). (2) Self-cure rate decays by `0.5^cure_count` (min 0.1) for repeat offenders. (3) Agent connection rate penalized by `1.0 - 0.2*cure_count` (min 0.4). (4) AHT/ACW boosted by `1.0 + 0.15*cure_count` for escalated accounts. (5) `cure_count` tracked per account, incremented on each cure (self-cure or agent-assisted). (6) Utilization cap lowered from 1.0 to 0.95.
 - **Phase 6 — Invariant tests**: Added `TestGeneratorPostFixInvariants` class (4 tests) to `test/test_generator.py`. Test 20 (cure-flag completeness): 0 rows with `is_cured=True` and `cure_flag="None"`. Test 21 (PTP-payment consistency): all kept PTPs have `amount_paid >= 95%` of `promised_amount`. Test 22 (grace-period integrity): all `grace_until_date >= promised_date`. Test 23 (re-entry rate bounds): 10-25% of cured accounts re-default within 1 month. All 4 tests pass with seed 42.
+- **DAX v2 (June 2026)**: Full audit of all 3 source files (dax_measures_dictionary.md, collections_dax.csv, execution_guide.md patterns). Rebuilt into `dashboards/assets/dax/collections_dax_v2.csv` (87 measures across 5 tables) and `dashboards/assets/docs/dax_measures_dictionary_v2.md` (full documentation). Changes: removed 5 broken cross-table measures (Schedule Paid Full/Partial/Broken, Total Expected, Schedule Fulfillment Rate), rewrote Roll Rate from broken RELATEDTABLE pattern to CALCULATE+CONTAINS, added format specs column, added Roll Rate measures with documented calculated column alternative. Legacy v1 files preserved as backups.
 
 ## Quick Reference
 - **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`
 - **Conda env**: `mis-collections`
-- **DB connection**: host=localhost, port=5433, user=rtrlpz, password=rtrlpz, db=MSI_CollectionsDB
+- **DB connection**: host=localhost, port=5433, user=[REDACTED], password=[REDACTED], db=MSI_CollectionsDB
 - **Pipeline command**: `./run_pipeline.bat` (from project root in CMD)
 - **Run tests**: `python -m pytest test/ -v -m "not slow"`
 - **execution_guide.md**: `docs/execution_guide.md` (2,499 lines, 13 sections)

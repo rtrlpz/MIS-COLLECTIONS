@@ -20,7 +20,7 @@
 - Tests use pytest with conftest.py fixtures
 
 ## Key Facts
-- DB: localhost:5433, user=rtrlpz, password=rtrlpz, db=MSI_CollectionsDB
+- DB: localhost:5433, user=[REDACTED], password=[REDACTED], db=MSI_CollectionsDB
 - Star schema: 6 dim tables, 5 fact tables, 9 KPI views
 - Weekend bug FIXED: interactions Mon-Fri only, payments allowed on weekends
 - 74 fast tests + 2 slow = 76 total passing (0 failures) — includes 4 Phase 6 invariant tests
@@ -37,14 +37,18 @@
 - Dim_Calendar: 122 rows (Sep–Dec 2025)
 - Generator seed 42 row counts: Interactions 342,996 / PTP 22,150 / Payments 19,504 / Agent Time 5,280 / EOM 46,701
 
+## DAX v2
+- `dashboards/assets/dax/collections_dax_v2.csv` — 87 DAX measures across 5 tables (source of truth)
+- `dashboards/assets/docs/dax_measures_dictionary_v2.md` — Full documentation with formulas, formats, dependencies
+- Legacy v1 files preserved as backups: `collections_dax.csv`, `dax_measures_dictionary.md`
+
 ## Key Documents
 - `docs/execution_guide.md` — 14,877-word enterprise build guide (13 sections)
-- `dashboards/assets/dax_measures_dictionary.md` — 73 DAX measures (type-safe)
 - `dashboards/assets/mis_collections_build_plan.md` — 5-phase Power BI build plan
 - `CONTEXT.md` — Full project context, conventions, session history
 
 ## Next Phase
-- Phase C: Build Power BI dashboard (5 pages, fresh PBIX, import mode, star schema, 70+ DAX, RLS)
+- Phase C: Build Power BI dashboard (5 pages, fresh PBIX, import mode, star schema, 87 DAX across 5 tables, RLS)
 - Phase D: Excel MIS report generator (openpyxl)
 - Phase E: Publish, user guide, handoff
 

@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 
 :: Color codes: Green=0A, Red=0C, Yellow=0E, White=07
-set CONDA_PYTHON=C:\Users\Leand\.conda\envs\mis-collections\python.exe
+set CONDA_PYTHON=%USERPROFILE%\.conda\envs\mis-collections\python.exe
 color 07
 
 :: Get start time in seconds since epoch using PowerShell

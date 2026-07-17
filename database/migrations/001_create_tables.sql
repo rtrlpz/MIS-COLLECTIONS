@@ -141,7 +141,9 @@ CREATE TABLE fact_payments (
     amount_to_principal DECIMAL(12,2),
     dpd_after_payment INT,
     CONSTRAINT fk_pay_accounts FOREIGN KEY (account_id) REFERENCES dim_accounts(account_id),
-    CONSTRAINT fk_pay_date FOREIGN KEY (payment_date) REFERENCES dim_calendar(date)
+    CONSTRAINT fk_pay_date FOREIGN KEY (payment_date) REFERENCES dim_calendar(date),
+    CONSTRAINT fk_pay_ptp FOREIGN KEY (ptp_id) REFERENCES fact_ptp_log(ptp_id),
+    CONSTRAINT fk_pay_agents FOREIGN KEY (agent_id) REFERENCES dim_agents(agent_id)
 );
 
 CREATE TABLE fact_agent_time_log (

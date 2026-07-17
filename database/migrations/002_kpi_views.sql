@@ -20,11 +20,16 @@ WITH agent_daily AS (
         SUM(fi.calls_attempted) AS total_calls,
         SUM(fi.calls_connected) AS connected_calls,
         SUM(CASE WHEN fi.rpc_flag THEN 1 ELSE 0 END) AS rpc_count,
-        SUM(fi.rpc_arrears) AS rpc_arrears_total
+        SUM(fi.rpc_arrears) AS rpc_arrears_total,
+        COALESCE(SUM(atl.operational_hours), 0) AS operational_hours
     FROM fact_interactions fi
     JOIN dim_agents da ON fi.agent_id = da.agent_id
-
     JOIN dim_calendar dc ON fi.interaction_date = dc.date
+    LEFT JOIN (
+        SELECT agent_id, log_date, SUM(operational_hours) AS operational_hours
+        FROM fact_agent_time_log
+        GROUP BY agent_id, log_date
+    ) atl ON fi.agent_id = atl.agent_id AND fi.interaction_date = atl.log_date
     GROUP BY fi.agent_id, da.agent_name, da.supervisor_id, da.team_name, fi.interaction_date, dc.month_num, dc.month_name
 ),
 team_daily AS (
@@ -37,7 +42,8 @@ team_daily AS (
         SUM(total_calls) AS total_calls,
         SUM(connected_calls) AS connected_calls,
         SUM(rpc_count) AS rpc_count,
-        SUM(rpc_arrears_total) AS rpc_arrears_total
+        SUM(rpc_arrears_total) AS rpc_arrears_total,
+        SUM(operational_hours) AS operational_hours
     FROM agent_daily
     GROUP BY supervisor_id, team_name, interaction_date, month_num, month_name
 ),
@@ -52,7 +58,8 @@ monthly AS (
         SUM(total_calls) AS total_calls,
         SUM(connected_calls) AS connected_calls,
         SUM(rpc_count) AS rpc_count,
-        SUM(rpc_arrears_total) AS rpc_arrears_total
+        SUM(rpc_arrears_total) AS rpc_arrears_total,
+        SUM(operational_hours) AS operational_hours
     FROM agent_daily
     GROUP BY agent_id, agent_name, supervisor_id, team_name, month_num, month_name
 )
@@ -71,15 +78,10 @@ SELECT
     ROUND(ad.rpc_count * 100.0 / NULLIF(ad.connected_calls, 0), 2) AS rpc_pct,
     ROUND(ad.rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
     CASE
-        WHEN atl.operational_hours > 0 THEN ROUND(ad.rpc_count::numeric / atl.operational_hours, 2)
+        WHEN ad.operational_hours > 0 THEN ROUND(ad.rpc_count::numeric / ad.operational_hours, 2)
         ELSE 0
     END AS rpc_per_operating_hour
 FROM agent_daily ad
-LEFT JOIN (
-    SELECT agent_id, log_date, SUM(operational_hours) AS operational_hours
-    FROM fact_agent_time_log
-    GROUP BY agent_id, log_date
-) atl ON ad.agent_id = atl.agent_id AND ad.interaction_date = atl.log_date
 
 UNION ALL
 
@@ -97,7 +99,10 @@ SELECT
     td.rpc_count,
     ROUND(td.rpc_count * 100.0 / NULLIF(td.connected_calls, 0), 2) AS rpc_pct,
     ROUND(td.rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
-    NULL AS rpc_per_operating_hour
+    CASE
+        WHEN td.operational_hours > 0 THEN ROUND(td.rpc_count::numeric / td.operational_hours, 2)
+        ELSE 0
+    END AS rpc_per_operating_hour
 FROM team_daily td
 
 UNION ALL
@@ -116,7 +121,10 @@ SELECT
     md.rpc_count,
     ROUND(md.rpc_count * 100.0 / NULLIF(md.connected_calls, 0), 2) AS rpc_pct,
     ROUND(md.rpc_arrears_total::numeric, 2) AS rpc_arrears_total,
-    NULL AS rpc_per_operating_hour
+    CASE
+        WHEN md.operational_hours > 0 THEN ROUND(md.rpc_count::numeric / md.operational_hours, 2)
+        ELSE 0
+    END AS rpc_per_operating_hour
 FROM monthly md;
 
 -- ========================================================================

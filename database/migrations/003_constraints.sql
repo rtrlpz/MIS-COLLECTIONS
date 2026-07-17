@@ -50,15 +50,6 @@ BEGIN
     END IF;
 END $$;
 
--- Foreign key: fact_payments.ptp_id -> fact_ptp_log.ptp_id
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_fact_payments_ptp') THEN
-        ALTER TABLE fact_payments ADD CONSTRAINT fk_fact_payments_ptp
-            FOREIGN KEY (ptp_id) REFERENCES fact_ptp_log(ptp_id);
-    END IF;
-END $$;
-
 -- Fact_Agent_Time_Log constraints
 DO $$
 BEGIN
@@ -98,5 +89,50 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_accounts_due_day') THEN
         ALTER TABLE dim_accounts ADD CONSTRAINT chk_dim_accounts_due_day CHECK (due_day BETWEEN 1 AND 31);
+    END IF;
+END $$;
+
+-- Foreign key: dim_agents.supervisor_id -> dim_supervisors.supervisor_id
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_dim_agents_supervisor') THEN
+        ALTER TABLE dim_agents ADD CONSTRAINT fk_dim_agents_supervisor
+            FOREIGN KEY (supervisor_id) REFERENCES dim_supervisors(supervisor_id);
+    END IF;
+END $$;
+
+-- Fact_PTP_Log: status must be one of the state machine values (includes pre-resolve "Pending")
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_ptp_log_status') THEN
+        ALTER TABLE fact_ptp_log ADD CONSTRAINT chk_fact_ptp_log_status
+            CHECK (status IN ('Scheduled', 'Pending', 'Kept', 'Broken'));
+    END IF;
+END $$;
+
+-- Fact_Payments: if cure_flag is set it must be a valid value (nullable convenience field)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_payments_cure_flag') THEN
+        ALTER TABLE fact_payments ADD CONSTRAINT chk_fact_payments_cure_flag
+            CHECK (cure_flag IS NULL OR cure_flag IN ('Agent-Cure', 'Self-Cure', 'Agent_Cure', 'Self_Cure'));
+    END IF;
+END $$;
+
+-- Fact_Interactions: cannot have more connections than attempts
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_interactions_attempts_vs_connected') THEN
+        ALTER TABLE fact_interactions ADD CONSTRAINT chk_fact_interactions_attempts_vs_connected
+            CHECK (calls_attempted >= calls_connected);
+    END IF;
+END $$;
+
+-- Fact_Agent_Time_Log: login must be before logout
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_agent_time_log_login_logout') THEN
+        ALTER TABLE fact_agent_time_log ADD CONSTRAINT chk_fact_agent_time_log_login_logout
+            CHECK (login_time < logout_time);
     END IF;
 END $$;

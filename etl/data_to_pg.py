@@ -39,7 +39,7 @@ DATA_DIR = ROOT_PATH / "data_sources" / "generators" / "raw"
 
 # Table definitions
 SHARED_TABLES = ['Dim_Supervisors', 'Dim_Agents', 'Dim_Calendar', 'Dim_Clients', 'Dim_Products', 'Dim_Accounts']
-TRANSACTIONAL_TABLES = ['Fact_Payments', 'Fact_EOM_Snapshot', 'Fact_Interactions', 'Fact_Agent_Time_Log', 'Fact_PTP_Log']
+TRANSACTIONAL_TABLES = ['Fact_PTP_Log', 'Fact_Payments', 'Fact_EOM_Snapshot', 'Fact_Interactions', 'Fact_Agent_Time_Log']
 TABLE_ORDER = SHARED_TABLES + TRANSACTIONAL_TABLES
 
 PK_MAPPING = {
@@ -277,6 +277,15 @@ def main():
                     checksum = compute_checksum(csv_file) if csv_file.exists() else ""
                     log_etl_load(table_name.lower(), 0, 'FAILED', checksum, conn)
                     continue
+                pg_table_name = table_name.lower()
+                trunc_cursor = conn.cursor()
+                try:
+                    trunc_cursor.execute(f"TRUNCATE TABLE {pg_table_name} CASCADE")
+                    logging.info(f"  [INFO] Truncated {pg_table_name}")
+                except Exception as e:
+                    logging.warning(f"  [WARN] Could not truncate {pg_table_name}: {e}")
+                finally:
+                    trunc_cursor.close()
                 df = pd.read_csv(csv_file)
                 checksum = compute_checksum(csv_file)
                 success, rows = ingest_data_to_pg(df, table_name, conn)
