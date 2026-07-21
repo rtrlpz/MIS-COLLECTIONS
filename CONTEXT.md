@@ -4,6 +4,7 @@
 Simulated bank collections analytics portfolio project. Generates synthetic data for ~80 agents, ~10,000 clients, ~15,575 accounts across Credit Cards, Personal Loans, and Mortgages (Oct–Dec 2025). Models the full collections lifecycle: dialer interactions, RPC tracking, promise-to-pay management, payment/cure events, and agent utilization.
 
 **Goal:** Portfolio piece demonstrating end-to-end data engineering + analytics for a Scotiabank-style collections department.
+**Last updated:** 2026-07-17 (Session: DAX targets & comparisons module, project file map in CLAUDE.md)
 
 ## Tech Stack
 - **Python 3.x** — Data generation (Faker), ETL ingestion (pandas, psycopg2)
@@ -18,13 +19,13 @@ Simulated bank collections analytics portfolio project. Generates synthetic data
 ```
 MIS-COLLECTIONS/
 ├── .env                           # DB credentials (git-ignored) — at root, was database/.env
-├── CLAUDE.md                      # Short AI-agent project context
+├── CLAUDE.md                      # Short AI-agent project context (UPDATED with file map)
 ├── CONTEXT.md                     # THIS FILE — single-source project overview
 ├── LICENSE
 ├── README.md                      # Project overview & interview pitch
 ├── ROADMAP.md                     # Phase-by-phase task checklist
 ├── requirements.txt               # Python deps (pinned versions)
-├── run_pipeline.bat               # Windows batch: full pipeline (fixed: CONDA_PYTHON, ping, --env-file)
+├── run_pipeline.bat               # Windows batch: full pipeline (COLOR bug fixed)
 ├── migrate.sh                     # DB migrations (ordering fixed: KPI views before scorecards)
 │
 ├── analysis/                      # SQL ANALYSIS LAYER — 17 files, all complete
@@ -35,61 +36,66 @@ MIS-COLLECTIONS/
 │
 ├── dashboards/                    # VISUALIZATION LAYER
 │   ├── assets/
-│   │   ├── dax_measures_dictionary.md       # 73 DAX measures (type-safe TRUE()/FALSE())
-│   │   ├── mis_collections_build_plan.md    # 396-line build plan
-│   │   ├── reference_guide.html             # Business guide (1,555 lines)
-│   │   ├── fix_syntetic_data.md             # Generator calibration plan
-│   │   └── screenshots/architecture_diagram.svg
-│   ├── collections_project/
-│   │   ├── collections_dashboard_v2.pbix    # Legacy (8.9 MB) — build plan says start fresh
-│   ├── themes/
-│   │   └── collections_theme.json          # Corporate theme
-│   └── templates/
-│       └── page_template.pbit
-│
-├── etl/                           # ETL LAYER (was database/etl/)
-│   ├── data_to_pg.py              # CSV → PostgreSQL (path resolution fixed)
-│   ├── errors/                    # Error CSVs from failed loads
-│   └── logs/                      # ETL run logs (git-ignored)
+│   │   ├── dax/                   # DAX SOURCE OF TRUTH (CSV + docs)
+│   │   │   ├── collections_dax_v2.csv           # 207 measures (87 base + 120 new)
+│   │   │   ├── collections_dax.csv              # Legacy v1 (73 measures)
+│   │   │   └── dax_targets_and_comparisons.md   # 120 new: goals, RAG, MoM/WoW/DoD/YoY/OTC
+│   │   ├── docs/
+│   │   │   ├── dax_measures_dictionary_v2.md    # v2.1: 207 measures documented
+│   │   │   ├── mis_collections_build_plan.md    # 5-phase Power BI build plan
+│   │   │   ├── execution_guide.md               # 2,499-line enterprise build guide
+│   │   │   ├── reference_guide.html             # 1,555-line DAX reference
+│   │   │   └── legacy/dax_measures_dictionary.md # v1 backup
+│   │   ├── theme/Tema 1.json                    # Power BI theme (#262A76, Calibri)
+│   │   ├── SVGs/                                 # Icons (Google Material, Streamline)
+│   │   ├── screenshots/architecture_diagram.svg
+│   │   └── bg/                                   # Background images
+│   └── collections_project/
+│       ├── collections_dashboard_v4.pbix         # Latest (START FRESH, don't modify)
+│       ├── collections_dashboard_v3.pbix         # Legacy
+│       └── collections_dashboard_v2.pbix         # Legacy (8.9 MB)
 │
 ├── data_sources/                  # DATA GENERATION LAYER
 │   ├── generators/
-│   │   ├── config.py             # CFG and PRODUCT_CFG dicts
-│   │   ├── data_generator_v7.py   # Star schema generator (weekend bug FIXED)
-│   │   └── raw/                   # Generated CSVs (git-ignored)
+│   │   ├── config.py             # 45+ calibration params (CFG + PRODUCT_CFG)
+│   │   ├── data_generator_v7.py   # 12 tables, 500K+ rows, weekend-bug-fixed
+│   │   └── raw/                   # Generated CSVs (DO NOT EDIT)
 │   └── schema/dictionary.md
 │
 ├── database/                      # DATABASE LAYER
-│   ├── docker-compose.yml         # Postgres 15 + pgAdmin services
+│   ├── docker-compose.yml         # Postgres 15 + pgAdmin
 │   ├── migrations/
-│   │   ├── 001_create_tables.sql  # DDL: 11 tables (DROPs before CREATEs)
+│   │   ├── 001_create_tables.sql  # DDL: 11 tables (star schema)
 │   │   ├── 002_kpi_views.sql      # 9 KPI views
 │   │   ├── 003_constraints.sql    # 15 CHECK constraints
-│   │   ├── 004_agents_scorecards.sql  # v_agent_scorecards
+│   │   ├── 004_agents_scorecards.sql  # v_agent_scorecards (composite weighted)
 │   │   ├── 005_indexes.sql        # 27 indexes
-│   │   └── 006_comments.sql       # 63 COMMENT ON (payments comment updated)
+│   │   └── 006_comments.sql       # 63 COMMENT ON
 │   └── seeds/
-│       ├── 001_dim_products.sql   # 3 product seed rows
-│       └── 002_dim_calendar.sql   # 365 calendar rows (full year 2025)
+│       ├── 001_dim_products.sql   # 3 products
+│       └── 002_dim_calendar.sql   # 365 rows (full year 2025)
+│
+├── etl/                           # ETL LAYER (was database/etl/)
+│   ├── data_to_pg.py              # CSV → PostgreSQL (idempotent, incremental, transactional)
+│   └── errors/                    # Error CSVs from failed loads
 │
 ├── docs/                          # DOCUMENTATION LAYER
-│   ├── execution_guide.md         # 14,877-word enterprise build guide (13 sections)
-│   ├── kpi_definitions.md         # KPI formulas, targets, benchmarks
-│   ├── data_dictionary.md         # Column-level metadata
-│   ├── executive_summary.md       # One-page leadership summary
-│   ├── ROADMAP.md                 # Phase tracker — 82% complete
+│   ├── kpi_definitions.md         # 319-line KPI reference with formulas
+│   ├── data_dictionary.md         # Full column-level dictionary
+│   ├── executive_summary.md       # 1-page leadership summary
+│   ├── execution_guide.md         # 2,499-line enterprise build guide
 │   └── interviews/                # Case study prep materials
 │
-├── reports/                       # EXCEL REPORTING LAYER
-│   └── templates/                 # (pending Phase D build)
+├── reports/                       # EXCEL REPORTING LAYER (Phase D pending)
+│   └── (empty — generate_daily_mis.py pending)
 │
-├── test/                          # TESTING LAYER — 74 fast tests passing
-│   ├── conftest.py               # Pytest fixtures + GENERATOR_ROW_COUNTS + METRIC_RANGES
-│   ├── qa_validation.py          # Data integrity + metric percentile-range tests
-│   └── test_generator.py          # Generator unit tests + Phase 6 invariant tests (10 total)
+├── test/                          # TESTING LAYER — 76 tests passing (74 fast + 2 slow)
+│   ├── conftest.py               # Fixtures, METRIC_RANGES, GENERATOR_ROW_COUNTS
+│   ├── qa_validation.py          # 66 tests: data integrity + KPI views + metric ranges
+│   ├── test_generator.py          # 10 tests: generator + row counts + 4 invariants
+│   └── test_kpi_views.sql         # SQL view validation queries
 │
-└── security/                      # RLS configuration
-    └── rls_test_users.csv
+└── .github/                       # CI templates (ISSUE_TEMPLATE, WORKFLOW)
 ```
 
 ## Data Model (Star Schema)
@@ -258,11 +264,14 @@ All 17 SQL files verified with valid content — none empty.
 ### ⏳ PENDING (Next Phases)
 
 #### Phase C — Power BI Dashboard Build (formerly Phase 9)
-- Build fresh PBIX (not modify existing collections_dashboard_v2.pbix)
+- Build fresh PBIX (not modify existing collections_dashboard_v4.pbix)
 - 5 pages: Executive, Agent Scorecard, Team Performance, Portfolio Health, Promise Intelligence
-- Import mode, star schema, 87 DAX measures across 5 tables, RLS by supervisor team
-- Build plan at `dashboards/assets/mis_collections_build_plan.md`
-- No longer blocked by weekend bug — clean data ready
+- Import mode, star schema, **207 DAX measures** across 6 tables (5 base + _Goals & Targets)
+- **DAX imports**: `collections_dax_v2.csv` (87 base) + `collections_dax_v2.csv` new rows (57 targets/comparisons) + create 2 calculated tables (Dim_Targets, Color Reference)
+- **DAX docs**: `dax_targets_and_comparisons.md` (120 new measures)
+- Build plan at `dashboards/assets/docs/mis_collections_build_plan.md`
+- RLS by supervisor_id on Dim_Agents
+- **No longer blocked** — all DAX ready, clean data in PostgreSQL
 
 #### Phase D — Excel Daily MIS Report
 - Python (openpyxl) script at `reports/generate_daily_mis.py`
@@ -290,9 +299,12 @@ All 17 SQL files verified with valid content — none empty.
 - None currently. Weekend interaction bug fixed. Dim_Agents denormalized. Pipeline verified end-to-end. KPI views corrected: cure count uses `COUNT(DISTINCT account_id)` (no double-count), BB Conversion uses correct `kept_pct * ptp_pct / 100` formula.
 
 ## Key Documents
-- `docs/execution_guide.md` — 14,877-word enterprise Power BI build guide (13 sections, replaces old task-level document)
-- `dashboards/assets/mis_collections_build_plan.md` — 396-line build plan for Phase C/D/E
-- `dashboards/assets/reference_guide.html` — 1,555-line DAX reference with 70+ measures
+- `docs/execution_guide.md` — 2,499-word enterprise Power BI build guide (13 sections)
+- `dashboards/assets/docs/mis_collections_build_plan.md` — 5-phase build plan for Phase C/D/E
+- `dashboards/assets/docs/reference_guide.html` — 1,555-line DAX + dashboard blueprint
+- `dashboards/assets/dax/dax_targets_and_comparisons.md` — 120 new measures: goals, RAG, time intel
+- `dashboards/assets/dax/collections_dax_v2.csv` — 207 measures (source of truth)
+- `dashboards/assets/docs/dax_measures_dictionary_v2.md` — v2.1 full documentation
 - `docs/kpi_definitions.md` — Business formulas and benchmarks for all KPIs
 
 ## Session Notes
@@ -317,6 +329,7 @@ All 17 SQL files verified with valid content — none empty.
 - **Phase 5 — Generator enhancements**: 6 edits to `data_generator_v7.py`. (1) `other_pool` restricted to accounts that have ever been in Mora (`ever_mora` set tracks initial Mora + replenishments). (2) Self-cure rate decays by `0.5^cure_count` (min 0.1) for repeat offenders. (3) Agent connection rate penalized by `1.0 - 0.2*cure_count` (min 0.4). (4) AHT/ACW boosted by `1.0 + 0.15*cure_count` for escalated accounts. (5) `cure_count` tracked per account, incremented on each cure (self-cure or agent-assisted). (6) Utilization cap lowered from 1.0 to 0.95.
 - **Phase 6 — Invariant tests**: Added `TestGeneratorPostFixInvariants` class (4 tests) to `test/test_generator.py`. Test 20 (cure-flag completeness): 0 rows with `is_cured=True` and `cure_flag="None"`. Test 21 (PTP-payment consistency): all kept PTPs have `amount_paid >= 95%` of `promised_amount`. Test 22 (grace-period integrity): all `grace_until_date >= promised_date`. Test 23 (re-entry rate bounds): 10-25% of cured accounts re-default within 1 month. All 4 tests pass with seed 42.
 - **DAX v2 (June 2026)**: Full audit of all 3 source files (dax_measures_dictionary.md, collections_dax.csv, execution_guide.md patterns). Rebuilt into `dashboards/assets/dax/collections_dax_v2.csv` (87 measures across 5 tables) and `dashboards/assets/docs/dax_measures_dictionary_v2.md` (full documentation). Changes: removed 5 broken cross-table measures (Schedule Paid Full/Partial/Broken, Total Expected, Schedule Fulfillment Rate), rewrote Roll Rate from broken RELATEDTABLE pattern to CALCULATE+CONTAINS, added format specs column, added Roll Rate measures with documented calculated column alternative. Legacy v1 files preserved as backups.
+- **DAX targets & comparisons (July 2026)**: Added `dashboards/assets/dax/dax_targets_and_comparisons.md` — 120 new DAX measures (29 goals/RAG + 91 time intelligence) plus 2 calculated tables. New `_Goals & Targets` measure table with goals for PTP% 80%, KP% 80%, ACW RPC 120s, ACW Non-RPC 25s, Capped KP/RPC Arrears 37%, Cures/THT 2.4, Utilization 90%. 3-tier RAG (Green #00B050, Amber #FFC000, Red #FF0000). 5 comparison types: MoM, WoW, DoD, YoY, OTC — each with Prior Period, Abs Change, and % Change variants. Updated `collections_dax_v2.csv` with 57 new rows (29 _Goals & Targets, 28 _Time Intelligence additions). Updated `dax_measures_dictionary_v2.md` to v2.1. Total DAX stock: 207 measures (87 base + 120 new). ROADMAP.md updated to reflect actual counts.
 
 ## Quick Reference
 - **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`
@@ -324,5 +337,9 @@ All 17 SQL files verified with valid content — none empty.
 - **DB connection**: host=localhost, port=5433, user=[REDACTED], password=[REDACTED], db=MSI_CollectionsDB
 - **Pipeline command**: `./run_pipeline.bat` (from project root in CMD)
 - **Run tests**: `python -m pytest test/ -v -m "not slow"`
-- **execution_guide.md**: `docs/execution_guide.md` (2,499 lines, 13 sections)
-- **Build plan**: `dashboards/assets/mis_collections_build_plan.md` (5 phases, A→E)
+- **DAX base CSV**: `dashboards/assets/dax/collections_dax_v2.csv`
+- **DAX targets module**: `dashboards/assets/dax/dax_targets_and_comparisons.md`
+- **DAX dictionary**: `dashboards/assets/docs/dax_measures_dictionary_v2.md`
+- **Execution guide**: `dashboards/assets/docs/execution_guide.md`
+- **Build plan**: `dashboards/assets/docs/mis_collections_build_plan.md`
+- **Total DAX measures**: 207 (87 base + 29 goals/targets + 91 time comparisons)

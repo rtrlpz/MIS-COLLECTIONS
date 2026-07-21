@@ -1,8 +1,8 @@
 # Project Roadmap — Collections Analytics Portfolio
 
-> **Current Completeness: ~90%** | Last updated: 2026-07-14
+> **Current Completeness: ~95%** | Last updated: 2026-07-17
 >
-> Phases 1–7: **100% Complete** | Phase 8: **~50%** | Phase 9: **Plan + DAX Complete, Build Pending**
+> Phases 1–7: **100% Complete** | Phase 8: **~50%** | Phase 9: **207 DAX Measures Complete, Build Pending**
 
 ---
 
@@ -17,8 +17,8 @@
 | **5** | Generator Enhancements | ✅ 100% | Progressive severity, monitoring pool, utilization cap |
 | **6** | Testing | ✅ 100% | 4 invariant tests added (cure-flag, PTP, grace, re-entry) |
 | **7** | Automation | ✅ 100% | None |
-| **8** | Documentation | 🟡 ~60% | DAX v2 docs added; QUICKSTART, TROUBLESHOOTING, CHANGELOG pending |
-| **9** | BI / Reporting | 🟡 Plan+DAX Done, Build Pending | 87 DAX v2 measures ready, dashboard build next |
+| **8** | Documentation | 🟡 ~60% | DAX v2.1 docs added; QUICKSTART, TROUBLESHOOTING, CHANGELOG pending |
+| **9** | BI / Reporting | 🟡 Plan+DAX Done, Build Pending | **207 DAX measures** (87 base + 120 target/comparison) ready; dashboard build next |
 
 ---
 
@@ -212,17 +212,21 @@
 ## PHASE 9 — BI / Reporting 🔵 Build Pending
 
 ### Build Plan Complete
-- [x] `dashboards/assets/mis_collections_build_plan.md` — 10-day build plan with phases, designs, requirements
+- [x] `dashboards/assets/docs/mis_collections_build_plan.md` — 5-phase build plan
 - [x] Architecture defined: single .pbix, 5 pages, 3 Excel sheets
-- [x] **DAX v2 complete**: 87 measures across 5 tables — `dashboards/assets/dax/collections_dax_v2.csv` (source of truth)
-- [x] `dashboards/assets/docs/dax_measures_dictionary_v2.md` — Full documentation with formulas, formats, dependencies
-- [x] Legacy v1 files preserved as backups (`collections_dax.csv`, `dax_measures_dictionary.md`)
+- [x] **DAX v2.1 complete**: **207 measures** — `dashboards/assets/dax/collections_dax_v2.csv` (source of truth)
+- [x] `dashboards/assets/dax/dax_targets_and_comparisons.md` — 120 new measures (goals, RAG, MoM/WoW/DoD/YoY/OTC)
+- [x] `dashboards/assets/docs/dax_measures_dictionary_v2.md` — v2.1 documentation with formulas, formats, dependencies
+- [x] 2 calculated tables: `Dim_Targets` (7 goal definitions), `Color Reference` (RAG hex codes)
+- [x] Legacy v1 files preserved as backups (`collections_dax.csv`, `legacy/dax_measures_dictionary.md`)
 - [x] 5 dashboard page designs with visual-by-visual layout specs
 - [x] Excel report design (3-sheet workbook, Python openpyxl)
 
 ### Build — Pending
 - [ ] Import data model into Power BI (star schema, 11 tables)
-- [ ] Implement all DAX measures in 5 measure tables
+- [ ] Import 207 DAX measures from `collections_dax_v2.csv` (87 base + 57 new rows)
+- [ ] Create 2 calculated tables: Dim_Targets, Color Reference
+- [ ] Copy 63 WoW/DoD/YoY/OTC measures from `dax_targets_and_comparisons.md` (not in CSV)
 - [ ] Build Page 1 — Executive Overview (KPI cards, trend lines, waterfall, treemap)
 - [ ] Build Page 2 — Agent Scorecard (conditional table, gauges, coaching alerts)
 - [ ] Build Page 3 — Team Leaderboard (scatter, box plot, z-score table)
