@@ -3,8 +3,8 @@
 ## Project Overview
 Simulated bank collections analytics portfolio project. Generates synthetic data for ~80 agents, ~10,000 clients, ~15,575 accounts across Credit Cards, Personal Loans, and Mortgages (Oct–Dec 2025). Models the full collections lifecycle: dialer interactions, RPC tracking, promise-to-pay management, payment/cure events, and agent utilization.
 
-**Goal:** Portfolio piece demonstrating end-to-end data engineering + analytics for a Scotiabank-style collections department.
-**Last updated:** 2026-07-17 (Session: DAX targets & comparisons module, project file map in CLAUDE.md)
+**Goal:** Portfolio piece demonstrating end-to-end data engineering + analytics for a Scotiabank-style collections department. 9 Power BI dashboards across Executive, Managerial, Supervision, and Analytical tiers.
+**Last updated:** 2026-07-21 (Session: Dashboard consolidation to 9 pages, generator/schema/DAX implementation plan created)
 
 ## Tech Stack
 - **Python 3.x** — Data generation (Faker), ETL ingestion (pandas, psycopg2)
@@ -263,22 +263,36 @@ All 17 SQL files verified with valid content — none empty.
 
 ### ⏳ PENDING (Next Phases)
 
-#### Phase C — Power BI Dashboard Build (formerly Phase 9)
-- Build fresh PBIX (not modify existing collections_dashboard_v4.pbix)
-- 5 pages: Executive, Agent Scorecard, Team Performance, Portfolio Health, Promise Intelligence
-- Import mode, star schema, **207 DAX measures** across 6 tables (5 base + _Goals & Targets)
-- **DAX imports**: `collections_dax_v2.csv` (87 base) + `collections_dax_v2.csv` new rows (57 targets/comparisons) + create 2 calculated tables (Dim_Targets, Color Reference)
-- **DAX docs**: `dax_targets_and_comparisons.md` (120 new measures)
-- Build plan at `dashboards/assets/docs/mis_collections_build_plan.md`
-- RLS by supervisor_id on Dim_Agents
-- **No longer blocked** — all DAX ready, clean data in PostgreSQL
+#### Phase 8.5 — Generator + Schema Enhancements (IN PROGRESS)
+- **Goal**: Extend generator for 12 months of data, add new columns for 9 dashboards
+- **Generator changes**: G1-G9 (open_date spread, channels, write-offs, cost_per_hour, credit_limit, income_bracket, hire_dates)
+- **Schema changes**: +8 columns, +1 table (fact_writeoffs), +3 views, +4 constraints, +6 indexes
+- **Target**: 12 months of data (Jan-Dec 2025) for full YoY capability
+- **DAX update**: 207 existing + 91 from markdown + 22 new = ~320 measures
+- **Files**: `PLAN_DASHBOARDS.md` (full implementation plan)
 
-#### Phase D — Excel Daily MIS Report
+#### Phase 9 — Power BI Dashboard Build (9 dashboards)
+- Build fresh PBIX (not modify existing collections_dashboard_v4.pbix)
+- **9 pages** (consolidated from original 10 — Executive Collections merged with Scorecard):
+  1. Executive Collections (merged) — operational + risk + cost per account
+  2. Agent Performance — RPC%, KP%, Cure, Util, AHT, Composite Score, WoW trends
+  3. Dialer Performance — Call volume, answer rate, RPC dialer-only, AHT by channel
+  4. Portfolio Management — Arrears waterfall, delinquency bands, DPD migration Sankey
+  5. Operations Command Center (limited) — Calls Offered/Answered, AHT, Occupancy
+  6. Credit Risk (limited) — Delinquency by segment, Roll rates, Cure rates, Credit utilization
+  7. Financial Recovery — Recovery vs cost, Write-offs, Cost-to-collect, Net recovery
+  8. Vintage Analysis — DPD by account age, Vintage curves, Cure by vintage month
+  9. Roll Rate Analysis — Sankey (prev→curr), Skip/deteriorate rates, Stuck 90+
+- Import mode, star schema, **~320 DAX measures** across 6 tables + 2 calculated tables
+- RLS by supervisor_id on Dim_Agents
+- **Build plan**: `dashboards/assets/docs/mis_collections_build_plan.md`
+
+#### Phase 10 — Excel Daily MIS Report
 - Python (openpyxl) script at `reports/generate_daily_mis.py`
 - 3 sheets: KPI dashboard, Agent deep dive, Methodological notes
 - Queries `v_daily_mis` directly
 
-#### Phase E — Publishing & Governance
+#### Phase 11 — Publishing & Governance
 - Publish PBIX to Power BI Service
 - Schedule gateway refresh
 - Distribute Excel report
@@ -330,6 +344,7 @@ All 17 SQL files verified with valid content — none empty.
 - **Phase 6 — Invariant tests**: Added `TestGeneratorPostFixInvariants` class (4 tests) to `test/test_generator.py`. Test 20 (cure-flag completeness): 0 rows with `is_cured=True` and `cure_flag="None"`. Test 21 (PTP-payment consistency): all kept PTPs have `amount_paid >= 95%` of `promised_amount`. Test 22 (grace-period integrity): all `grace_until_date >= promised_date`. Test 23 (re-entry rate bounds): 10-25% of cured accounts re-default within 1 month. All 4 tests pass with seed 42.
 - **DAX v2 (June 2026)**: Full audit of all 3 source files (dax_measures_dictionary.md, collections_dax.csv, execution_guide.md patterns). Rebuilt into `dashboards/assets/dax/collections_dax_v2.csv` (87 measures across 5 tables) and `dashboards/assets/docs/dax_measures_dictionary_v2.md` (full documentation). Changes: removed 5 broken cross-table measures (Schedule Paid Full/Partial/Broken, Total Expected, Schedule Fulfillment Rate), rewrote Roll Rate from broken RELATEDTABLE pattern to CALCULATE+CONTAINS, added format specs column, added Roll Rate measures with documented calculated column alternative. Legacy v1 files preserved as backups.
 - **DAX targets & comparisons (July 2026)**: Added `dashboards/assets/dax/dax_targets_and_comparisons.md` — 120 new DAX measures (29 goals/RAG + 91 time intelligence) plus 2 calculated tables. New `_Goals & Targets` measure table with goals for PTP% 80%, KP% 80%, ACW RPC 120s, ACW Non-RPC 25s, Capped KP/RPC Arrears 37%, Cures/THT 2.4, Utilization 90%. 3-tier RAG (Green #00B050, Amber #FFC000, Red #FF0000). 5 comparison types: MoM, WoW, DoD, YoY, OTC — each with Prior Period, Abs Change, and % Change variants. Updated `collections_dax_v2.csv` with 57 new rows (29 _Goals & Targets, 28 _Time Intelligence additions). Updated `dax_measures_dictionary_v2.md` to v2.1. Total DAX stock: 207 measures (87 base + 120 new). ROADMAP.md updated to reflect actual counts.
+- **Dashboard consolidation (July 2026)**: 9 dashboards selected (from original 14+4=18). Excluded: WFM, QA, Compliance, Customer Experience, Recovery Forecast. Merged Executive Collections + Executive Scorecard into single page. `PLAN_DASHBOARDS.md` created with full implementation plan (generator G1-G9, schema changes, DAX expansion to ~320 measures, 12-month data).
 
 ## Quick Reference
 - **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`

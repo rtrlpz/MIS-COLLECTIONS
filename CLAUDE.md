@@ -51,10 +51,11 @@
 | File | Content |
 |---|---|
 | `dashboards/assets/dax/collections_dax_v2.csv` | **207 measures** (87 base + 120 targets/comparisons). Source of truth. Import into PBIX. |
-| `dashboards/assets/dax/dax_targets_and_comparisons.md` | **120 NEW measures**: 29 goals/targets, 91 time intelligence (MoM/WoW/DoD/YoY/OTC) |
+| `dashboards/assets/dax/dax_targets_and_comparisons.md` | **120 NEW measures**: 29 goals/targets, 91 time intelligence (MoM/WoW/DoD/YoY/OTC). 91 NOT in CSV yet. |
 | `dashboards/assets/dax/collections_dax.csv` | Legacy v1 (73 measures, preserved as backup) |
 | `dashboards/assets/docs/dax_measures_dictionary_v2.md` | Full v2.1 documentation (formulas, formats, dependencies) |
 | `dashboards/assets/docs/legacy/dax_measures_dictionary.md` | Legacy v1 docs |
+| `PLAN_DASHBOARDS.md` | **9-dashboard implementation plan** (320 DAX measures target, G1-G9 generator changes, schema updates) |
 
 ### PBIX Files
 | File | Status |
@@ -99,19 +100,21 @@
 - Dim_Calendar: 122 rows (Sep–Dec 2025 generated) / 365 rows (seed for full year)
 - Generator seed 42 row counts: Interactions 342,996 / PTP 22,150 / Payments 19,504 / Agent Time 5,280 / EOM 46,701
 
-## DAX v2 (207 measures)
+## DAX v2 (207 measures → target 320)
 - **Base (87)**: `collections_dax_v2.csv` — 5 tables (Outreach 20, Promise 13, Recovery 16, Portfolio 20, Time Intel 18)
 - **Targets & Comparisons (120)**: `dax_targets_and_comparisons.md` — 29 goals/RAG measures + 91 time intel (MoM/WoW/DoD/YoY/OTC)
 - **Goal targets**: PTP% 80%, KP% 80%, ACW RPC 120s, ACW Non-RPC 25s, Capped KP/RPC Arrears 37%, Cures/THT 2.4, Utilization 90%
 - **RAG colors**: Green #00B050, Amber #FFC000, Red #FF0000
 - **2 calculated tables**: Dim_Targets (7 goals with thresholds), Color Reference (3 RAG hex codes)
+- **Pending**: 91 time intel measures not yet in CSV + 22 new dashboard-specific measures = +113 measures
 - Legacy v1 preserved: `collections_dax.csv`, `docs/legacy/dax_measures_dictionary.md`
 - CSV is **source of truth** — import into PBIX, do NOT author measures exclusively in PBIX
 
 ## Next Phase
-- Phase C: Build Power BI dashboard (fresh PBIX, 5 pages, import mode, star schema, 207 DAX measures, RLS by supervisor)
-- Phase D: Excel MIS report generator (openpyxl at `reports/generate_daily_mis.py`)
-- Phase E: Publish, user guide, handoff
+- Phase 8.5: Generator + Schema enhancements (G1-G9, 12-month data, new columns/tables/views)
+- Phase 9: Build Power BI dashboard (fresh PBIX, 9 pages, import mode, star schema, ~320 DAX measures, RLS by supervisor)
+- Phase 10: Excel MIS report generator (openpyxl at `reports/generate_daily_mis.py`)
+- Phase 11: Publish, user guide, handoff
 
 ## Reference
 For full project context read: `CONTEXT.md`
