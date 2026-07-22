@@ -12,29 +12,21 @@
 -- DIMENSION TABLES
 -- ============================================================================
 
--- Dim_Supervisors
-COMMENT ON TABLE dim_supervisors IS 'Collection supervisors managing teams of agents across regions';
-COMMENT ON COLUMN dim_supervisors.supervisor_id IS 'Unique supervisor identifier (format: SUP_XXX)';
-COMMENT ON COLUMN dim_supervisors.supervisor_name IS 'Full name of the supervisor';
-COMMENT ON COLUMN dim_supervisors.team_name IS 'Team name assigned to the supervisor';
-COMMENT ON COLUMN dim_supervisors.region IS 'Geographic region (e.g., North, South, Central)';
-COMMENT ON COLUMN dim_supervisors.hire_date IS 'Supervisor hire date (G8 — tenure calculations)';
-
--- Dim_Agents
-COMMENT ON TABLE dim_agents IS 'Collection agents with supervisor details, tenure cohort, skill dimensions, and hire date';
-COMMENT ON COLUMN dim_agents.agent_id IS 'Unique agent identifier (format: AGT_XXX)';
-COMMENT ON COLUMN dim_agents.agent_name IS 'Full name of the agent';
-COMMENT ON COLUMN dim_agents.supervisor_id IS 'Supervisor ID managing this agent';
-COMMENT ON COLUMN dim_agents.supervisor_name IS 'Full name of the agent supervisor (denormalized)';
-COMMENT ON COLUMN dim_agents.team_name IS 'Team name (denormalized from supervisor)';
-COMMENT ON COLUMN dim_agents.region IS 'Geographic region (denormalized from supervisor)';
-COMMENT ON COLUMN dim_agents.tenure_cohort IS 'Performance cohort: Low/Mid/High (adjusts base rate ranges)';
-COMMENT ON COLUMN dim_agents.experience_tier IS 'Experience level: senior (3+ yr), mid (1-3 yr), junior (<1 yr) — G2';
-COMMENT ON COLUMN dim_agents.hire_date IS 'Agent hire date (G2 — experience calculations)';
-COMMENT ON COLUMN dim_agents.cost_per_hour IS 'Hourly cost rate by experience tier (G9 — Financial Recovery)';
-COMMENT ON COLUMN dim_agents.contact_skill IS 'Contact skill multiplier (0.700-1.300) — scales connection_rate and rpc_rate';
-COMMENT ON COLUMN dim_agents.negotiation_skill IS 'Negotiation skill multiplier (0.700-1.300) — scales ptp_rate and kp_tendency';
-COMMENT ON COLUMN dim_agents.efficiency_skill IS 'Efficiency skill multiplier (0.800-1.200) — scales AHT/ACW (lower = faster)';
+-- Dim_Employees (merged supervisors + agents)
+COMMENT ON TABLE dim_employees IS 'Unified employee dimension: supervisors (SUP-01..08) and agents (EID-001..080) with self-referencing hierarchy';
+COMMENT ON COLUMN dim_employees.agent_id IS 'Unique employee ID: SUP-XX for supervisors, EID-XXX for agents';
+COMMENT ON COLUMN dim_employees.agent_name IS 'Full name of the employee';
+COMMENT ON COLUMN dim_employees.employee_type IS 'Employee role: Supervisor or Agent';
+COMMENT ON COLUMN dim_employees.supervisor_id IS 'FK to self (dim_employees.agent_id) — NULL for supervisors';
+COMMENT ON COLUMN dim_employees.team_name IS 'Team assignment (denormalized from supervisor for agents)';
+COMMENT ON COLUMN dim_employees.region IS 'Geographic region: North, South, East, West (denormalized)';
+COMMENT ON COLUMN dim_employees.hire_date IS 'Hire date for tenure/experience calculations';
+COMMENT ON COLUMN dim_employees.experience_tier IS 'Experience level: senior (3+ yr), mid (1-3 yr), junior (<1 yr) — NULL for supervisors';
+COMMENT ON COLUMN dim_employees.cost_per_hour IS 'Hourly cost rate by experience tier (G9 — Financial Recovery)';
+COMMENT ON COLUMN dim_employees.tenure_cohort IS 'Performance cohort: Low/Mid/High — adjusts base rate ranges';
+COMMENT ON COLUMN dim_employees.contact_skill IS 'Contact skill multiplier (0.700-1.300) — NULL for supervisors';
+COMMENT ON COLUMN dim_employees.negotiation_skill IS 'Negotiation skill multiplier (0.700-1.300) — NULL for supervisors';
+COMMENT ON COLUMN dim_employees.efficiency_skill IS 'Efficiency skill multiplier (0.800-1.200) — NULL for supervisors';
 
 -- Dim_Clients
 COMMENT ON TABLE dim_clients IS 'Bank clients with risk profile and segmentation data';
@@ -74,6 +66,7 @@ COMMENT ON TABLE dim_accounts IS 'Delinquent accounts with product, client, and 
 COMMENT ON COLUMN dim_accounts.account_id IS 'Unique account identifier (format: ACC_XXXXX)';
 COMMENT ON COLUMN dim_accounts.client_id IS 'FK to dim_clients — account holder';
 COMMENT ON COLUMN dim_accounts.product_id IS 'FK to dim_products — product type for this account';
+COMMENT ON COLUMN dim_accounts.product_type IS 'Product type denormalized from dim_products: Tarjeta, Prestamo, Hipoteca (avoids snowflake join)';
 COMMENT ON COLUMN dim_accounts.open_date IS 'Account opening date (G1 — vintage/months-on-book analysis)';
 COMMENT ON COLUMN dim_accounts.credit_limit IS 'Credit limit or loan amount (G3 — lognormal spread per product)';
 COMMENT ON COLUMN dim_accounts.due_day IS 'Day of month when payment is due (1-31)';
@@ -90,7 +83,7 @@ COMMENT ON TABLE fact_interactions IS 'Dialer call records: attempts, connection
 COMMENT ON COLUMN fact_interactions.interaction_id IS 'Unique interaction identifier (format: INT_XXXXX)';
 COMMENT ON COLUMN fact_interactions.interaction_date IS 'Date of the call (FK to dim_calendar, weekdays only)';
 COMMENT ON COLUMN fact_interactions.interaction_time IS 'Time of day when call occurred';
-COMMENT ON COLUMN fact_interactions.agent_id IS 'FK to dim_agents — agent who made the call';
+COMMENT ON COLUMN fact_interactions.agent_id IS 'FK to dim_employees — agent who made the call';
 COMMENT ON COLUMN fact_interactions.account_id IS 'FK to dim_accounts — account being contacted';
 COMMENT ON COLUMN fact_interactions.calls_attempted IS 'Number of dial attempts for this interaction';
 COMMENT ON COLUMN fact_interactions.calls_connected IS 'Number of successful connections (0 or 1)';
@@ -107,7 +100,7 @@ COMMENT ON TABLE fact_ptp_log IS 'Promise-to-Pay events with state machine: sche
 COMMENT ON COLUMN fact_ptp_log.ptp_id IS 'Unique promise identifier (format: PTP_XXXXX)';
 COMMENT ON COLUMN fact_ptp_log.ptp_date IS 'Date when promise was made (FK to dim_calendar)';
 COMMENT ON COLUMN fact_ptp_log.ptp_time IS 'Time of day when promise was made';
-COMMENT ON COLUMN fact_ptp_log.agent_id IS 'FK to dim_agents — agent who secured the promise';
+COMMENT ON COLUMN fact_ptp_log.agent_id IS 'FK to dim_employees — agent who secured the promise';
 COMMENT ON COLUMN fact_ptp_log.account_id IS 'FK to dim_accounts — account promising payment';
 COMMENT ON COLUMN fact_ptp_log.promised_amount IS 'Dollar amount promised by the client';
 COMMENT ON COLUMN fact_ptp_log.promised_date IS 'Date by which payment was promised';
@@ -122,7 +115,7 @@ COMMENT ON COLUMN fact_payments.payment_date IS 'Date payment was made (can incl
 COMMENT ON COLUMN fact_payments.payment_time IS 'Time of day when payment was processed';
 COMMENT ON COLUMN fact_payments.account_id IS 'FK to dim_accounts — account making the payment';
 COMMENT ON COLUMN fact_payments.ptp_id IS 'FK to fact_ptp_log — linked promise (NULL for self-cures)';
-COMMENT ON COLUMN fact_payments.agent_id IS 'FK to dim_agents — agent who collected (NULL for self-cures)';
+COMMENT ON COLUMN fact_payments.agent_id IS 'FK to dim_employees — agent who collected (NULL for self-cures)';
 COMMENT ON COLUMN fact_payments.amount_paid IS 'Dollar amount of the payment';
 COMMENT ON COLUMN fact_payments.payment_method IS 'How payment was made (e.g., Online, Phone, Branch)';
 COMMENT ON COLUMN fact_payments.is_cured IS 'True if payment brought account current (DPD = 0)';
@@ -133,7 +126,7 @@ COMMENT ON COLUMN fact_payments.dpd_at_payment IS 'Days Past Due when payment wa
 COMMENT ON TABLE fact_agent_time_log IS 'Daily agent utilization: login hours, breaks, THT, and productivity';
 COMMENT ON COLUMN fact_agent_time_log.log_id IS 'Unique log entry identifier (format: TML_XXXXX)';
 COMMENT ON COLUMN fact_agent_time_log.log_date IS 'Date of the time log entry (FK to dim_calendar)';
-COMMENT ON COLUMN fact_agent_time_log.agent_id IS 'FK to dim_agents — agent being tracked';
+COMMENT ON COLUMN fact_agent_time_log.agent_id IS 'FK to dim_employees — agent being tracked';
 COMMENT ON COLUMN fact_agent_time_log.login_time IS 'Time agent logged into the dialer';
 COMMENT ON COLUMN fact_agent_time_log.logout_time IS 'Time agent logged out of the dialer';
 COMMENT ON COLUMN fact_agent_time_log.break_minutes IS 'Total break time in minutes for the day';

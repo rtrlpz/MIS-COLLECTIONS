@@ -6,20 +6,24 @@
 -- performance for KPI views, analytical queries, and ETL operations.
 --
 -- Phase: Phase 3 (Database Layer — Indexes, Constraints, Comments)
+-- Updated: Merged dim_agents → dim_employees; removed 5 redundant single-column
+--          indexes superseded by composites (M2 fix)
 -- ============================================================================
 
 -- Dimension table indexes
-CREATE INDEX IF NOT EXISTS idx_dim_agents_supervisor_id ON dim_agents(supervisor_id);
+CREATE INDEX IF NOT EXISTS idx_dim_employees_supervisor_id ON dim_employees(supervisor_id);
+CREATE INDEX IF NOT EXISTS idx_dim_employees_type ON dim_employees(employee_type);
 CREATE INDEX IF NOT EXISTS idx_dim_accounts_client_id ON dim_accounts(client_id);
 CREATE INDEX IF NOT EXISTS idx_dim_accounts_product_id ON dim_accounts(product_id);
+CREATE INDEX IF NOT EXISTS idx_dim_accounts_product_type ON dim_accounts(product_type);
 
--- Fact_Interactions indexes
-CREATE INDEX IF NOT EXISTS idx_fact_interactions_agent_id ON fact_interactions(agent_id);
+-- Fact_Interactions indexes (single-column FK + date)
+-- NOTE: idx_fact_interactions_agent_id removed (M2) — covered by composite below
 CREATE INDEX IF NOT EXISTS idx_fact_interactions_account_id ON fact_interactions(account_id);
 CREATE INDEX IF NOT EXISTS idx_fact_interactions_interaction_date ON fact_interactions(interaction_date);
 
 -- Fact_PTP_Log indexes
-CREATE INDEX IF NOT EXISTS idx_fact_ptp_log_agent_id ON fact_ptp_log(agent_id);
+-- NOTE: idx_fact_ptp_log_agent_id removed (M2) — covered by composite below
 CREATE INDEX IF NOT EXISTS idx_fact_ptp_log_account_id ON fact_ptp_log(account_id);
 CREATE INDEX IF NOT EXISTS idx_fact_ptp_log_ptp_date ON fact_ptp_log(ptp_date);
 
@@ -29,12 +33,12 @@ CREATE INDEX IF NOT EXISTS idx_fact_payments_payment_date ON fact_payments(payme
 CREATE INDEX IF NOT EXISTS idx_fact_payments_agent_id ON fact_payments(agent_id);
 
 -- Fact_Agent_Time_Log indexes
-CREATE INDEX IF NOT EXISTS idx_fact_agent_time_log_agent_id ON fact_agent_time_log(agent_id);
+-- NOTE: idx_fact_agent_time_log_agent_id removed (M2) — covered by composite below
 CREATE INDEX IF NOT EXISTS idx_fact_agent_time_log_log_date ON fact_agent_time_log(log_date);
 
 -- Fact_EOM_Snapshot indexes
-CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_account_id ON fact_eom_snapshot(account_id);
-CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_snapshot_date ON fact_eom_snapshot(snapshot_date);
+-- NOTE: idx_fact_eom_snapshot_account_id removed (M2) — covered by composite below
+-- NOTE: idx_fact_eom_snapshot_snapshot_date removed (M2) — covered by composite below
 
 -- Additional indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_fact_interactions_rpc_flag ON fact_interactions(rpc_flag);
@@ -45,11 +49,11 @@ CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_dpd_bucket ON fact_eom_snapshot
 
 -- Composite indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_fact_interactions_agent_date ON fact_interactions(agent_id, interaction_date);
+CREATE INDEX IF NOT EXISTS idx_fact_interactions_agent_rpc ON fact_interactions(agent_id, rpc_flag);
 CREATE INDEX IF NOT EXISTS idx_fact_ptp_log_agent_date ON fact_ptp_log(agent_id, ptp_date);
 CREATE INDEX IF NOT EXISTS idx_fact_agent_time_log_agent_date ON fact_agent_time_log(agent_id, log_date);
 CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_account_date ON fact_eom_snapshot(account_id, snapshot_date);
 CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_date_account ON fact_eom_snapshot(snapshot_date, account_id);
-CREATE INDEX IF NOT EXISTS idx_dim_agents_supervisor_agent ON dim_agents(supervisor_id, agent_id);
 CREATE INDEX IF NOT EXISTS idx_dim_accounts_product_client ON dim_accounts(product_id, client_id);
 
 -- ============================================================================
@@ -67,5 +71,5 @@ CREATE INDEX IF NOT EXISTS idx_fact_writeoffs_account_date ON fact_writeoffs(acc
 -- Dim_Accounts: open_date for Vintage Analysis page
 CREATE INDEX IF NOT EXISTS idx_dim_accounts_open_date ON dim_accounts(open_date);
 
--- Dim_Agents: experience_tier for agent analysis
-CREATE INDEX IF NOT EXISTS idx_dim_agents_experience_tier ON dim_agents(experience_tier);
+-- Dim_Employees: experience_tier for agent analysis
+CREATE INDEX IF NOT EXISTS idx_dim_employees_experience_tier ON dim_employees(experience_tier);

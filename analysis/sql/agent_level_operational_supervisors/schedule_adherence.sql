@@ -17,12 +17,11 @@ agent_active_days AS (
     -- Get distinct agent-day combinations from interactions (weekdays only)
     SELECT DISTINCT 
         fi.agent_id, 
-        da.agent_name,
-        ds.team_name,
+        e.agent_name,
+        e.team_name,
         fi.interaction_date
     FROM fact_interactions fi
-    JOIN dim_agents da ON fi.agent_id = da.agent_id
-    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+    JOIN dim_employees e ON fi.agent_id = e.agent_id
     JOIN dim_calendar dc ON fi.interaction_date = dc.date
     WHERE dc.is_weekday = TRUE
 ),

@@ -8,9 +8,9 @@
 WITH agent_workload AS (
     SELECT 
         fi.agent_id,
-        da.agent_name,
-        da.supervisor_id,
-        ds.team_name,
+        e.agent_name,
+        e.supervisor_id,
+        e.team_name,
         -- Count unique accounts handled
         COUNT(DISTINCT fi.account_id) AS unique_accounts,
         -- Total calls attempted
@@ -20,9 +20,8 @@ WITH agent_workload AS (
         -- Unique accounts per call ratio
         ROUND(COUNT(DISTINCT fi.account_id)::numeric / NULLIF(SUM(fi.calls_attempted), 0), 2) AS accounts_per_call_ratio
     FROM fact_interactions fi
-    JOIN dim_agents da ON fi.agent_id = da.agent_id
-    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
-    GROUP BY fi.agent_id, da.agent_name, da.supervisor_id, ds.team_name
+    JOIN dim_employees e ON fi.agent_id = e.agent_id
+    GROUP BY fi.agent_id, e.agent_name, e.supervisor_id, e.team_name
 ),
 team_stats AS (
     SELECT 

@@ -14,9 +14,9 @@
 WITH daily_agent_activity AS (
     SELECT 
         fi.agent_id,
-        da.agent_name,
-        ds.team_name,
-        ds.region,
+        e.agent_name,
+        e.team_name,
+        e.region,
         fi.interaction_date,
         dc.iso_week,
         dc.month_name,
@@ -27,10 +27,9 @@ WITH daily_agent_activity AS (
         ROUND(SUM(CASE WHEN fi.rpc_flag THEN 1 ELSE 0 END)::numeric / 
               NULLIF(SUM(fi.calls_connected), 0) * 100, 2) AS rpc_pct
     FROM fact_interactions fi
-    JOIN dim_agents da ON fi.agent_id = da.agent_id
-    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+    JOIN dim_employees e ON fi.agent_id = e.agent_id
     JOIN dim_calendar dc ON fi.interaction_date = dc.date
-    GROUP BY fi.agent_id, da.agent_name, ds.team_name, ds.region, 
+    GROUP BY fi.agent_id, e.agent_name, e.team_name, e.region, 
              fi.interaction_date, dc.iso_week, dc.month_name
 )
 

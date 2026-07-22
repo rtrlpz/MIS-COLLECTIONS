@@ -14,10 +14,10 @@ import pytest
 # Test 1: Row Counts
 # =========================================================================
 class TestRowCounts:
-    def test_dim_agents_count(self, cursor):
-        cursor.execute("SELECT COUNT(*) FROM dim_agents")
+    def test_dim_employees_count(self, cursor):
+        cursor.execute("SELECT COUNT(*) FROM dim_employees")
         count = cursor.fetchone()[0]
-        assert count == 80, f"Dim_Agents expected 80, got {count}"
+        assert count == 88, f"Dim_Employees expected 88, got {count}"
 
     def test_dim_clients_count(self, cursor):
         cursor.execute("SELECT COUNT(*) FROM dim_clients")
@@ -39,8 +39,7 @@ class TestRowCounts:
 # =========================================================================
 class TestNoNullPKs:
     @pytest.mark.parametrize("table,pk_cols", [
-        ('dim_supervisors', ['supervisor_id']),
-        ('dim_agents', ['agent_id']),
+        ('dim_employees', ['agent_id']),
         ('dim_clients', ['client_id']),
         ('dim_products', ['product_id']),
         ('dim_calendar', ['date']),
@@ -65,16 +64,16 @@ class TestFKIntegrity:
     @pytest.mark.parametrize("child_table,fk_col,parent_table,pk_col", [
         ('dim_accounts', 'client_id', 'dim_clients', 'client_id'),
         ('dim_accounts', 'product_id', 'dim_products', 'product_id'),
-        ('fact_interactions', 'agent_id', 'dim_agents', 'agent_id'),
+        ('fact_interactions', 'agent_id', 'dim_employees', 'agent_id'),
         ('fact_interactions', 'account_id', 'dim_accounts', 'account_id'),
         ('fact_interactions', 'interaction_date', 'dim_calendar', 'date'),
-        ('fact_ptp_log', 'agent_id', 'dim_agents', 'agent_id'),
+        ('fact_ptp_log', 'agent_id', 'dim_employees', 'agent_id'),
         ('fact_ptp_log', 'account_id', 'dim_accounts', 'account_id'),
         ('fact_ptp_log', 'ptp_date', 'dim_calendar', 'date'),
         ('fact_payments', 'account_id', 'dim_accounts', 'account_id'),
         ('fact_payments', 'payment_date', 'dim_calendar', 'date'),
-        ('fact_payments', 'agent_id', 'dim_agents', 'agent_id'),
-        ('fact_agent_time_log', 'agent_id', 'dim_agents', 'agent_id'),
+        ('fact_payments', 'agent_id', 'dim_employees', 'agent_id'),
+        ('fact_agent_time_log', 'agent_id', 'dim_employees', 'agent_id'),
         ('fact_agent_time_log', 'log_date', 'dim_calendar', 'date'),
         ('fact_eom_snapshot', 'account_id', 'dim_accounts', 'account_id'),
         ('fact_eom_snapshot', 'snapshot_date', 'dim_calendar', 'date'),
@@ -226,7 +225,7 @@ class TestETLIdempotency:
         env_file = root_path / ".env"
 
         # Get row counts before
-        tables_to_check = ['dim_agents', 'dim_clients', 'dim_accounts', 'fact_interactions']
+        tables_to_check = ['dim_employees', 'dim_clients', 'dim_accounts', 'fact_interactions']
         row_counts_before = {}
         for table in tables_to_check:
             cursor.execute(f"SELECT COUNT(*) FROM {table}")

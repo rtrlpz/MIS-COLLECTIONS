@@ -93,13 +93,7 @@ BEGIN
 END $$;
 
 -- Foreign key: dim_agents.supervisor_id -> dim_supervisors.supervisor_id
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_dim_agents_supervisor') THEN
-        ALTER TABLE dim_agents ADD CONSTRAINT fk_dim_agents_supervisor
-            FOREIGN KEY (supervisor_id) REFERENCES dim_supervisors(supervisor_id);
-    END IF;
-END $$;
+-- REMOVED: dim_supervisors merged into dim_employees; self-ref FK is in DDL
 
 -- Fact_PTP_Log: status must be one of the state machine values (includes pre-resolve "Pending")
 DO $$
@@ -150,20 +144,20 @@ BEGIN
     END IF;
 END $$;
 
--- Dim_Agents: experience_tier must be a valid value
+-- Dim_Employees: experience_tier must be a valid value (NULL allowed for supervisors)
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_agents_experience_tier') THEN
-        ALTER TABLE dim_agents ADD CONSTRAINT chk_dim_agents_experience_tier
-            CHECK (experience_tier IN ('senior', 'mid', 'junior'));
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_employees_experience_tier') THEN
+        ALTER TABLE dim_employees ADD CONSTRAINT chk_dim_employees_experience_tier
+            CHECK (experience_tier IN ('senior', 'mid', 'junior') OR experience_tier IS NULL);
     END IF;
 END $$;
 
--- Dim_Agents: cost_per_hour must be positive
+-- Dim_Employees: cost_per_hour must be positive
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_agents_cost_per_hour') THEN
-        ALTER TABLE dim_agents ADD CONSTRAINT chk_dim_agents_cost_per_hour
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_employees_cost_per_hour') THEN
+        ALTER TABLE dim_employees ADD CONSTRAINT chk_dim_employees_cost_per_hour
             CHECK (cost_per_hour > 0);
     END IF;
 END $$;
@@ -210,5 +204,84 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_writeoffs_balance') THEN
         ALTER TABLE fact_writeoffs ADD CONSTRAINT chk_fact_writeoffs_balance
             CHECK (balance_before >= 0);
+    END IF;
+END $$;
+
+-- ============================================================================
+-- BATCH 2: SCHEMA IMPROVEMENTS (H5, H6, H7, H8, M3)
+-- ============================================================================
+
+-- H5: Narrow cure_flag CHECK to only the 2 values the generator produces
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_payments_cure_flag') THEN
+        ALTER TABLE fact_payments DROP CONSTRAINT chk_fact_payments_cure_flag;
+    END IF;
+    ALTER TABLE fact_payments ADD CONSTRAINT chk_fact_payments_cure_flag
+        CHECK (cure_flag IS NULL OR cure_flag IN ('Agent_Cure', 'Self_Cure'));
+END $$;
+
+-- H6: CHECK dpd_after_payment >= 0 (consistent with dpd_at_payment)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_payments_dpd_after') THEN
+        ALTER TABLE fact_payments ADD CONSTRAINT chk_fact_payments_dpd_after
+            CHECK (dpd_after_payment >= 0);
+    END IF;
+END $$;
+
+-- H7: CHECK initial_status valid values
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_accounts_initial_status') THEN
+        ALTER TABLE dim_accounts ADD CONSTRAINT chk_dim_accounts_initial_status
+            CHECK (initial_status IN ('Activo', 'Mora'));
+    END IF;
+END $$;
+
+-- M4: CHECK product_type on dim_accounts (denormalized from dim_products)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_accounts_product_type') THEN
+        ALTER TABLE dim_accounts ADD CONSTRAINT chk_dim_accounts_product_type
+            CHECK (product_type IN ('Tarjeta', 'Prestamo', 'Hipoteca'));
+    END IF;
+END $$;
+
+-- H8: NOT NULL on login_time/logout_time (generator always produces both)
+DO $$
+BEGIN
+    ALTER TABLE fact_agent_time_log ALTER COLUMN login_time SET NOT NULL;
+    ALTER TABLE fact_agent_time_log ALTER COLUMN logout_time SET NOT NULL;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+-- M3: CHECK constraints on dimension columns
+DO $$
+BEGIN
+    -- dim_clients.segment
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_clients_segment') THEN
+        ALTER TABLE dim_clients ADD CONSTRAINT chk_dim_clients_segment
+            CHECK (segment IN ('Retail', 'Premium', 'Tarjeta', 'Prestamo', 'Hipoteca'));
+    END IF;
+    -- dim_products.product_type
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_products_product_type') THEN
+        ALTER TABLE dim_products ADD CONSTRAINT chk_dim_products_product_type
+            CHECK (product_type IN ('Tarjeta', 'Prestamo', 'Hipoteca'));
+    END IF;
+    -- fact_eom_snapshot.status
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_eom_snapshot_status') THEN
+        ALTER TABLE fact_eom_snapshot ADD CONSTRAINT chk_fact_eom_snapshot_status
+            CHECK (status IN ('Activo', 'Mora'));
+    END IF;
+    -- fact_eom_snapshot.dpd_bucket
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_eom_snapshot_dpd_bucket') THEN
+        ALTER TABLE fact_eom_snapshot ADD CONSTRAINT chk_fact_eom_snapshot_dpd_bucket
+            CHECK (dpd_bucket IN ('Current', '1-30', '31-60', '61-90', '90+'));
+    END IF;
+    -- dim_employees.region
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_employees_region') THEN
+        ALTER TABLE dim_employees ADD CONSTRAINT chk_dim_employees_region
+            CHECK (region IN ('North', 'South', 'East', 'West') OR region IS NULL);
     END IF;
 END $$;

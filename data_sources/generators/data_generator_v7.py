@@ -233,25 +233,12 @@ def weighted_choice(weights):
 t_stage = time.time()
 logger.info("Building dimension tables...")
 
-# ── Dim_Supervisors ──────────────────────────────────────────────────────────
-dim_supervisors = pd.DataFrame([{
-    "supervisor_id":   fmt_id("SUP", i, 2),
-    "supervisor_name": fake.name(),
-    "team_name":       f"Team {i}",
-    "region":          random.choice(["North", "South", "East", "West"]),
-    "hire_date":       str(START + timedelta(
-        days=random.randint(SUPERVISOR_HIRE_CFG["hire_date_start_month"] * 30,
-                            SUPERVISOR_HIRE_CFG["hire_date_end_month"] * 30)
-    )),
-} for i in range(1, CFG["num_supervisors"] + 1)])
+# ── Dim_Employees (merged supervisors + agents) ─────────────────────────────
+# Supervisors get agent_id = SUP-01..SUP-08, agents get EID-001..EID-080
+# Self-referencing hierarchy: agents.supervisor_id → supervisors.agent_id
+# Agent-only columns (tenure_cohort, skills) are NULL for supervisors
 
-sup_ids   = dim_supervisors["supervisor_id"].tolist()
-sup_lookup = dim_supervisors.set_index("supervisor_id")[
-    ["supervisor_name", "team_name", "region", "hire_date"]
-].to_dict(orient="index")
-
-# ── Dim_Agents ───────────────────────────────────────────────────────────────
-agent_rows    = []
+employee_rows = []
 agent_profile = {}   # simulation-internal; not exported directly
 
 TENURE_COHORTS = ["Low", "Mid", "High"]
@@ -281,6 +268,32 @@ def random_hire_date(tier_name):
     return str(hire)
 
 
+# ── Generate supervisors first (so agents can reference them) ──
+sup_agent_ids = []   # will hold SUP-01..SUP-08 for agent assignment
+
+for i in range(1, CFG["num_supervisors"] + 1):
+    sup_eid = fmt_id("SUP", i, 2)
+    sup_agent_ids.append(sup_eid)
+    employee_rows.append({
+        "agent_id":          sup_eid,
+        "agent_name":        fake.name(),
+        "employee_type":     "Supervisor",
+        "supervisor_id":     None,          # supervisors have no manager in this model
+        "team_name":         f"Team {i}",
+        "region":            random.choice(["North", "South", "East", "West"]),
+        "hire_date":         str(START + timedelta(
+            days=random.randint(SUPERVISOR_HIRE_CFG["hire_date_start_month"] * 30,
+                                SUPERVISOR_HIRE_CFG["hire_date_end_month"] * 30)
+        )),
+        "experience_tier":   "Senior",      # supervisors are always Senior
+        "cost_per_hour":     AGENT_HIRE_CFG["agent_cost_per_hour"]["senior"],
+        "tenure_cohort":     None,
+        "contact_skill":     None,
+        "negotiation_skill": None,
+        "efficiency_skill":  None,
+    })
+
+# ── Generate agents ─────────────────────────────────────────────────────────
 for i in range(1, CFG["num_agents"] + 1):
     eid = fmt_id("EID", i, 3)
     contact_skill = clamp(random.gauss(1.0, 0.15), 0.70, 1.30)
@@ -288,20 +301,19 @@ for i in range(1, CFG["num_agents"] + 1):
     efficiency_skill = clamp(random.gauss(1.0, 0.10), 0.80, 1.20)
     tenure_cohort = random.choices(TENURE_COHORTS, weights=TENURE_WEIGHTS)[0]
     exp_tier = random.choices(EXP_TIER_NAMES, weights=EXP_TIER_WEIGHTS)[0]
-    sid = random.choice(sup_ids)
-    sup = sup_lookup[sid]
+    sid = random.choice(sup_agent_ids)
 
-    agent_rows.append({
+    employee_rows.append({
         "agent_id":          eid,
         "agent_name":        fake.name(),
+        "employee_type":     "Agent",
         "supervisor_id":     sid,
-        "supervisor_name":   sup["supervisor_name"],
-        "team_name":         sup["team_name"],
-        "region":            sup["region"],
-        "tenure_cohort":     tenure_cohort,
-        "experience_tier":   exp_tier,
+        "team_name":         None,          # filled from supervisor lookup below
+        "region":            None,
         "hire_date":         random_hire_date(exp_tier),
+        "experience_tier":   exp_tier,
         "cost_per_hour":     AGENT_HIRE_CFG["agent_cost_per_hour"][exp_tier],
+        "tenure_cohort":     tenure_cohort,
         "contact_skill":     round(contact_skill, 3),
         "negotiation_skill": round(negotiation_skill, 3),
         "efficiency_skill":  round(efficiency_skill, 3),
@@ -313,6 +325,7 @@ for i in range(1, CFG["num_agents"] + 1):
     k_lo, k_hi = tenure_adjusted_range(tenure_cohort, *CFG["kp_tendency"])
 
     agent_profile[eid] = {
+        "supervisor_id":     sid,
         "contact_skill":     contact_skill,
         "negotiation_skill": negotiation_skill,
         "efficiency_skill":  efficiency_skill,
@@ -329,8 +342,16 @@ for i in range(1, CFG["num_agents"] + 1):
         "cost_per_hour":     AGENT_HIRE_CFG["agent_cost_per_hour"][exp_tier],  # G9
     }
 
-dim_agents = pd.DataFrame(agent_rows)
-agent_ids  = list(agent_profile.keys())
+dim_employees = pd.DataFrame(employee_rows)
+agent_ids     = list(agent_profile.keys())
+
+# ── Backfill team_name / region from supervisor rows ──
+sup_lookup = dim_employees.set_index("agent_id")[["team_name", "region"]].to_dict(orient="index")
+for idx in dim_employees.index:
+    if dim_employees.at[idx, "employee_type"] == "Agent":
+        sid = dim_employees.at[idx, "supervisor_id"]
+        dim_employees.at[idx, "team_name"] = sup_lookup[sid]["team_name"]
+        dim_employees.at[idx, "region"]    = sup_lookup[sid]["region"]
 
 # ── Dim_Products ─────────────────────────────────────────────────────────────
 dim_products = pd.DataFrame([{
@@ -414,6 +435,7 @@ for client_id in client_ids:
             "account_id":      acct_id,
             "client_id":       client_id,
             "product_id":      product_id_map[p_type],
+            "product_type":    p_type,
             "open_date":       random_open_date(),   # G1: vintage spread
             "credit_limit":    round(balance, 2),     # G3: lognormal
             "due_day":         due_day,
@@ -1027,8 +1049,7 @@ os.makedirs(shared_dir, exist_ok=True)
 
 # Dimension tables → shared/ (reference data, one copy)
 dims = {
-    "Dim_Supervisors": dim_supervisors,
-    "Dim_Agents":      dim_agents,
+    "Dim_Employees":   dim_employees,
     "Dim_Clients":     dim_clients,
     "Dim_Products":    dim_products,
     "Dim_Accounts":    dim_accounts,
@@ -1105,15 +1126,15 @@ def validate_output(output_dir):
     logger.info("Running post-generation validation...")
 
     dim_tables = {}
-    for name in ["Dim_Supervisors", "Dim_Agents", "Dim_Clients",
+    for name in ["Dim_Employees", "Dim_Clients",
                  "Dim_Products", "Dim_Accounts", "Dim_Calendar"]:
         path = os.path.join(shared, f"{name}.csv")
         dim_tables[name] = pd.read_csv(path)
 
     # ── 2. Row count checks ───────────────────────────────────────────
     logger.info("  --- Row Counts ---")
-    _check("Dim_Supervisors == 8", len(dim_tables["Dim_Supervisors"]) == 8)
-    _check("Dim_Agents == 80", len(dim_tables["Dim_Agents"]) == 80)
+    _check("Dim_Employees == 88 (8 supervisors + 80 agents)",
+           len(dim_tables["Dim_Employees"]) == 88)
     _check("Dim_Clients == 10000", len(dim_tables["Dim_Clients"]) == 10_000)
     _check("Dim_Products == 3", len(dim_tables["Dim_Products"]) == 3)
 
@@ -1124,8 +1145,7 @@ def validate_output(output_dir):
     # ── 3. PK null checks ─────────────────────────────────────────────
     logger.info("  --- Primary Key Null Checks ---")
     pk_checks = {
-        "Dim_Supervisors": "supervisor_id",
-        "Dim_Agents": "agent_id",
+        "Dim_Employees": "agent_id",
         "Dim_Clients": "client_id",
         "Dim_Products": "product_id",
         "Dim_Accounts": "account_id",
@@ -1136,21 +1156,23 @@ def validate_output(output_dir):
 
     # ── 3B. NEW COLUMN PRESENCE CHECKS ─────────────────────────────────
     logger.info("  --- New Column Presence ---")
-    _check("Dim_Supervisors has hire_date", "hire_date" in dim_tables["Dim_Supervisors"].columns)
-    _check("Dim_Agents has hire_date", "hire_date" in dim_tables["Dim_Agents"].columns)
-    _check("Dim_Agents has experience_tier", "experience_tier" in dim_tables["Dim_Agents"].columns)
-    _check("Dim_Agents has cost_per_hour", "cost_per_hour" in dim_tables["Dim_Agents"].columns)
+    _check("Dim_Employees has hire_date", "hire_date" in dim_tables["Dim_Employees"].columns)
+    _check("Dim_Employees has experience_tier", "experience_tier" in dim_tables["Dim_Employees"].columns)
+    _check("Dim_Employees has cost_per_hour", "cost_per_hour" in dim_tables["Dim_Employees"].columns)
+    _check("Dim_Employees has employee_type", "employee_type" in dim_tables["Dim_Employees"].columns)
+    _check("Dim_Employees has supervisor_id (self-ref)", "supervisor_id" in dim_tables["Dim_Employees"].columns)
     _check("Dim_Clients has income_bracket", "income_bracket" in dim_tables["Dim_Clients"].columns)
     _check("Dim_Accounts has credit_limit", "credit_limit" in dim_tables["Dim_Accounts"].columns)
+    _check("Dim_Accounts has product_type", "product_type" in dim_tables["Dim_Accounts"].columns)
 
     # ── 4. FK integrity checks ────────────────────────────────────────
     logger.info("  --- Foreign Key Integrity ---")
 
-    # Dim_Agents.supervisor_id → Dim_Supervisors.supervisor_id
-    sup_ids = set(dim_tables["Dim_Supervisors"]["supervisor_id"])
-    agent_sup_ids = set(dim_tables["Dim_Agents"]["supervisor_id"])
-    _check("All Dim_Agents.supervisor_id exist in Dim_Supervisors",
-           agent_sup_ids.issubset(sup_ids))
+    # Dim_Employees.supervisor_id (self-ref) → Dim_Employees.agent_id
+    all_emp_ids = set(dim_tables["Dim_Employees"]["agent_id"])
+    agent_sup_ids = set(dim_tables["Dim_Employees"]["supervisor_id"].dropna())
+    _check("All Dim_Employees.supervisor_id (self-ref) exist in Dim_Employees.agent_id",
+           agent_sup_ids.issubset(all_emp_ids))
 
     # Dim_Accounts.client_id → Dim_Clients.client_id
     client_ids = set(dim_tables["Dim_Clients"]["client_id"])
@@ -1187,13 +1209,13 @@ def validate_output(output_dir):
                len(fact_df) > 0)
 
     # ── 6. Fact table FK checks (sample from first month) ─────────────
-    agent_ids_dim = set(dim_tables["Dim_Agents"]["agent_id"])
+    agent_ids_dim = set(dim_tables["Dim_Employees"]["agent_id"])
     acct_ids_dim = set(dim_tables["Dim_Accounts"]["account_id"])
 
     interactions = pd.read_csv(os.path.join(month_dir, "Fact_Interactions.csv"))
     if "agent_id" in interactions.columns:
         bad_agents = set(interactions["agent_id"].dropna()) - agent_ids_dim
-        _check("All Fact_Interactions.agent_id exist in Dim_Agents",
+        _check("All Fact_Interactions.agent_id exist in Dim_Employees",
                len(bad_agents) == 0)
     if "account_id" in interactions.columns:
         bad_accts = set(interactions["account_id"].dropna()) - acct_ids_dim
@@ -1203,7 +1225,7 @@ def validate_output(output_dir):
     ptp = pd.read_csv(os.path.join(month_dir, "Fact_PTP_Log.csv"))
     if "agent_id" in ptp.columns:
         bad_agents = set(ptp["agent_id"].dropna()) - agent_ids_dim
-        _check("All Fact_PTP_Log.agent_id exist in Dim_Agents",
+        _check("All Fact_PTP_Log.agent_id exist in Dim_Employees",
                len(bad_agents) == 0)
     if "account_id" in ptp.columns:
         bad_accts = set(ptp["account_id"].dropna()) - acct_ids_dim
@@ -1219,7 +1241,7 @@ def validate_output(output_dir):
     time_log = pd.read_csv(os.path.join(month_dir, "Fact_Agent_Time_Log.csv"))
     if "agent_id" in time_log.columns:
         bad_agents = set(time_log["agent_id"].dropna()) - agent_ids_dim
-        _check("All Fact_Agent_Time_Log.agent_id exist in Dim_Agents",
+        _check("All Fact_Agent_Time_Log.agent_id exist in Dim_Employees",
                len(bad_agents) == 0)
 
     eom = pd.read_csv(os.path.join(month_dir, "Fact_EOM_Snapshot.csv"))

@@ -44,7 +44,7 @@ class TestGeneratorOutput:
         # Check shared tables exist
         shared_dir = output_dir / "shared"
         assert shared_dir.exists(), "shared directory not created"
-        for table in ['Dim_Supervisors', 'Dim_Agents', 'Dim_Clients', 'Dim_Products', 'Dim_Calendar', 'Dim_Accounts']:
+        for table in ['Dim_Employees', 'Dim_Clients', 'Dim_Products', 'Dim_Calendar', 'Dim_Accounts']:
             csv_file = shared_dir / f"{table}.csv"
             assert csv_file.exists(), f"{table}.csv not found"
             assert csv_file.stat().st_size > 0, f"{table}.csv is empty"
@@ -67,8 +67,7 @@ class TestGeneratorRowCounts:
     """Test row counts in generated CSV output match expected ranges."""
 
     EXPECTED_COUNTS = {
-        'Dim_Supervisors': 8,
-        'Dim_Agents': 80,
+        'Dim_Employees': 88,
         'Dim_Clients': 10000,
         'Dim_Products': 3,
         'Dim_Calendar': 122,
@@ -97,7 +96,7 @@ class TestGeneratorRowCounts:
 
         # Check dimension table counts (exact match)
         shared_dir = output_dir / "shared"
-        for table in ['Dim_Supervisors', 'Dim_Agents', 'Dim_Clients', 'Dim_Products', 'Dim_Calendar']:
+        for table in ['Dim_Employees', 'Dim_Clients', 'Dim_Products', 'Dim_Calendar']:
             df = pd.read_csv(shared_dir / f"{table}.csv")
             assert len(df) == self.EXPECTED_COUNTS[table], \
                 f"{table}: expected {self.EXPECTED_COUNTS[table]}, got {len(df)}"
@@ -183,8 +182,7 @@ class TestGeneratorDataQuality:
 
         # Check shared tables
         pk_mapping = {
-            'Dim_Supervisors': 'supervisor_id',
-            'Dim_Agents': 'agent_id',
+            'Dim_Employees': 'agent_id',
             'Dim_Clients': 'client_id',
             'Dim_Products': 'product_id',
             'Dim_Calendar': 'date',

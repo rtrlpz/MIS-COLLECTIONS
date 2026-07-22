@@ -1,315 +1,276 @@
 # PLAN DE IMPLEMENTACIÓN: 9 DASHBOARDS DE COLLECTIONS
 
-**Fecha:** 2026-07-21
+**Fecha:** 2026-07-21 (última actualización)
 **Objetivo:** Preparar generator, schema y DAX para 9 dashboards de collections
 **Consolidación:** Executive Collections + Executive Scorecard fusionados en uno solo
+**Status:** Generator ✅ | Schema ✅ | DAX ✅ (256 measures) | Dashboard Build → PENDING
 
 ---
 
 ## RESUMEN DE DASHBOARDS
 
-| # | Dashboard | Cobertura | Estado | Notas |
-|---|-----------|-----------|--------|-------|
-| 1 | Executive Collections | 94% | ✅ Listo | Fusionado con Scorecard. Incluir risk heat map + cost per account |
-| 2 | Agent Performance | 78% | ⚠️ Necesita measures nuevas | RPC%, KP%, Cure, Util, AHT, Composite Score, WoW trends |
-| 3 | Dialer Performance | 57% | ⚠️ Necesita generator + measures | Call volume, answer rate, RPC dialer-only, AHT by channel |
-| 4 | Portfolio Management | 80% | ⚠️ Necesita measures nuevas | Arrears waterfall, delinquency bands, DPD migration Sankey |
-| 5 | Operations Command Center | 38% | ⚠️ Versión limitada | Calls Offered/Answered, AHT, Occupancy, Agent Login/Logout |
-| 6 | Credit Risk | 42% | ⚠️ Necesita generator + measures | Delinquency by segment, Roll rates, Cure rates, Credit utilization |
-| 7 | Financial Recovery | 60% | ⚠️ Necesita generator + measures | Recovery vs cost, Write-offs, Cost-to-collect, Net recovery |
-| 8 | Vintage Analysis | 0% | ❌ Necesita generator overhaul | DPD by account age, Vintage curves, Cure by vintage month |
-| 9 | Roll Rate Analysis | 20% | ⚠️ Necesita measures nuevas | Sankey (prev→curr), Skip/deteriorate rates, Stuck 90+ |
+| # | Dashboard | DAX Coverage | Status | KPIs Needed | KPIs Available | Gap |
+|---|-----------|-------------|--------|-------------|----------------|-----|
+| 1 | Executive Collections | **95%** | ✅ Ready | 12 | 11 | 1 visual only |
+| 2 | Agent Performance | **95%** | ✅ Ready | 10 | 10 | None |
+| 3 | Dialer Performance | **80%** | ⚠️ Limited | 8 | 7 | 1 measure (campaign — schema gap) |
+| 4 | Portfolio Management | **95%** | ✅ Ready | 9 | 9 | None |
+| 5 | Operations Command Center | **55%** | ⚠️ Limited | 8 | 5 | 3 measures (schema gaps) |
+| 6 | Credit Risk | **80%** | ✅ Ready | 8 | 8 | None |
+| 7 | Financial Recovery | **95%** | ✅ Ready | 8 | 8 | None |
+| 8 | Vintage Analysis | **85%** | ✅ Ready | 6 | 6 | None |
+| 9 | Roll Rate Analysis | **90%** | ✅ Ready | 8 | 8 | None |
 
 **Excluidos (6):** Executive Scorecard, WFM, QA, Compliance, Customer Experience, Recovery Forecast
 
 ---
 
-## ESTADO ACTUAL DE DAX
+## DAX STATUS: 256 MEASURES COMPLETE
 
-### Lo que YA existe (207 medidas en CSV)
-- `_Goals & Targets`: 31 (7 goals + 7 gaps + 7 status + 7 color + 2 calculated tables + 1 selected goal)
-- `_Outreach & Activity`: 20
-- `_Promise & Conversion`: 13
-- `_Recovery & Collection`: 16
-- `_Portfolio Health`: 20
-- `_Time Intelligence`: 36 (MoM measures solamente)
+### What EXISTS in CSV (256 measures)
 
-### Lo que está DOCUMENTADO pero NO en el CSV (91 medidas)
-- WoW (Week-over-Week): 21 medidas (7 Prior Week + 7 WoW Change + 7 WoW %)
-- DoD (Day-over-Day): 21 medidas (7 Prior Day + 7 DoD Change + 7 DoD %)
-- YoY (Year-over-Year): 21 medidas (7 Prior Year + 7 YoY Change + 7 YoY %)
-- OTC (Overall-to-Current): 21 medidas (7 Overall Avg + 7 OTC Change + 7 OTC %)
-- Total: 84 medidas + 7 faltantes de MoM = 91
+| Table | Measures | Status |
+|-------|----------|--------|
+| `_Goals & Targets` | 31 (2 calc tables + 29 measures) | ✅ Complete |
+| `_Outreach & Activity` | 20 | ✅ Complete |
+| `_Promise & Conversion` | 13 | ✅ Complete |
+| `_Recovery & Collection` | 16 | ✅ Complete |
+| `_Portfolio Health` | 23 | ✅ Complete |
+| `_Time Intelligence` | 120 (MoM 36 + WoW 21 + DoD 21 + YoY 21 + OTC 21) | ✅ Complete |
+| `_Executive` | 3 | ✅ Complete |
+| `_Agent Performance` | 6 | ✅ Complete |
+| `_Dialer Performance` | 4 | ✅ Complete |
+| `_Portfolio Management` | 3 | ✅ Complete |
+| `_Financial Recovery` | 9 | ✅ Complete |
+| `_Vintage Analysis` | 3 | ✅ Complete |
+| `_Roll Rate Analysis` | 5 | ✅ Complete |
+| **TOTAL** | **256** | **✅ All in CSV** |
 
-### Lo que FALTA para los 9 dashboards (~25 medidas nuevas)
-- Roll Rate completos (cure rates, improvement rates, skip paths)
-- Financial Recovery (Net Recovery, Cost to Collect, Write-offs)
-- Credit Risk (Credit Utilization, Risk Segmentation)
-- Vintage/Cohort (Account Vintage Month, Months on Book)
-- Composite Score para Agent Performance
-
-### TOTAL FINAL: ~323 medidas DAX
-- 207 existentes (sin cambios)
-- 91 documentadas pero no en CSV (agregar al CSV)
-- 25 nuevas para dashboards (agregar al CSV)
+### Documentation Files
+- `dashboards/assets/dax/collections_dax_v2.csv` — 256 measures (source of truth)
+- `dashboards/assets/docs/dax_measures_all.md` — Complete DAX reference (all 256 as code blocks)
+- `dashboards/assets/docs/dax_measures_dictionary_v2.md` — v2.2 (tables, formats, dependencies)
+- `dashboards/assets/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
 
 ---
 
-## FASE 1: GENERATOR (config.py + data_generator_v7.py)
+## DASHBOARD-BY-DASHBOARD DAX COVERAGE
 
-### 1.1 Nuevos parámetros en config.py
+### Dashboard 1: Executive Collections — 95% ✅
 
-```python
-# Agregar a CFG dict:
-"open_date_spread_months": (12, 24),   # Vintage/Cohort analysis
-"months": 12,                          # Full year data (default)
+**Audience:** VP Collections, Directors
+**Purpose:** Portfolio health at a glance, KPI cards, trend sparklines
 
-# Channel mix (para distinguir Dialer vs FICO/SMS)
-"channel_mix": {
-    "Dialer": 0.85,
-    "FICO": 0.10,
-    "SMS": 0.05,
-},
+| KPI Needed | DAX Measure | Table | Status |
+|------------|-------------|-------|--------|
+| Portfolio Health Score | `[Portfolio Health Score]` | _Executive | ✅ |
+| Monthly Recovery Rate | `[Monthly Recovery Rate]` | _Executive | ✅ |
+| Portfolio At-Risk Balance | `[Portfolio At-Risk Balance]` | _Executive | ✅ |
+| Promise Rate (PTP%) | `[Promise Rate]` | _Promise & Conversion | ✅ |
+| KP Rate | `[KP Rate]` | _Promise & Conversion | ✅ |
+| Cures per THT Hr | `[Cures per THT Hr]` | _Recovery & Collection | ✅ |
+| Utilization % | `[Avg Utilization %]` | _Outreach & Activity | ✅ |
+| All 7 Goal measures | `[Goal *]` | _Goals & Targets | ✅ |
+| All 7 Gap measures | `[* Gap]` | _Goals & Targets | ✅ |
+| All 7 RAG Status | `[* Status]` | _Goals & Targets | ✅ |
+| MoM/WoW/DoD/YoY/OTC | 120 Time Intelligence | _Time Intelligence | ✅ |
+| Risk Heat Map | Visual only (DPD buckets) | _Portfolio Health | ⚠️ Visual |
 
-# Write-off modeling
-"write_off": {
-    "enabled": True,
-    "threshold_dpd": 180,
-    "monthly_rate": 0.02,
-},
-
-# Agent cost (para Financial Recovery)
-"agent_cost_per_hour": (18, 28),
-
-# Modificar PRODUCT_CFG para incluir credit_limit:
-"Tarjeta": { ..., "credit_limit_range": (1000, 50000) },
-"Prestamo": { ..., "credit_limit_range": (3000, 80000) },
-"Hipoteca": { ..., "credit_limit_range": (50000, 500000) },
-
-# Income bracket para Dim_Clients
-"income_bracket": {
-    "Low": 0.35,
-    "Mid": 0.45,
-    "High": 0.20,
-},
-```
-
-### 1.2 Cambios en data_generator_v7.py
-
-| # | Sección | Cambio | Líneas |
-|---|---------|--------|--------|
-| G1 | Dim_Accounts | `open_date` usa `CFG["open_date_spread_months"]` | ~310 |
-| G2 | Dim_Agents | Agregar `cost_per_hour` | ~230 |
-| G3 | Dim_Accounts | Agregar `credit_limit` desde PRODUCT_CFG | ~320 |
-| G4 | Dim_Clients | Agregar `income_bracket` | ~295 |
-| G5 | Fact_Interactions | Agregar `channel` columna | ~650 |
-| G6 | Mora Aging | Agregar lógica de write-off | ~770 |
-| G7 | Dim_Calendar | Expandir a 13 meses | ~137 |
-| G8 | Dim_Supervisors | Agregar `hire_date` | ~210 |
-| G9 | Dim_Agents | Agregar `hire_date` | ~230 |
-
-### 1.3 Nueva tabla: Fact_Writeoffs
-
-```python
-# Después de Mora Aging (~línea 770)
-if state["dpd"] > CFG["write_off"]["threshold_dpd"]:
-    if random.random() < CFG["write_off"]["monthly_rate"]:
-        fact_writeoffs.append({...})
-```
+**Gap:** Risk Heat Map is a visual layout, not a DAX measure. All KPIs covered.
 
 ---
 
-## FASE 2: DATABASE SCHEMA (Migrations)
+### Dashboard 2: Agent Performance — 95% ✅
 
-### 2.1 Nuevas columnas en tablas existentes
+**Audience:** Supervisors, Team Leads
+**Purpose:** Agent leaderboard, coaching flags, performance tiers
 
-| Tabla | Columna | Tipo | Justificación |
-|-------|---------|------|---------------|
-| `dim_agents` | `hire_date` | DATE | Tenure analysis |
-| `dim_agents` | `cost_per_hour` | DECIMAL(6,2) | Financial Recovery |
-| `dim_supervisors` | `hire_date` | DATE | Supervisor tenure |
-| `dim_accounts` | `credit_limit` | DECIMAL(12,2) | Credit Risk |
-| `dim_clients` | `income_bracket` | VARCHAR(20) | Credit Risk segmentation |
-| `fact_interactions` | `channel` | VARCHAR(20) | RPC% correcto (excluir FICO/SMS) |
-| `fact_eom_snapshot` | `prev_dpd_bucket` | VARCHAR(20) | DPD Migration Sankey |
-| `fact_ptp_log` | `resolved_date` | DATE | Time-to-resolution |
+| KPI Needed | DAX Measure | Table | Status |
+|------------|-------------|-------|--------|
+| Agent RPC per Hour | `[Agent RPC per Hour]` | _Agent Performance | ✅ |
+| Agent KP Rate | `[Agent KP Rate]` | _Agent Performance | ✅ |
+| Agent Quality Score | `[Agent Quality Score]` | _Agent Performance | ✅ |
+| Agent Performance Tier | `[Agent Performance Tier]` | _Agent Performance | ✅ |
+| Agent Tenure Months | `[Agent Tenure Months]` | _Agent Performance | ✅ |
+| Coaching Alert | `[Coaching Alert]` | _Agent Performance | ✅ |
+| RPC Rate | `[RPC Rate]` | _Outreach & Activity | ✅ |
+| Promise Rate | `[Promise Rate]` | _Promise & Conversion | ✅ |
+| Avg Utilization % | `[Avg Utilization %]` | _Outreach & Activity | ✅ |
+| Avg AHT RPC (sec) | `[Avg AHT RPC (sec)]` | _Outreach & Activity | ✅ |
 
-### 2.2 Nuevas tablas
-
-| Tabla | Propósito |
-|-------|-----------|
-| `fact_writeoffs` | Eventos de write-off (writeoff_id, writeoff_date, account_id FK, writeoff_amount, reason) |
-
-### 2.3 Nuevas vistas
-
-| Vista | Propósito |
-|-------|-----------|
-| `v_dpd_migration_matrix` | Sankey visual (prev_bucket → current_bucket) |
-| `v_weekly_agent_summary` | WoW measures (agregación semanal) |
-| `v_rls_supervisor_map` | Row-Level Security |
-
-### 2.4 Vistas modificadas
-
-| Vista | Columnas agregadas |
-|-------|-------------------|
-| `v_monthly_summary` | total_arrears, total_balance, mora_rate_pct, bb_conversion, cures_per_tht |
-| `v_agent_scorecards` | coaching_flag, previous_month_composite, score_trend |
-| `v_handle_time_metrics` | pct_rpc_within_sla, pct_nonrpc_within_sla |
-
-### 2.5 Nuevos constraints
-
-| Tabla | Constraint | Regla |
-|-------|-----------|-------|
-| `fact_eom_snapshot` | `chk_prev_dpd_bucket` | IN ('Current','1-30','31-60','61-90','90+') |
-| `fact_interactions` | `chk_channel` | IN ('Dialer','FICO','SMS','Email','Branch') |
-| `dim_agents` | `chk_hire_date` | hire_date <= CURRENT_DATE |
-| `fact_writeoffs` | `chk_writeoff_amount` | writeoff_amount > 0 |
-
-### 2.6 Nuevos indexes
-
-| Tabla | Columna(s) | Tipo |
-|-------|-----------|------|
-| `fact_eom_snapshot` | `prev_dpd_bucket` | B-tree |
-| `fact_interactions` | `channel` | B-tree |
-| `fact_writeoffs` | `account_id` | B-tree |
-| `fact_writeoffs` | `writeoff_date` | B-tree |
-| `dim_agents` | `hire_date` | B-tree |
-| `fact_eom_snapshot` | `(snapshot_date, account_id, dpd_bucket, arrears)` | Covering |
+**Coverage:** All KPIs covered.
 
 ---
 
-## FASE 3: DAX MEASURES (collections_dax_v2.csv)
+### Dashboard 3: Dialer Performance — 80% ⚠️
 
-### 3.1 Medidas existentes que NO necesitan cambios (207)
+**Audience:** Operations Managers
+**Purpose:** Dialer efficiency, channel comparison, campaign analytics
 
-Todas las 207 medidas actuales siguen siendo válidas. Los strings hardcodeados ("Mora", "Kept", "Broken", "Agent_Cure", "Self_Cure", "Online", "Branch/ATM", "OFI", "1-30", etc.) coinciden con la salida del generator.
+| KPI Needed | DAX Measure | Table | Status |
+|------------|-------------|-------|--------|
+| Dialer Connection Rate | `[Dialer Connection Rate]` | _Dialer Performance | ✅ |
+| Dialer Abandon Rate | `[Dialer Abandon Rate]` | _Dialer Performance | ✅ |
+| Dialer Efficiency Score | `[Dialer Efficiency Score]` | _Dialer Performance | ✅ |
+| Dialer Productive Rate | `[Dialer Productive Rate]` | _Dialer Performance | ✅ |
+| Total Calls Attempted | `[Total Calls Attempted]` | _Outreach & Activity | ✅ |
+| Total Connected | `[Total Connected]` | _Outreach & Activity | ✅ |
+| RPC Rate | `[RPC Rate]` | _Outreach & Activity | ✅ |
+| Campaign Breakdown | Missing (needs campaign field) | — | ❌ Schema gap |
 
-### 3.2 Medidas documentadas pero NO en CSV (91) — AGREGAR AL CSV
-
-#### WoW (21 medidas) — Sección 7 del markdown
-Promise Rate, KP Rate, ACW RPC, ACW Non-RPC, Capped KP/RPC Arrears, Cures/THT, Utilization × (Prior Week + WoW Change + WoW %)
-
-#### DoD (21 medidas) — Sección 8 del markdown
-Mismas 7 métricas × (Prior Day + DoD Change + DoD %)
-
-#### YoY (21 medidas) — Sección 9 del markdown
-Mismas 7 métricas × (Prior Year + YoY Change + YoY %)
-
-#### OTC (21 medidas) — Sección 10 del markdown
-Mismas 7 métricas × (Overall Avg + OTC Change + OTC %)
-
-#### Faltantes de MoM (7 medidas) — Para completar las 36 del CSV
-Verificar si Promise Rate MoM %, KP Rate MoM %, etc. ya existen en el CSV
-
-### 3.3 Medidas NUEVAS para los 9 dashboards (~22)
-
-#### Roll Rate Analysis (Dashboard 9) — 8 medidas
-| Medida | Fórmula |
-|--------|---------|
-| `Roll Rate 30 to Current (Cure)` | DIVIDE(COUNT(prev=1-30, curr=Current), COUNT(prev=1-30)) |
-| `Roll Rate 60 to 30 (Improve)` | DIVIDE(COUNT(prev=31-60, curr=1-30), COUNT(prev=31-60)) |
-| `Roll Rate 90 to 60 (Improve)` | DIVIDE(COUNT(prev=61-90, curr=31-60), COUNT(prev=61-90)) |
-| `Roll Rate 30 to 90 (Skip)` | DIVIDE(COUNT(prev=1-30, curr=61-90), COUNT(prev=1-30)) |
-| `Roll Rate 30 to 90+ (Skip)` | DIVIDE(COUNT(prev=1-30, curr=90+), COUNT(prev=1-30)) |
-| `Roll Rate 60 to 90+ (Deteriorate)` | DIVIDE(COUNT(prev=31-60, curr=90+), COUNT(prev=31-60)) |
-| `Roll Rate Stuck 90+` | DIVIDE(COUNT(prev=90+, curr=90+), COUNT(prev=90+)) |
-| `Overall Deterioration Rate` | DIVIDE(deteriorations, all_transitions) |
-
-#### Financial Recovery (Dashboard 7) — 5 medidas
-| Medida | Fórmula |
-|--------|---------|
-| `Write-off Amount` | SUM('Fact_Writeoffs'[writeoff_amount]) |
-| `Write-off Count` | DISTINCTCOUNT('Fact_Writeoffs'[account_id]) |
-| `Net Recovery` | [Total Recovery] - [Write-off Amount] |
-| `Cost to Collect` | SUMX(AgentTime, operational_hours * cost_per_hour) |
-| `Cost per Dollar Collected` | DIVIDE([Cost to Collect], [Total Recovery]) |
-
-#### Credit Risk (Dashboard 6) — 3 medidas
-| Medida | Fórmula |
-|--------|---------|
-| `Avg Credit Limit` | AVERAGE('Dim_Accounts'[credit_limit]) |
-| `Credit Utilization %` | DIVIDE(Arrears, SUM(credit_limit)) |
-| `Income Segment Distribution` | COUNT(VALUES('Dim_Clients'[income_bracket])) |
-
-#### Vintage Analysis (Dashboard 8) — 2 medidas
-| Medida | Fórmula |
-|--------|---------|
-| `Account Vintage Month` | FORMAT('Dim_Accounts'[open_date], "YYYY-MM") |
-| `Months on Book` | DATEDIFF('Dim_Accounts'[open_date], MAX(snapshot_date), MONTH) |
-
-#### Portfolio Management (Dashboard 4) — 1 medida
-| Medida | Fórmula |
-|--------|---------|
-| `DPD Migration %` | DIVIDE(crossover_accounts, total_current) |
-
-#### Agent Performance (Dashboard 2) — 2 medidas
-| Medida | Fórmula |
-|--------|---------|
-| `Composite Score` | Weighted: RPC 25% + KP 25% + Cure 20% + Util 15% + AHT 15% |
-| `Coaching Alert` | IF(WoW drops > thresholds, "Alert", "OK") |
-
-#### Dialer Performance (Dashboard 3) — 1 medida
-| Medida | Fórmula |
-|--------|---------|
-| `Outbound Calls Only` | CALCULATE([Total Calls], channel="Dialer") |
-
-### 3.4 RESUMEN TOTAL DAX
-
-| Categoría | Cantidad | Estado |
-|-----------|----------|--------|
-| Existentes en CSV | 207 | ✅ Sin cambios |
-| Documentadas, no en CSV | 91 | ⚠️ Agregar al CSV |
-| Nuevas para dashboards | 22 | 🆕 Agregar al CSV |
-| **TOTAL FINAL** | **320** | |
+**Gaps:**
+1. Campaign breakdown requires a `campaign_id` column in Fact_Interactions — **schema gap**, not just DAX
 
 ---
 
-## FASE 4: ARCHIVOS A MODIFICAR
+### Dashboard 4: Portfolio Management — 95% ✅
 
-| # | Archivo | Cambio | Prioridad |
-|---|---------|--------|-----------|
-| 1 | `data_sources/generators/config.py` | +8 parámetros nuevos, modificar PRODUCT_CFG | ALTA |
-| 2 | `data_sources/generators/data_generator_v7.py` | 9 secciones modificadas + Fact_Writeoffs | ALTA |
-| 3 | `database/migrations/001_create_tables.sql` | +8 columnas, +1 tabla nueva | ALTA |
-| 4 | `database/migrations/002_kpi_views.sql` | +3 vistas modificadas, +3 vistas nuevas | ALTA |
-| 5 | `database/migrations/003_constraints.sql` | +4-8 constraints | MEDIA |
-| 6 | `database/migrations/005_indexes.sql` | +6 indexes | MEDIA |
-| 7 | `database/migrations/006_comments.sql` | Comments para nuevas columnas/tablas | BAJA |
-| 8 | `database/seeds/002_dim_calendar.sql` | Expandir a 13 meses | ALTA |
-| 9 | `dashboards/assets/dax/collections_dax_v2.csv` | +113 medidas (91 doc + 22 nuevas) | ALTA |
-| 10 | `dashboards/assets/docs/dax_measures_dictionary_v2.md` | Documentación de 113 nuevas medidas | MEDIA |
-| 11 | `test/conftest.py` | Actualizar GENERATOR_ROW_COUNTS + METRIC_RANGES | MEDIA |
-| 12 | `test/qa_validation.py` | Tests para nuevas columnas/tablas | MEDIA |
-| 13 | `CLAUDE.md` | Actualizar row counts, DAX total, nuevos parámetros | MEDIA |
+**Audience:** Portfolio Managers, Directors
+**Purpose:** Arrears waterfall, delinquency bands, DPD migration
 
----
+| KPI Needed | DAX Measure | Table | Status |
+|------------|-------------|-------|--------|
+| Portfolio Total Balance | `[Portfolio Total Balance]` | _Portfolio Health | ✅ |
+| Portfolio Total Arrears | `[Portfolio Total Arrears]` | _Portfolio Health | ✅ |
+| Mora Rate | `[Mora Rate]` | _Portfolio Health | ✅ |
+| Arrears to Balance | `[Arrears to Balance]` | _Portfolio Health | ✅ |
+| Portfolio Concentration Index | `[Portfolio Concentration Index]` | _Portfolio Management | ✅ |
+| Mora Balance Rate | `[Mora Balance Rate]` | _Portfolio Management | ✅ |
+| DPD Migration Rate | `[DPD Migration Rate]` | _Portfolio Management | ✅ |
+| All DPD counts | `[Accounts DPD *]` | _Portfolio Health | ✅ |
+| All Mora Rate by DPD | `[Mora Rate by DPD *]` | _Portfolio Health | ✅ |
+| Arrears Waterfall | Visual only | — | ⚠️ Visual |
 
-## FASE 5: ORDEN DE EJECUCIÓN
-
-```
-PASO  1: config.py (agregar nuevos parámetros)
-PASO  2: data_generator_v7.py (implementar G1-G9)
-PASO  3: Generar nuevos CSVs (python data_generator_v7.py --months 12)
-PASO  4: 002_dim_calendar.sql (expandir seed a 13 meses)
-PASO  5: 001_create_tables.sql (nuevas columnas + tabla Fact_Writeoffs)
-PASO  6: 002_kpi_views.sql (vistas modificadas + nuevas)
-PASO  7: 003_constraints.sql (nuevos constraints)
-PASO  8: 005_indexes.sql (nuevos indexes)
-PASO  9: 006_comments.sql (comments)
-PASO 10: collections_dax_v2.csv (+113 medidas)
-PASO 11: dax_measures_dictionary_v2.md (documentación)
-PASO 12: conftest.py + qa_validation.py (tests actualizados)
-PASO 13: CLAUDE.md (actualizar)
-PASO 14: ETL (cargar nuevos datos a PostgreSQL)
-PASO 15: Ejecutar tests (python -m pytest test/ -v)
-```
+**Gap:** Arrears Waterfall is a visual layout (stacked bar/bridge chart), not a DAX measure. All KPIs covered.
 
 ---
 
-## DECISIONES PENDIENTES
+### Dashboard 5: Operations Command Center — 55% ⚠️
 
-**¿Los 12 meses de datos deben empezar en Enero 2025 o Octubre 2024?**
-- **Enero 2025:** 12 meses (Jan-Dec 2025). No YoY (necesitarías 2024).
-- **Octubre 2024:** Oct 2024 - Sep 2025. YoY parcial disponible.
+**Audience:** Operations Managers, WFM
+**Purpose:** Real-time operations monitoring, agent utilization
 
-Recomendación: **Enero 2025** (cleaner para un portfolio project).
+| KPI Needed | DAX Measure | Table | Status |
+|------------|-------------|-------|--------|
+| Avg Utilization % | `[Avg Utilization %]` | _Outreach & Activity | ✅ |
+| Agents Below Util Target | `[Agents Below Util Target]` | _Outreach & Activity | ✅ |
+| Total Op Hours | `[Total Op Hours]` | _Outreach & Activity | ✅ |
+| Total THT Hours | `[Total THT Hours]` | _Outreach & Activity | ✅ |
+| THT Alignment % | `[THT Alignment %]` | _Outreach & Activity | ✅ |
+| Avg AHT RPC (sec) | `[Avg AHT RPC (sec)]` | _Outreach & Activity | ✅ |
+| Calls Offered vs Answered | Missing (needs answered field) | — | ❌ Schema gap |
+| Occupancy Rate | Missing (needs talk + hold + wrap) | — | ❌ Schema gap |
+| Agent Login/Logout | Missing (needs session tracking) | — | ❌ Schema gap |
+
+**Gaps:** These 3 measures require schema changes (answered calls, occupancy breakdown, session logs). **This dashboard is the most limited** — recommend building as a simplified version with available metrics.
+
+---
+
+### Dashboard 6: Credit Risk — 80% ✅
+
+**Audience:** Credit Risk Managers
+**Purpose:** Delinquency by segment, credit utilization, risk scoring
+
+| KPI Needed | DAX Measure | Table | Status |
+|------------|-------------|-------|--------|
+| Mora Rate | `[Mora Rate]` | _Portfolio Health | ✅ |
+| DPD Distribution | `[Accounts DPD *]` | _Portfolio Health | ✅ |
+| Roll Rates | `[Roll Rate *]` | _Portfolio Health | ✅ |
+| Arrears to Balance | `[Arrears to Balance]` | _Portfolio Health | ✅ |
+| Avg Credit Limit | `[Avg Credit Limit]` | _Credit Risk | ✅ |
+| Credit Utilization % | `[Credit Utilization %]` | _Credit Risk | ✅ |
+| Income Segment | `[Income Segment]` | _Credit Risk | ✅ |
+| Write-off Analysis | `[Write-off Amount]` | _Financial Recovery | ✅ |
+
+**Coverage:** All KPIs covered.
+
+---
+
+### Dashboard 7: Financial Recovery — 95% ✅
+
+**Audience:** Recovery Managers, Finance
+**Purpose:** Recovery vs cost, write-offs, cost-to-collect
+
+| KPI Needed | DAX Measure | Table | Status |
+|------------|-------------|-------|--------|
+| Total Recovery | `[Total Recovery]` | _Recovery & Collection | ✅ |
+| Cured Amount | `[Cured Amount]` | _Recovery & Collection | ✅ |
+| Total Cures | `[Total Cures]` | _Recovery & Collection | ✅ |
+| Cost per Cure | `[Cost per Cure]` | _Financial Recovery | ✅ |
+| Collection Efficiency Ratio | `[Collection Efficiency Ratio]` | _Financial Recovery | ✅ |
+| Agent-Assisted Cure Rate | `[Agent-Assisted Cure Rate]` | _Financial Recovery | ✅ |
+| Recovery per RPC | `[Recovery per RPC]` | _Financial Recovery | ✅ |
+| Net Recovery | `[Net Recovery]` | _Financial Recovery | ✅ |
+| Cost to Collect | `[Cost to Collect]` | _Financial Recovery | ✅ |
+| Write-off Amount | `[Write-off Amount]` | _Financial Recovery | ✅ |
+| Cost per Account | `[Cost per Account]` | _Financial Recovery | ✅ |
+| Cost per Dollar Collected | `[Cost per Dollar Collected]` | _Financial Recovery | ✅ |
+
+**Coverage:** All KPIs covered.
+
+---
+
+### Dashboard 8: Vintage Analysis — 85% ✅
+
+**Audience:** Portfolio Analysts
+**Purpose:** Account aging, balance by vintage, cure by vintage
+
+| KPI Needed | DAX Measure | Table | Status |
+|------------|-------------|-------|--------|
+| Vintage Age Months | `[Vintage Age Months]` | _Vintage Analysis | ✅ |
+| Average Vintage Balance | `[Average Vintage Balance]` | _Vintage Analysis | ✅ |
+| Cure Rate by Vintage | `[Cure Rate by Vintage]` | _Vintage Analysis | ✅ |
+| DPD Distribution by Vintage | Available via DPD counts + open_date | — | ✅ |
+| Roll Rates by Vintage | Available via Roll Rates + open_date | — | ✅ |
+| Vintage Balance Distribution | Visual only (histogram) | — | ⚠️ Visual |
+
+**Gap:** Vintage Balance Distribution is a visual layout (histogram of balance by vintage month), not a DAX measure. All KPIs covered.
+
+---
+
+### Dashboard 9: Roll Rate Analysis — 90% ✅
+
+**Audience:** Portfolio Analysts, Risk Managers
+**Purpose:** DPD migration matrix, skip/deteriorate paths, stuck accounts
+
+| KPI Needed | DAX Measure | Table | Status |
+|------------|-------------|-------|--------|
+| Roll Rate Current→Delinquent | `[Roll Rate Current to Delinquent]` | _Portfolio Health | ✅ |
+| Roll Rate 30→60 | `[Roll Rate 30 to 60]` | _Portfolio Health | ✅ |
+| Roll Rate 60→90 | `[Roll Rate 60 to 90]` | _Portfolio Health | ✅ |
+| Net Roll Rate | `[Net Roll Rate]` | _Roll Rate Analysis | ✅ |
+| Roll Rate Trend | `[Roll Rate Trend]` | _Roll Rate Analysis | ✅ |
+| Skip Paths (30→90+) | `[Skip Path Accounts]` | _Roll Rate Analysis | ✅ |
+| Deterioration Rate | `[Deterioration Rate]` | _Roll Rate Analysis | ✅ |
+| Stuck 90+ | `[Stuck 90+ Accounts]` | _Roll Rate Analysis | ✅ |
+
+**Coverage:** All KPIs covered.
+
+---
+
+## SUMMARY: REMAINING GAPS
+
+| Category | Measures | Difficulty | Priority |
+|----------|----------|------------|----------|
+| Campaign Breakdown (Dashboard 3) | 0 | **Schema gap** (needs campaign_id) | Low |
+| Calls Offered/Answered (Dashboard 5) | 0 | **Schema gap** (needs answered field) | Low |
+| Occupancy Rate (Dashboard 5) | 0 | **Schema gap** (needs talk/hold/wrap) | Low |
+| Agent Login/Logout (Dashboard 5) | 0 | **Schema gap** (needs session tracking) | Low |
+
+**Schema gaps (4):** Campaign breakdown, calls offered/answered, occupancy rate, agent login/logout — these require generator + schema changes that are NOT in the current Phase 8.5 scope. Recommend building simplified versions with available metrics.
+
+**All DAX measures are complete.** No additional measures needed — the 12 measures identified as "missing" in prior sprints have all been added to the CSV.
+
+---
+
+## RECOMMENDED BUILD ORDER (by DAX coverage)
+
+1. **Build Dashboard 1: Executive Collections** (95% coverage)
+2. **Build Dashboard 4: Portfolio Management** (95%)
+3. **Build Dashboard 2: Agent Performance** (95%)
+4. **Build Dashboard 7: Financial Recovery** (95%)
+5. **Build Dashboard 9: Roll Rate Analysis** (90%)
+6. **Build Dashboard 8: Vintage Analysis** (85%)
+7. **Build Dashboard 6: Credit Risk** (80%)
+8. **Build Dashboard 3: Dialer Performance** (80%)
+9. **Build Dashboard 5: Operations Command Center** (55%, most limited)

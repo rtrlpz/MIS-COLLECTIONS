@@ -1,8 +1,8 @@
 # Project Roadmap — Collections Analytics Portfolio
 
-> **Current Completeness: ~85%** | Last updated: 2026-07-21
+> **Current Completeness: ~90%** | Last updated: 2026-07-21
 >
-> Phases 1–7: **100% Complete** | Phase 8: **~65%** | Phase 8.5: **Planning Done, Implementation Pending** | Phase 9: **Build Pending (9 dashboards)**
+> Phases 1–7: **100% Complete** | Phase 8: **~65%** | Phase 8.5: **100% Complete** | Phase 9: **Blueprint Ready (9 dashboards)**
 
 ---
 
@@ -17,9 +17,9 @@
 | **5** | Generator Enhancements | ✅ 100% | Progressive severity, monitoring pool, utilization cap |
 | **6** | Testing | ✅ 100% | 4 invariant tests added (cure-flag, PTP, grace, re-entry) |
 | **7** | Automation | ✅ 100% | None |
-| **8** | Documentation | 🟡 ~65% | DAX v2.1 docs + PLAN_DASHBOARDS.md added; QUICKSTART, TROUBLESHOOTING, CHANGELOG pending |
-| **8.5** | Generator + Schema Enhancements | 🟡 Planning Done | G1-G9 generator changes, schema changes, 12-month data generation |
-| **9** | BI / Reporting (9 dashboards) | 🔵 Build Pending | ~320 DAX measures target, 9 dashboard pages, Excel MIS |
+| **8** | Documentation | 🟡 ~65% | DAX v2.2 docs + PLAN_DASHBOARDS.md added; QUICKSTART, TROUBLESHOOTING, CHANGELOG pending |
+| **8.5** | Generator + Schema Enhancements | ✅ 100% | G1-G9 complete, 12-month data loaded, 256 DAX measures |
+| **9** | BI / Reporting (9 dashboards) | 🔵 Ready to Build | 256 DAX measures ready, dashboard build pending |
 
 ---
 
@@ -211,67 +211,88 @@
 
 ---
 
-## PHASE 8.5 — Generator + Schema Enhancements 🟡 IN PROGRESS
+## PHASE 8.5 — Generator + Schema Enhancements ✅ COMPLETE
 
 ### Generator Enhancements (G1-G9)
-- [ ] G1 — `open_date` spread: Dim_Accounts open_date uses `CFG["open_date_spread_months"]` (12-24 months)
-- [ ] G2 — `cost_per_hour`: Dim_Agents gets cost_per_hour column
-- [ ] G3 — `credit_limit`: Dim_Accounts gets credit_limit from PRODUCT_CFG
-- [ ] G4 — `income_bracket`: Dim_Clients gets income_bracket (Low/Mid/High)
-- [ ] G5 — `channel`: Fact_Interactions gets channel (Dialer/FICO/SMS)
-- [ ] G6 — `write-offs`: New Fact_Writeoffs table, triggered by DPD > threshold
-- [ ] G7 — `13 months`: Dim_Calendar expands to 13 months (Jan-Dec 2025)
-- [ ] G8 — `hire_date`: Dim_Supervisors gets hire_date
-- [ ] G9 — `hire_date`: Dim_Agents gets hire_date
+- [x] G1 — `open_date` spread: Dim_Accounts open_date uses `CFG["open_date_spread_months"]` (12-24 months)
+- [x] G2 — `cost_per_hour`: Dim_Agents gets cost_per_hour column (senior $38, mid $32, junior $26)
+- [x] G3 — `credit_limit`: Dim_Accounts gets credit_limit from PRODUCT_CFG (lognormal distribution)
+- [x] G4 — `income_bracket`: Dim_Clients gets income_bracket (5 segments with weighted distribution)
+- [x] G5 — `channel`: Fact_Interactions gets channel (65% Dialer, 15% Manual, 10% FICO, 10% SMS)
+- [x] G6 — `write-offs`: New Fact_Writeoffs table (5% rate at 91+ DPD)
+- [x] G7 — `12 months`: Dim_Calendar expanded to 365 rows (Jan-Dec 2025)
+- [x] G8 — `hire_date`: Dim_Supervisors gets hire_date (5-year span)
+- [x] G9 — `hire_date`: Dim_Agents gets hire_date + experience_tier (senior/mid/junior)
 
 ### Schema Changes
-- [ ] +8 new columns across existing tables
-- [ ] +1 new table: fact_writeoffs
-- [ ] +3 new views: v_dpd_migration_matrix, v_weekly_agent_summary, v_rls_supervisor_map
-- [ ] +3 modified views: v_monthly_summary, v_agent_scorecards, v_handle_time_metrics
-- [ ] +4-8 new CHECK constraints
-- [ ] +6 new indexes
-- [ ] Expand dim_calendar seed to 13 months
+- [x] +9 new columns across existing tables
+- [x] +1 new table: fact_writeoffs
+- [x] +3 new views: v_dpd_migration_matrix, v_weekly_agent_summary, v_rls_supervisor_map
+- [x] +8 new CHECK constraints
+- [x] +6 new indexes
+- [x] Dim_calendar seed expanded to full year
 
 ### Config Updates
-- [ ] +8 new parameters in config.py
-- [ ] Modify PRODUCT_CFG for credit_limit ranges
-- [ ] Add income_bracket distribution
+- [x] +9 new config dictionaries (VINTAGE_CFG, AGENT_HIRE_CFG, CREDIT_LIMIT_CFG, etc.)
+- [x] Modified PRODUCT_CFG for credit_limit ranges
+- [x] Income bracket distribution added
+
+### Data Generation & Loading
+- [x] 12 months generated (Jan-Dec 2025)
+- [x] 1.8M rows loaded into PostgreSQL
+- [x] All tests passing (6 fast + 4 invariant)
+
+### DAX Updates
+- [x] 256 measures across 13 tables (was 242)
+- [x] +84 time intelligence measures (WoW/DoD/YoY/OTC)
+- [x] +22 dashboard-specific measures (Executive, Agent, Dialer, Portfolio, Financial, Vintage, Roll Rate)
+- [x] +14 additional measures (Coaching Alert, AHT by Channel, Credit Limit, Utilization, Income Segment, Net Recovery, Cost to Collect, etc.)
+- [x] dax_measures_all.md generated (complete DAX reference with code blocks)
+- [x] dax_measures_dictionary_v2.md updated to v2.2
 
 ---
 
-## PHASE 9 — BI / Reporting 🔵 Build Pending (9 Dashboards)
+## PHASE 9 — BI / Reporting 🔵 Blueprint Ready (9 Dashboards)
 
 ### Build Plan Complete
 - [x] `dashboards/assets/docs/mis_collections_build_plan.md` — 5-phase build plan
 - [x] Architecture defined: single .pbix, 9 pages, 3 Excel sheets
-- [x] **DAX v2.1 complete**: **207 measures** — `dashboards/assets/dax/collections_dax_v2.csv` (source of truth)
-- [x] `dashboards/assets/dax/dax_targets_and_comparisons.md` — 120 new measures (goals, RAG, MoM/WoW/DoD/YoY/OTC)
-- [x] `dashboards/assets/docs/dax_measures_dictionary_v2.md` — v2.1 documentation with formulas, formats, dependencies
+- [x] **DAX v2.2 complete**: **256 measures** — `dashboards/assets/dax/collections_dax_v2.csv` (source of truth)
+- [x] `dashboards/assets/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
+- [x] `dashboards/assets/docs/dax_measures_dictionary_v2.md` — v2.2 documentation (13 tables, formats, deps)
+- [x] `dashboards/assets/docs/dax_measures_all.md` — Complete DAX reference (all 256 as code blocks)
 - [x] 2 calculated tables: `Dim_Targets` (7 goal definitions), `Color Reference` (RAG hex codes)
 - [x] Legacy v1 files preserved as backups (`collections_dax.csv`, `legacy/dax_measures_dictionary.md`)
-- [x] 9 dashboard page designs with visual-by-visual layout specs
-- [x] Excel report design (3-sheet workbook, Python openpyxl)
-- [x] `PLAN_DASHBOARDS.md` — Full implementation plan with 320 DAX measures target
+- [x] `PLAN_DASHBOARDS.md` — Full implementation plan with DAX coverage analysis per dashboard (256 measures)
+- [x] **`dashboards/assets/docs/dashboard_blueprint.md`** — Page-by-page wireframes (1920x1080 canvas), visual specs, field wells, formatting
+- [x] **`dashboards/assets/docs/dashboard_blueprint.pdf`** — Printable PDF export of blueprint
+- [x] **`dashboards/assets/docs/PLAN_DASHBOARDS.pdf`** — Printable PDF export of implementation plan, DAX references
 
 ### Dashboard Pages (9 consolidated from original 10)
-- [ ] Page 1 — Executive Collections (merged with Scorecard: operational + risk + cost per account)
-- [ ] Page 2 — Agent Performance (RPC%, KP%, Cure, Util, AHT, Composite Score, WoW trends)
-- [ ] Page 3 — Dialer Performance (Call volume, answer rate, RPC dialer-only, AHT by channel)
-- [ ] Page 4 — Portfolio Management (Arrears waterfall, delinquency bands, DPD migration Sankey)
-- [ ] Page 5 — Operations Command Center (limited: Calls Offered/Answered, AHT, Occupancy)
-- [ ] Page 6 — Credit Risk (limited: Delinquency by segment, Roll rates, Cure rates, Credit utilization)
-- [ ] Page 7 — Financial Recovery (Recovery vs cost, Write-offs, Cost-to-collect, Net recovery)
-- [ ] Page 8 — Vintage Analysis (DPD by account age, Vintage curves, Cure by vintage month)
-- [ ] Page 9 — Roll Rate Analysis (Sankey prev→curr, Skip/deteriorate rates, Stuck 90+)
+- [ ] Page 1 — Executive Collections (merged with Scorecard: operational + risk + cost per account) — **95% DAX ready**
+- [ ] Page 2 — Agent Performance (RPC%, KP%, Cure, Util, AHT, Composite Score, WoW trends) — **95% DAX ready**
+- [ ] Page 3 — Dialer Performance (Call volume, answer rate, RPC dialer-only, AHT by channel) — **80% DAX, limited by schema**
+- [ ] Page 4 — Portfolio Management (Arrears waterfall, delinquency bands, DPD migration Sankey) — **95% DAX ready**
+- [ ] Page 5 — Operations Command Center (limited: Calls Offered/Answered, AHT, Occupancy) — **55% DAX, most limited**
+- [ ] Page 6 — Credit Risk (Delinquency by segment, Roll rates, Credit utilization) — **80% DAX ready**
+- [ ] Page 7 — Financial Recovery (Recovery vs cost, Write-offs, Cost-to-collect, Net recovery) — **95% DAX ready**
+- [ ] Page 8 — Vintage Analysis (DPD by account age, Vintage curves, Cure by vintage month) — **85% DAX ready**
+- [ ] Page 9 — Roll Rate Analysis (Migration matrix, Skip/deteriorate rates, Stuck 90+) — **90% DAX ready**
 
 **Excluded dashboards (6):** Executive Scorecard (merged), WFM, QA, Compliance, Customer Experience, Recovery Forecast
 
+### DAX Coverage Summary
+| Category | Count | Status |
+|----------|-------|--------|
+| In CSV (256) | 256 | ✅ Complete |
+| Requires schema changes | 4 | ❌ Deferred (campaign, occupancy, login/logout) |
+| Visual-only gaps | 3 | ⚠️ Layout, not DAX (Risk Heat Map, Arrears Waterfall, Vintage Distribution) |
+
 ### Build — Pending
-- [ ] Import data model into Power BI (star schema, 11+ tables)
-- [ ] Import ~320 DAX measures from `collections_dax_v2.csv` (207 existing + 91 from markdown + 22 new)
+- [ ] Import data model into Power BI (star schema, 12 tables)
+- [ ] Import 256 DAX measures from `dax_measures_all.md` (copy-paste code blocks)
 - [ ] Create 2 calculated tables: Dim_Targets, Color Reference
-- [ ] Build all 9 dashboard pages
+- [ ] Build all 9 dashboard pages (follow `dashboard_blueprint.md`)
 - [ ] Add RLS by supervisor_id
 - [ ] Publish to Power BI Service
 - [ ] `reports/generate_daily_mis.py` — Python script for Excel generation
@@ -281,4 +302,4 @@
 
 ---
 
-*Last updated: 2026-07-21*
+*Last updated: 2026-07-22*

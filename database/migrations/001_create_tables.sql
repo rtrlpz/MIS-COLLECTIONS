@@ -10,36 +10,33 @@ DROP TABLE IF EXISTS fact_interactions CASCADE;
 DROP TABLE IF EXISTS dim_accounts CASCADE;
 DROP TABLE IF EXISTS dim_products CASCADE;
 DROP TABLE IF EXISTS dim_clients CASCADE;
-DROP TABLE IF EXISTS dim_agents CASCADE;
-DROP TABLE IF EXISTS dim_supervisors CASCADE;
+DROP TABLE IF EXISTS dim_employees CASCADE;
 DROP TABLE IF EXISTS dim_calendar CASCADE;
 
 -- =========================================================================
 -- 2. DIMENSION TABLES (Shared)
 -- =========================================================================
 
-CREATE TABLE dim_supervisors (
-    supervisor_id VARCHAR(15) PRIMARY KEY,
-    supervisor_name VARCHAR(100) NOT NULL,
-    team_name VARCHAR(50),
-    region VARCHAR(50),
-    hire_date DATE
-);
-
-CREATE TABLE dim_agents (
+-- Merged supervisor + employee table (self-referencing hierarchy)
+-- Supervisors: agent_id = SUP-01..SUP-08, employee_type = 'Supervisor'
+-- Agents:      agent_id = EID-001..EID-080, employee_type = 'Agent'
+-- agents.supervisor_id → supervisors.agent_id (self-ref FK)
+CREATE TABLE dim_employees (
     agent_id VARCHAR(15) PRIMARY KEY,
     agent_name VARCHAR(100) NOT NULL,
+    employee_type VARCHAR(20) NOT NULL,
     supervisor_id VARCHAR(15),
-    supervisor_name VARCHAR(100),
     team_name VARCHAR(50),
     region VARCHAR(50),
-    tenure_cohort VARCHAR(10),
-    experience_tier VARCHAR(10),
     hire_date DATE,
+    experience_tier VARCHAR(10),
     cost_per_hour DECIMAL(6,2),
+    tenure_cohort VARCHAR(10),
     contact_skill DECIMAL(5,3),
     negotiation_skill DECIMAL(5,3),
-    efficiency_skill DECIMAL(5,3)
+    efficiency_skill DECIMAL(5,3),
+    CONSTRAINT fk_employees_self_ref FOREIGN KEY (supervisor_id) REFERENCES dim_employees(agent_id),
+    CONSTRAINT chk_employee_type CHECK (employee_type IN ('Agent', 'Supervisor'))
 );
 
 CREATE TABLE dim_clients (
@@ -79,6 +76,7 @@ CREATE TABLE dim_accounts (
     account_id VARCHAR(15) PRIMARY KEY,
     client_id VARCHAR(15) NOT NULL,
     product_id VARCHAR(15) NOT NULL,
+    product_type VARCHAR(50) NOT NULL,
     open_date DATE NOT NULL,
     credit_limit DECIMAL(12, 2),
     due_day INT,
@@ -108,7 +106,7 @@ CREATE TABLE fact_interactions (
     acw_seconds INT,
     rpc_arrears DECIMAL(12,2),
     dpd_at_contact INT,
-    CONSTRAINT fk_int_agents FOREIGN KEY (agent_id) REFERENCES dim_agents(agent_id),
+    CONSTRAINT fk_int_agents FOREIGN KEY (agent_id) REFERENCES dim_employees(agent_id),
     CONSTRAINT fk_int_accounts FOREIGN KEY (account_id) REFERENCES dim_accounts(account_id),
     CONSTRAINT fk_int_date FOREIGN KEY (interaction_date) REFERENCES dim_calendar(date)
 );
@@ -124,7 +122,7 @@ CREATE TABLE fact_ptp_log (
     grace_until_date DATE,
     status VARCHAR(20),
     rpc_arrears_at_contact DECIMAL(12,2),
-    CONSTRAINT fk_ptp_agents FOREIGN KEY (agent_id) REFERENCES dim_agents(agent_id),
+    CONSTRAINT fk_ptp_agents FOREIGN KEY (agent_id) REFERENCES dim_employees(agent_id),
     CONSTRAINT fk_ptp_accounts FOREIGN KEY (account_id) REFERENCES dim_accounts(account_id),
     CONSTRAINT fk_ptp_date FOREIGN KEY (ptp_date) REFERENCES dim_calendar(date)
 );
@@ -134,7 +132,7 @@ CREATE TABLE fact_payments (
     payment_date DATE NOT NULL,
     payment_time TIME NOT NULL,
     account_id VARCHAR(15) NOT NULL,
-    ptp_id VARCHAR(15), -- Nullable due to self-cures
+    ptp_id VARCHAR(15), -- Nullable due to self-cures (no FK to fact_ptp_log — avoids fact-to-fact chain)
     agent_id VARCHAR(15), -- Nullable due to self-cures
     amount_paid DECIMAL(12, 2) NOT NULL,
     payment_method VARCHAR(50),
@@ -150,8 +148,7 @@ CREATE TABLE fact_payments (
     dpd_after_payment INT,
     CONSTRAINT fk_pay_accounts FOREIGN KEY (account_id) REFERENCES dim_accounts(account_id),
     CONSTRAINT fk_pay_date FOREIGN KEY (payment_date) REFERENCES dim_calendar(date),
-    CONSTRAINT fk_pay_ptp FOREIGN KEY (ptp_id) REFERENCES fact_ptp_log(ptp_id),
-    CONSTRAINT fk_pay_agents FOREIGN KEY (agent_id) REFERENCES dim_agents(agent_id)
+    CONSTRAINT fk_pay_agents FOREIGN KEY (agent_id) REFERENCES dim_employees(agent_id)
 );
 
 CREATE TABLE fact_agent_time_log (
@@ -167,7 +164,7 @@ CREATE TABLE fact_agent_time_log (
     schedule_hours DECIMAL(5,2),
     cost_per_hour DECIMAL(6,2),
     total_cost DECIMAL(12,2),
-    CONSTRAINT fk_time_agents FOREIGN KEY (agent_id) REFERENCES dim_agents(agent_id),
+    CONSTRAINT fk_time_agents FOREIGN KEY (agent_id) REFERENCES dim_employees(agent_id),
     CONSTRAINT fk_time_date FOREIGN KEY (log_date) REFERENCES dim_calendar(date)
 );
 
@@ -201,4 +198,16 @@ CREATE TABLE fact_writeoffs (
     dpd_at_writeoff INT,
     CONSTRAINT fk_wo_accounts FOREIGN KEY (account_id) REFERENCES dim_accounts(account_id),
     CONSTRAINT fk_wo_date FOREIGN KEY (writeoff_date) REFERENCES dim_calendar(date)
+);
+
+-- =========================================================================
+-- 5. ETL METADATA TABLE
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS etl_load_log (
+    id SERIAL PRIMARY KEY,
+    table_name VARCHAR(100) NOT NULL,
+    loaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) NOT NULL,
+    csv_checksum VARCHAR(64)
 );

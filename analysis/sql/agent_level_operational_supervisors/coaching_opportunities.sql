@@ -10,8 +10,8 @@
 WITH weekly_metrics AS (
     SELECT 
         cm.agent_id,
-        da.agent_name,
-        ds.team_name,
+        e.agent_name,
+        e.team_name,
         dc.iso_week,
         dc.month_num,
         dc.month_name,
@@ -30,12 +30,10 @@ WITH weekly_metrics AS (
         AND cm.date = pr.date
     JOIN dim_calendar dc 
         ON cm.date = dc.date
-    JOIN dim_agents da 
-        ON cm.agent_id = da.agent_id
-    JOIN dim_supervisors ds 
-        ON da.supervisor_id = ds.supervisor_id
+    JOIN dim_employees e 
+        ON cm.agent_id = e.agent_id
     WHERE cm.granularity = 'agent'
-    GROUP BY cm.agent_id, da.agent_name, ds.team_name, dc.iso_week, dc.month_num, dc.month_name
+    GROUP BY cm.agent_id, e.agent_name, e.team_name, dc.iso_week, dc.month_num, dc.month_name
 ),
 with_lag AS (
     SELECT 

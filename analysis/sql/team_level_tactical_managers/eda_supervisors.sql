@@ -8,14 +8,14 @@
 
 -- ========================================================================
 -- NOTE: Tenure analysis is NOT POSSIBLE
--- The dim_supervisors table does NOT have hire_date or tenure columns
--- If tenure analysis is needed, add hire_date column to dim_supervisors
+-- The dim_employees table may not have hire_date or tenure columns
+-- If tenure analysis is needed, add hire_date column to dim_employees
 -- ========================================================================
 
 -- ========================================================================
 -- NOTE: Turnover analysis is NOT POSSIBLE
 -- There is no turnover/termination data in the schema
--- Agent IDs are static (no hire/termination dates in dim_agents)
+-- Agent IDs are static (no hire/termination dates in dim_employees)
 -- ========================================================================
 
 -- ========================================================================
@@ -26,7 +26,7 @@ WITH team_metrics AS (
     SELECT 
         ms.supervisor_id,
         ms.team_name,
-        ds.region,
+        e.region,
         ROUND(AVG(ms.avg_rpc_pct)::numeric, 2) AS team_avg_rpc_pct,
         ROUND(AVG(ms.avg_ptp_pct)::numeric, 2) AS team_avg_ptp_pct,
         ROUND(AVG(ms.avg_kept_pct)::numeric, 2) AS team_avg_kept_pct,
@@ -35,9 +35,9 @@ WITH team_metrics AS (
         SUM(ms.total_calls) AS team_total_calls,
         COUNT(DISTINCT ms.agent_id) AS team_size
     FROM v_monthly_summary ms
-    JOIN dim_supervisors ds ON ms.supervisor_id = ds.supervisor_id
+    JOIN dim_employees e ON ms.supervisor_id = e.supervisor_id
     WHERE ms.granularity = 'team'
-    GROUP BY ms.supervisor_id, ms.team_name, ds.region, ms.month_num
+    GROUP BY ms.supervisor_id, ms.team_name, e.region, ms.month_num
 )
 
 SELECT 
@@ -65,15 +65,15 @@ WITH team_size_perf AS (
     SELECT 
         ms.supervisor_id,
         ms.team_name,
-        ds.region,
+        e.region,
         COUNT(DISTINCT ms.agent_id) AS team_size,
         ROUND(AVG(ms.avg_rpc_pct)::numeric, 2) AS avg_rpc_pct,
         ROUND(AVG(ms.avg_cure_rate)::numeric, 2) AS avg_cure_rate,
         ROUND(AVG(ms.avg_utilization_pct)::numeric, 2) AS avg_utilization
     FROM v_monthly_summary ms
-    JOIN dim_supervisors ds ON ms.supervisor_id = ds.supervisor_id
+    JOIN dim_employees e ON ms.supervisor_id = e.supervisor_id
     WHERE ms.granularity = 'team'
-    GROUP BY ms.supervisor_id, ms.team_name, ds.region, ms.month_num
+    GROUP BY ms.supervisor_id, ms.team_name, e.region, ms.month_num
 )
 
 SELECT 
@@ -98,7 +98,7 @@ ORDER BY team_size DESC;
 
 WITH regional_metrics AS (
     SELECT 
-        ds.region,
+        e.region,
         COUNT(DISTINCT ms.supervisor_id) AS num_teams,
         COUNT(DISTINCT ms.agent_id) AS total_agents,
         ROUND(AVG(ms.avg_rpc_pct)::numeric, 2) AS region_avg_rpc_pct,
@@ -108,9 +108,9 @@ WITH regional_metrics AS (
         ROUND(AVG(ms.avg_utilization_pct)::numeric, 2) AS region_avg_utilization,
         SUM(ms.total_calls) AS region_total_calls
     FROM v_monthly_summary ms
-    JOIN dim_supervisors ds ON ms.supervisor_id = ds.supervisor_id
+    JOIN dim_employees e ON ms.supervisor_id = e.supervisor_id
     WHERE ms.granularity = 'team'
-    GROUP BY ds.region, ms.month_num
+    GROUP BY e.region, ms.month_num
 )
 
 SELECT 

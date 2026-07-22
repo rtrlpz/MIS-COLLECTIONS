@@ -31,14 +31,13 @@ DB_CONFIG = {
 
 # Table metadata from DDL
 TABLES = [
-    'dim_supervisors', 'dim_agents', 'dim_clients', 'dim_products',
+    'dim_employees', 'dim_clients', 'dim_products',
     'dim_calendar', 'dim_accounts', 'fact_interactions', 'fact_ptp_log',
     'fact_payments', 'fact_agent_time_log', 'fact_eom_snapshot', 'fact_writeoffs'
 ]
 
 PK_MAPPING = {
-    'dim_supervisors': ['supervisor_id'],
-    'dim_agents': ['agent_id'],
+    'dim_employees': ['agent_id'],
     'dim_clients': ['client_id'],
     'dim_products': ['product_id'],
     'dim_calendar': ['date'],
@@ -54,16 +53,16 @@ PK_MAPPING = {
 FK_RELATIONSHIPS = [
     ('dim_accounts', 'client_id', 'dim_clients', 'client_id'),
     ('dim_accounts', 'product_id', 'dim_products', 'product_id'),
-    ('fact_interactions', 'agent_id', 'dim_agents', 'agent_id'),
+    ('fact_interactions', 'agent_id', 'dim_employees', 'agent_id'),
     ('fact_interactions', 'account_id', 'dim_accounts', 'account_id'),
     ('fact_interactions', 'interaction_date', 'dim_calendar', 'date'),
-    ('fact_ptp_log', 'agent_id', 'dim_agents', 'agent_id'),
+    ('fact_ptp_log', 'agent_id', 'dim_employees', 'agent_id'),
     ('fact_ptp_log', 'account_id', 'dim_accounts', 'account_id'),
     ('fact_ptp_log', 'ptp_date', 'dim_calendar', 'date'),
     ('fact_payments', 'account_id', 'dim_accounts', 'account_id'),
     ('fact_payments', 'payment_date', 'dim_calendar', 'date'),
-    ('fact_payments', 'agent_id', 'dim_agents', 'agent_id'),  # nullable but check non-null
-    ('fact_agent_time_log', 'agent_id', 'dim_agents', 'agent_id'),
+    ('fact_payments', 'agent_id', 'dim_employees', 'agent_id'),  # nullable but check non-null
+    ('fact_agent_time_log', 'agent_id', 'dim_employees', 'agent_id'),
     ('fact_agent_time_log', 'log_date', 'dim_calendar', 'date'),
     ('fact_eom_snapshot', 'account_id', 'dim_accounts', 'account_id'),
     ('fact_eom_snapshot', 'snapshot_date', 'dim_calendar', 'date'),
@@ -144,8 +143,7 @@ def root_path():
 
 # Expected row counts for generator output (seed 42, 12 months, Phase 6)
 GENERATOR_ROW_COUNTS = {
-    'dim_supervisors': 8,
-    'dim_agents': 80,
+    'dim_employees': 88,
     'dim_clients': 10000,
     'dim_products': 3,
     'dim_accounts': 15482,

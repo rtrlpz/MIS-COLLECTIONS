@@ -11,9 +11,9 @@ WITH sla_constants AS (
 agent_product_aht AS (
     SELECT 
         fi.agent_id,
-        da.agent_name,
-        ds.team_name,
-        ds.region,
+        e.agent_name,
+        e.team_name,
+        e.region,
         dp.product_name,
         dp.product_type,
         COUNT(*) AS total_calls,
@@ -32,11 +32,10 @@ agent_product_aht AS (
             NULLIF(SUM(CASE WHEN NOT fi.rpc_flag THEN 1 ELSE 0 END), 0) * 100, 2
         ) AS pct_nonrpc_within_sla
     FROM fact_interactions fi
-    JOIN dim_agents da ON fi.agent_id = da.agent_id
-    JOIN dim_supervisors ds ON da.supervisor_id = ds.supervisor_id
+    JOIN dim_employees e ON fi.agent_id = e.agent_id
     JOIN dim_accounts acc ON fi.account_id = acc.account_id
     JOIN dim_products dp ON acc.product_id = dp.product_id
-    GROUP BY fi.agent_id, da.agent_name, ds.team_name, ds.region, dp.product_name, dp.product_type
+    GROUP BY fi.agent_id, e.agent_name, e.team_name, e.region, dp.product_name, dp.product_type
 ),
 agent_summary AS (
     SELECT 
