@@ -8,7 +8,19 @@ Strict Star Schema engine for Power BI:
   - Event-driven PTP state machine with grace period resolution
   - Agent-Cure vs Self-Cure distinction on every payment
   - Fact_EOM_Snapshot: month-end balance/arrears/DPD-bucket per account
+  - Fact_Writeoffs: write-off events at 91+ DPD
   - Payments allowed on any date (payment_date = date made, not processed); interactions during 08:00–21:00 weekdays only
+
+Phase 6 Enhancements (G1-G9):
+  - G1: Vintage open_date spread (23 months, weighted distribution)
+  - G2: Agent hire dates + experience tiers (senior/mid/junior)
+  - G3: Credit limit lognormal distribution per product
+  - G4: Client income brackets (5 segments)
+  - G5: Interaction channel mix (Dialer/FICO/SMS/Manual)
+  - G6: Fact_Writeoffs table (5% write-off rate at 91+ DPD)
+  - G7: 12-month data expansion (Jan-Dec 2025, seasonal patterns)
+  - G8: Supervisor hire dates (5-year span)
+  - G9: Agent cost model (hourly rates by tier + overhead)
 """
 
 import os
@@ -58,14 +70,24 @@ logger.addHandler(file_handler)
 # ═══════════════════════════════════════════════════════════════════════════
 
 try:
-    from .config import CFG, PRODUCT_CFG, CONTACT_NON_RPC, NON_CONTACT, PAY_METHODS, PAY_WEIGHTS
+    from .config import (
+        CFG, PRODUCT_CFG, CONTACT_NON_RPC, NON_CONTACT, PAY_METHODS, PAY_WEIGHTS,
+        VINTAGE_CFG, AGENT_HIRE_CFG, CREDIT_LIMIT_CFG, INCOME_BRACKET_CFG,
+        CHANNEL_CFG, WRITEOFF_CFG, DATA_EXPANSION_CFG, SUPERVISOR_HIRE_CFG,
+        AGENT_COST_CFG,
+    )
 except ImportError:
-    from config import CFG, PRODUCT_CFG, CONTACT_NON_RPC, NON_CONTACT, PAY_METHODS, PAY_WEIGHTS
+    from config import (
+        CFG, PRODUCT_CFG, CONTACT_NON_RPC, NON_CONTACT, PAY_METHODS, PAY_WEIGHTS,
+        VINTAGE_CFG, AGENT_HIRE_CFG, CREDIT_LIMIT_CFG, INCOME_BRACKET_CFG,
+        CHANNEL_CFG, WRITEOFF_CFG, DATA_EXPANSION_CFG, SUPERVISOR_HIRE_CFG,
+        AGENT_COST_CFG,
+    )
 
 BASE_PATH  = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_PATH / "raw"
 CFG["output_dir"] = str(OUTPUT_DIR)
-CFG["start_date"] = date(2025, 10, 1)
+CFG["start_date"] = date(DATA_EXPANSION_CFG["start_year"], DATA_EXPANSION_CFG["start_month"], 1)
 CFG["end_date"]   = date(2025, 12, 31)
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -80,8 +102,8 @@ parser.add_argument(
     help="Output directory for generated CSVs (default: data_sources/generators/raw)"
 )
 parser.add_argument(
-    "--months", type=str, default="10,11,12",
-    help="Comma-separated month numbers to generate (default: 10,11,12)"
+    "--months", type=str, default="1,2,3,4,5,6,7,8,9,10,11,12",
+    help="Comma-separated month numbers to generate (default: all 12 months)"
 )
 parser.add_argument(
     "--seed", type=int, default=42,
@@ -193,6 +215,17 @@ def calc_min_payment(p_type: str, balance: float) -> float:
     return round(balance / random.uniform(180, 360), 2)       # Hipoteca
 
 
+def lognormal_clamp(mean_log, sigma_log, lo, hi):
+    """Generate a lognormal-distributed value clamped to [lo, hi]."""
+    val = random.lognormvariate(mean_log, sigma_log)
+    return clamp(round(val, 2), lo, hi)
+
+
+def weighted_choice(weights):
+    """Return index chosen from weights list."""
+    return random.choices(range(len(weights)), weights=weights)[0]
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 1 — DIMENSION TABLES
 # ═══════════════════════════════════════════════════════════════════════════
@@ -206,11 +239,15 @@ dim_supervisors = pd.DataFrame([{
     "supervisor_name": fake.name(),
     "team_name":       f"Team {i}",
     "region":          random.choice(["North", "South", "East", "West"]),
+    "hire_date":       str(START + timedelta(
+        days=random.randint(SUPERVISOR_HIRE_CFG["hire_date_start_month"] * 30,
+                            SUPERVISOR_HIRE_CFG["hire_date_end_month"] * 30)
+    )),
 } for i in range(1, CFG["num_supervisors"] + 1)])
 
 sup_ids   = dim_supervisors["supervisor_id"].tolist()
 sup_lookup = dim_supervisors.set_index("supervisor_id")[
-    ["supervisor_name", "team_name", "region"]
+    ["supervisor_name", "team_name", "region", "hire_date"]
 ].to_dict(orient="index")
 
 # ── Dim_Agents ───────────────────────────────────────────────────────────────
@@ -219,6 +256,11 @@ agent_profile = {}   # simulation-internal; not exported directly
 
 TENURE_COHORTS = ["Low", "Mid", "High"]
 TENURE_WEIGHTS = [0.30, 0.40, 0.30]
+
+# G2: Experience tier definitions from AGENT_HIRE_CFG
+EXP_TIERS = AGENT_HIRE_CFG["experience_tiers"]
+EXP_TIER_NAMES = list(EXP_TIERS.keys())
+EXP_TIER_WEIGHTS = [EXP_TIERS[t]["pct"] for t in EXP_TIER_NAMES]
 
 
 def tenure_adjusted_range(cohort, lo, hi):
@@ -231,12 +273,21 @@ def tenure_adjusted_range(cohort, lo, hi):
         return (lo + span * 0.67, hi)
 
 
+def random_hire_date(tier_name):
+    """Generate a random hire date within the tier's experience range."""
+    tier = EXP_TIERS[tier_name]
+    months_ago = random.randint(tier["min_months"], tier["max_months"])
+    hire = START - timedelta(days=months_ago * 30)
+    return str(hire)
+
+
 for i in range(1, CFG["num_agents"] + 1):
     eid = fmt_id("EID", i, 3)
     contact_skill = clamp(random.gauss(1.0, 0.15), 0.70, 1.30)
     negotiation_skill = clamp(random.gauss(1.0, 0.15), 0.70, 1.30)
     efficiency_skill = clamp(random.gauss(1.0, 0.10), 0.80, 1.20)
     tenure_cohort = random.choices(TENURE_COHORTS, weights=TENURE_WEIGHTS)[0]
+    exp_tier = random.choices(EXP_TIER_NAMES, weights=EXP_TIER_WEIGHTS)[0]
     sid = random.choice(sup_ids)
     sup = sup_lookup[sid]
 
@@ -248,6 +299,9 @@ for i in range(1, CFG["num_agents"] + 1):
         "team_name":         sup["team_name"],
         "region":            sup["region"],
         "tenure_cohort":     tenure_cohort,
+        "experience_tier":   exp_tier,
+        "hire_date":         random_hire_date(exp_tier),
+        "cost_per_hour":     AGENT_HIRE_CFG["agent_cost_per_hour"][exp_tier],
         "contact_skill":     round(contact_skill, 3),
         "negotiation_skill": round(negotiation_skill, 3),
         "efficiency_skill":  round(efficiency_skill, 3),
@@ -272,6 +326,7 @@ for i in range(1, CFG["num_agents"] + 1):
         "aht_nrpc_adj":      random.gauss(0, CFG["aht_nrpc_adj_std"]),
         "acw_rpc_adj":       random.gauss(0, CFG["acw_rpc_adj_std"]),
         "acw_nrpc_adj":      random.gauss(0, CFG["acw_nrpc_adj_std"]),
+        "cost_per_hour":     AGENT_HIRE_CFG["agent_cost_per_hour"][exp_tier],  # G9
     }
 
 dim_agents = pd.DataFrame(agent_rows)
@@ -291,11 +346,12 @@ product_id_map = {p: fmt_id("PRD", cfg["id"], 2) for p, cfg in PRODUCT_CFG.items
 
 # ── Dim_Clients ──────────────────────────────────────────────────────────────
 dim_clients = pd.DataFrame([{
-    "client_id":  fmt_id("CLI", i, 4),
-    "full_name":  fake.name(),
-    "dob":        str(fake.date_of_birth(minimum_age=22, maximum_age=68)),
-    "segment":    random.choice(["Retail", "Premium", "Tarjeta", "Prestamo", "Hipoteca"]),
-    "risk_score": clamp(round(random.gauss(650, 80), 2), 400, 850),
+    "client_id":       fmt_id("CLI", i, 4),
+    "full_name":       fake.name(),
+    "dob":             str(fake.date_of_birth(minimum_age=22, maximum_age=68)),
+    "segment":         random.choice(["Retail", "Premium", "Tarjeta", "Prestamo", "Hipoteca"]),
+    "income_bracket":  INCOME_BRACKET_CFG["brackets"][weighted_choice(INCOME_BRACKET_CFG["weights"])],
+    "risk_score":      clamp(round(random.gauss(650, 80), 2), 400, 850),
 } for i in range(1, CFG["num_clients"] + 1)])
 
 client_ids = dim_clients["client_id"].tolist()
@@ -305,6 +361,31 @@ account_rows  = []
 account_state = {}    # mutable throughout the simulation
 acct_ctr      = 1
 
+# G1: Build open_date pool from VINTAGE_CFG
+_vintage_months = list(VINTAGE_CFG["open_date_weights"].keys())
+_vintage_weights = [VINTAGE_CFG["open_date_weights"][m] for m in _vintage_months]
+
+# G3: Credit limit configs per product
+_credit_cfg_map = {
+    "Tarjeta":   CREDIT_LIMIT_CFG["tarjeta_credit_limit"],
+    "Prestamo":  CREDIT_LIMIT_CFG["prestamo_credit_limit"],
+    "Hipoteca":  CREDIT_LIMIT_CFG["hipoteca_credit_limit"],
+}
+
+
+def random_open_date():
+    """G1: Pick open_date from weighted distribution across 23 months."""
+    months_offset = random.choices(_vintage_months, weights=_vintage_weights)[0]
+    open_dt = START + timedelta(days=months_offset * 30)
+    return str(open_dt)
+
+
+def random_credit_limit(p_type):
+    """G3: Lognormal credit limit per product type."""
+    cfg = _credit_cfg_map[p_type]
+    return lognormal_clamp(cfg["mean_log"], cfg["sigma_log"], cfg["min"], cfg["max"])
+
+
 for client_id in client_ids:
     n_prod  = random.choices([1, 2, 3], weights=[0.55, 0.35, 0.10])[0]
     p_types = random.sample(list(PRODUCT_CFG.keys()), k=n_prod)
@@ -312,7 +393,7 @@ for client_id in client_ids:
     for p_type in p_types:
         cfg_p   = PRODUCT_CFG[p_type]
         acct_id = fmt_id("ACC", acct_ctr, 5)
-        balance = round(random.uniform(*cfg_p["bal_range"]), 2)
+        balance = random_credit_limit(p_type)   # G3: lognormal spread
         min_pay = calc_min_payment(p_type, balance)
         due_day = random.randint(1, 28)   # max 28 avoids month-end edge cases
         in_mora = random.random() < CFG["mora_rate"]
@@ -333,7 +414,8 @@ for client_id in client_ids:
             "account_id":      acct_id,
             "client_id":       client_id,
             "product_id":      product_id_map[p_type],
-            "open_date":       str(fake.date_between(start_date="-5y", end_date="-3m")),
+            "open_date":       random_open_date(),   # G1: vintage spread
+            "credit_limit":    round(balance, 2),     # G3: lognormal
             "due_day":         due_day,
             "min_payment":     min_pay,
             "initial_balance": balance,
@@ -397,6 +479,7 @@ fact_ptp_log       = []
 fact_payments      = []
 fact_time_log      = []
 fact_eom_snapshots = []
+fact_writeoffs     = []   # G6
 
 ptp_registry  = {}               # ptp_id → dict (status mutated in-place)
 payment_queue = defaultdict(list) # date → [payment events]
@@ -644,6 +727,12 @@ for sim_date in DATE_RANGE:
 
                 int_ctr += 1
 
+                # G5: Assign interaction channel
+                channel = random.choices(
+                    CHANNEL_CFG["channels"],
+                    weights=CHANNEL_CFG["weights"]
+                )[0]
+
                 # La hora de la interacción ahora siempre ocurre dentro del turno real de este agente
                 interaction_time_str = rand_time_str(lh, oh)
 
@@ -657,6 +746,7 @@ for sim_date in DATE_RANGE:
                     "calls_connected": int(connected),
                     "rpc_flag": str(rpc_flag).lower(),
                     "call_outcome": call_outcome,
+                    "channel": channel,                    # G5
                     "aht_seconds": aht,
                     "acw_seconds": acw,
                     "rpc_arrears": round(state["arrears"], 2) if rpc_flag else 0.0,
@@ -734,6 +824,10 @@ for sim_date in DATE_RANGE:
             actual_tht_hrs = round(agent_tht_s / 3600.0, 4)
             utilization = round(min(agent_tht_s / op_secs, 0.95), 4)
 
+            # G9: Agent cost model
+            agent_cost = prof.get("cost_per_hour", 32.00)
+            total_cost = round(agent_cost * op_hrs * AGENT_COST_CFG["overhead_multiplier"], 2)
+
             fact_time_log.append({
                 "log_id": fmt_id("TML", len(fact_time_log) + 1, 6),
                 "log_date": str(sim_date),
@@ -745,6 +839,8 @@ for sim_date in DATE_RANGE:
                 "tht_hours": actual_tht_hrs,
                 "utilization": utilization,
                 "schedule_hours": CFG["schedule_hours"],
+                "cost_per_hour": agent_cost,          # G9
+                "total_cost": total_cost,              # G9
             })
 
     # ── 3G. MORA AGING & REPLENISHMENT ────────────────────────────────────
@@ -796,6 +892,26 @@ for sim_date in DATE_RANGE:
                 "min_payment":    state["min_payment"],
             })
 
+        # G6: WRITE-OFF EVENTS at month end
+        if WRITEOFF_CFG["enabled"]:
+            for acct_id, state in account_state.items():
+                if (state["dpd"] >= 91
+                        and state["arrears"] > 0
+                        and random.random() < WRITEOFF_CFG["write_off_rate"]):
+                    writeoff_amt = round(state["arrears"] * WRITEOFF_CFG["write_off_amount_pct"]["91+"], 2)
+                    fact_writeoffs.append({
+                        "writeoff_id":   fmt_id("WOF", len(fact_writeoffs) + 1, 6),
+                        "writeoff_date": str(sim_date),
+                        "account_id":    acct_id,
+                        "product_type":  state["product_type"],
+                        "writeoff_amount": writeoff_amt,
+                        "balance_before": round(state["balance"], 2),
+                        "dpd_at_writeoff": state["dpd"],
+                    })
+                    state["balance"] = round(max(0.0, state["balance"] - writeoff_amt), 2)
+                    state["arrears"] = 0.0
+                    state["status"]  = "WrittenOff"
+
     logger.debug(
         f"{sim_date} | INT: {int_ctr:>7,} | PTP: {ptp_ctr:>5,} | "
         f"PAY: {pay_ctr:>5,} | MORA: {sum(1 for s in account_state.values() if s['status']=='Mora'):>5,}"
@@ -814,6 +930,7 @@ df_interactions = pd.DataFrame(fact_interactions)
 df_payments     = pd.DataFrame(fact_payments)
 df_time_log     = pd.DataFrame(fact_time_log)
 df_eom          = pd.DataFrame(fact_eom_snapshots)
+df_writeoffs    = pd.DataFrame(fact_writeoffs)   # G6
 
 df_ptp = pd.DataFrame(fact_ptp_log)
 
@@ -862,6 +979,7 @@ logger.info("  Fact_PTP_Log:         %s", f"{len(df_ptp):>8,}")
 logger.info("  Fact_Payments:        %s", f"{len(df_payments):>8,}")
 logger.info("  Fact_Agent_Time_Log:  %s", f"{len(df_time_log):>8,}")
 logger.info("  Fact_EOM_Snapshot:    %s", f"{len(df_eom):>8,}")
+logger.info("  Fact_Writeoffs:       %s", f"{len(df_writeoffs):>8,}")
 logger.info("  Fact tables finalized in %.1f seconds", time.time() - t_stage)
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -873,13 +991,14 @@ currency_cols = [
     "min_payment", "initial_balance", "balance", "arrears",
     "promised_amount", "amount_paid", "rpc_arrears", "rpc_arrears_at_contact",
     "annual_rate_pct", "contact_skill", "negotiation_skill", "efficiency_skill", "risk_score", "payday_factor",
+    "cost_per_hour", "total_cost", "credit_limit", "writeoff_amount",
 ]
 
 # Date columns (ISO 8601: YYYY-MM-DD)
 date_cols = [
     "dob", "open_date", "interaction_date", "payment_date",
     "ptp_date", "promised_date", "grace_until_date", "snapshot_date",
-    "log_date", "date",
+    "log_date", "date", "hire_date", "writeoff_date",
 ]
 
 def format_for_export(df):
@@ -929,6 +1048,7 @@ facts = {
     "Fact_Payments":       (df_payments,      "payment_date"),
     "Fact_Agent_Time_Log": (df_time_log,      "log_date"),
     "Fact_EOM_Snapshot":   (df_eom,           "snapshot_date"),
+    "Fact_Writeoffs":      (df_writeoffs,     "writeoff_date"),   # G6
 }
 
 for period in pd.date_range(START, END, freq="MS"):
@@ -1014,6 +1134,15 @@ def validate_output(output_dir):
         nulls = dim_tables[table][pk_col].isna().sum()
         _check(f"{table}.{pk_col} has no nulls", nulls == 0)
 
+    # ── 3B. NEW COLUMN PRESENCE CHECKS ─────────────────────────────────
+    logger.info("  --- New Column Presence ---")
+    _check("Dim_Supervisors has hire_date", "hire_date" in dim_tables["Dim_Supervisors"].columns)
+    _check("Dim_Agents has hire_date", "hire_date" in dim_tables["Dim_Agents"].columns)
+    _check("Dim_Agents has experience_tier", "experience_tier" in dim_tables["Dim_Agents"].columns)
+    _check("Dim_Agents has cost_per_hour", "cost_per_hour" in dim_tables["Dim_Agents"].columns)
+    _check("Dim_Clients has income_bracket", "income_bracket" in dim_tables["Dim_Clients"].columns)
+    _check("Dim_Accounts has credit_limit", "credit_limit" in dim_tables["Dim_Accounts"].columns)
+
     # ── 4. FK integrity checks ────────────────────────────────────────
     logger.info("  --- Foreign Key Integrity ---")
 
@@ -1043,6 +1172,7 @@ def validate_output(output_dir):
         "Fact_Payments": "payment_date",
         "Fact_Agent_Time_Log": "log_date",
         "Fact_EOM_Snapshot": "snapshot_date",
+        "Fact_Writeoffs": "writeoff_date",
     }
 
     # Read from first month folder
@@ -1096,6 +1226,12 @@ def validate_output(output_dir):
     if "account_id" in eom.columns:
         bad_accts = set(eom["account_id"].dropna()) - acct_ids_dim
         _check("All Fact_EOM_Snapshot.account_id exist in Dim_Accounts",
+               len(bad_accts) == 0)
+
+    writeoffs = pd.read_csv(os.path.join(month_dir, "Fact_Writeoffs.csv"))
+    if "account_id" in writeoffs.columns:
+        bad_accts = set(writeoffs["account_id"].dropna()) - acct_ids_dim
+        _check("All Fact_Writeoffs.account_id exist in Dim_Accounts",
                len(bad_accts) == 0)
 
     logger.info("Validation result: %s", "ALL CHECKS PASSED" if passed else "SOME CHECKS FAILED")
