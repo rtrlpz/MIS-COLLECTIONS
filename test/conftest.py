@@ -33,7 +33,7 @@ DB_CONFIG = {
 TABLES = [
     'dim_supervisors', 'dim_agents', 'dim_clients', 'dim_products',
     'dim_calendar', 'dim_accounts', 'fact_interactions', 'fact_ptp_log',
-    'fact_payments', 'fact_agent_time_log', 'fact_eom_snapshot'
+    'fact_payments', 'fact_agent_time_log', 'fact_eom_snapshot', 'fact_writeoffs'
 ]
 
 PK_MAPPING = {
@@ -48,6 +48,7 @@ PK_MAPPING = {
     'fact_payments': ['payment_id'],
     'fact_agent_time_log': ['log_id'],
     'fact_eom_snapshot': ['snapshot_date', 'account_id'],  # composite PK
+    'fact_writeoffs': ['writeoff_id'],
 }
 
 FK_RELATIONSHIPS = [
@@ -66,6 +67,8 @@ FK_RELATIONSHIPS = [
     ('fact_agent_time_log', 'log_date', 'dim_calendar', 'date'),
     ('fact_eom_snapshot', 'account_id', 'dim_accounts', 'account_id'),
     ('fact_eom_snapshot', 'snapshot_date', 'dim_calendar', 'date'),
+    ('fact_writeoffs', 'account_id', 'dim_accounts', 'account_id'),
+    ('fact_writeoffs', 'writeoff_date', 'dim_calendar', 'date'),
 ]
 
 # KPI Views and their percentage columns
@@ -88,6 +91,7 @@ FACT_DATE_COLUMNS = {
     'fact_payments': 'payment_date',
     'fact_agent_time_log': 'log_date',
     'fact_eom_snapshot': 'snapshot_date',
+    'fact_writeoffs': 'writeoff_date',
 }
 
 
@@ -138,19 +142,20 @@ def root_path():
     return ROOT_PATH
 
 
-# Expected row counts for generator output (seed 42, 3 months, calibrated v7)
+# Expected row counts for generator output (seed 42, 12 months, Phase 6)
 GENERATOR_ROW_COUNTS = {
     'dim_supervisors': 8,
     'dim_agents': 80,
     'dim_clients': 10000,
     'dim_products': 3,
-    'dim_accounts': 15567,
-    'dim_calendar': 122,
-    'fact_interactions': 342996,
-    'fact_ptp_log': 22150,
-    'fact_payments': 19504,
-    'fact_agent_time_log': 5280,
-    'fact_eom_snapshot': 46701,
+    'dim_accounts': 15482,
+    'dim_calendar': 396,
+    'fact_interactions': 1355587,
+    'fact_ptp_log': 58811,
+    'fact_payments': 49419,
+    'fact_agent_time_log': 20880,
+    'fact_eom_snapshot': 185784,
+    'fact_writeoffs': 222,
 }
 
 # Metric percentile ranges (calibrated May 2026)

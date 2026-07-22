@@ -39,7 +39,7 @@ DATA_DIR = ROOT_PATH / "data_sources" / "generators" / "raw"
 
 # Table definitions
 SHARED_TABLES = ['Dim_Supervisors', 'Dim_Agents', 'Dim_Calendar', 'Dim_Clients', 'Dim_Products', 'Dim_Accounts']
-TRANSACTIONAL_TABLES = ['Fact_PTP_Log', 'Fact_Payments', 'Fact_EOM_Snapshot', 'Fact_Interactions', 'Fact_Agent_Time_Log']
+TRANSACTIONAL_TABLES = ['Fact_PTP_Log', 'Fact_Payments', 'Fact_EOM_Snapshot', 'Fact_Interactions', 'Fact_Agent_Time_Log', 'Fact_Writeoffs']
 TABLE_ORDER = SHARED_TABLES + TRANSACTIONAL_TABLES
 
 PK_MAPPING = {
@@ -47,7 +47,7 @@ PK_MAPPING = {
     'Dim_Clients': 'client_id', 'Dim_Products': 'product_id',
     'Dim_Accounts': 'account_id', 'Fact_Interactions': 'interaction_id',
     'Fact_PTP_Log': 'ptp_id', 'Fact_Payments': 'payment_id',
-    'Fact_Agent_Time_Log': 'log_id',
+    'Fact_Agent_Time_Log': 'log_id', 'Fact_Writeoffs': 'writeoff_id',
 }
 
 MONTH_ORDER = {

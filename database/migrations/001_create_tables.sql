@@ -1,6 +1,7 @@
 -- =========================================================================
 -- 1. CLEANUP (Reverse order to handle Foreign Keys)
 -- =========================================================================
+DROP TABLE IF EXISTS fact_writeoffs CASCADE;
 DROP TABLE IF EXISTS fact_eom_snapshot CASCADE;
 DROP TABLE IF EXISTS fact_agent_time_log CASCADE;
 DROP TABLE IF EXISTS fact_payments CASCADE;
@@ -21,7 +22,8 @@ CREATE TABLE dim_supervisors (
     supervisor_id VARCHAR(15) PRIMARY KEY,
     supervisor_name VARCHAR(100) NOT NULL,
     team_name VARCHAR(50),
-    region VARCHAR(50)
+    region VARCHAR(50),
+    hire_date DATE
 );
 
 CREATE TABLE dim_agents (
@@ -32,6 +34,9 @@ CREATE TABLE dim_agents (
     team_name VARCHAR(50),
     region VARCHAR(50),
     tenure_cohort VARCHAR(10),
+    experience_tier VARCHAR(10),
+    hire_date DATE,
+    cost_per_hour DECIMAL(6,2),
     contact_skill DECIMAL(5,3),
     negotiation_skill DECIMAL(5,3),
     efficiency_skill DECIMAL(5,3)
@@ -42,6 +47,7 @@ CREATE TABLE dim_clients (
     full_name VARCHAR(100) NOT NULL,
     dob DATE,
     segment VARCHAR(50),
+    income_bracket VARCHAR(20),
     risk_score DECIMAL(5,2)
 );
 
@@ -74,6 +80,7 @@ CREATE TABLE dim_accounts (
     client_id VARCHAR(15) NOT NULL,
     product_id VARCHAR(15) NOT NULL,
     open_date DATE NOT NULL,
+    credit_limit DECIMAL(12, 2),
     due_day INT,
     min_payment DECIMAL(12, 2) NOT NULL,
     initial_balance DECIMAL(12, 2) NOT NULL,
@@ -96,6 +103,7 @@ CREATE TABLE fact_interactions (
     calls_connected INT,
     rpc_flag BOOLEAN,
     call_outcome VARCHAR(50),
+    channel VARCHAR(20),
     aht_seconds INT,
     acw_seconds INT,
     rpc_arrears DECIMAL(12,2),
@@ -157,6 +165,8 @@ CREATE TABLE fact_agent_time_log (
     tht_hours DECIMAL(5, 2),
     utilization DECIMAL(5, 2),
     schedule_hours DECIMAL(5,2),
+    cost_per_hour DECIMAL(6,2),
+    total_cost DECIMAL(12,2),
     CONSTRAINT fk_time_agents FOREIGN KEY (agent_id) REFERENCES dim_agents(agent_id),
     CONSTRAINT fk_time_date FOREIGN KEY (log_date) REFERENCES dim_calendar(date)
 );
@@ -175,4 +185,20 @@ CREATE TABLE fact_eom_snapshot (
     PRIMARY KEY (snapshot_date, account_id),
     CONSTRAINT fk_eom_accounts FOREIGN KEY (account_id) REFERENCES dim_accounts(account_id),
     CONSTRAINT fk_eom_date FOREIGN KEY (snapshot_date) REFERENCES dim_calendar(date)
+);
+
+-- =========================================================================
+-- 4. NEW TABLE — fact_writeoffs (G6)
+-- =========================================================================
+
+CREATE TABLE fact_writeoffs (
+    writeoff_id VARCHAR(15) PRIMARY KEY,
+    writeoff_date DATE NOT NULL,
+    account_id VARCHAR(15) NOT NULL,
+    product_type VARCHAR(50),
+    writeoff_amount DECIMAL(12,2),
+    balance_before DECIMAL(12,2),
+    dpd_at_writeoff INT,
+    CONSTRAINT fk_wo_accounts FOREIGN KEY (account_id) REFERENCES dim_accounts(account_id),
+    CONSTRAINT fk_wo_date FOREIGN KEY (writeoff_date) REFERENCES dim_calendar(date)
 );

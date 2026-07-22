@@ -51,3 +51,21 @@ CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_account_date ON fact_eom_snapsh
 CREATE INDEX IF NOT EXISTS idx_fact_eom_snapshot_date_account ON fact_eom_snapshot(snapshot_date, account_id);
 CREATE INDEX IF NOT EXISTS idx_dim_agents_supervisor_agent ON dim_agents(supervisor_id, agent_id);
 CREATE INDEX IF NOT EXISTS idx_dim_accounts_product_client ON dim_accounts(product_id, client_id);
+
+-- ============================================================================
+-- PHASE 6: NEW INDEXES (G1-G9)
+-- ============================================================================
+
+-- Fact_Interactions: channel for Dialer Performance page
+CREATE INDEX IF NOT EXISTS idx_fact_interactions_channel ON fact_interactions(channel);
+
+-- Fact_Writeoffs: FK and date indexes
+CREATE INDEX IF NOT EXISTS idx_fact_writeoffs_account_id ON fact_writeoffs(account_id);
+CREATE INDEX IF NOT EXISTS idx_fact_writeoffs_writeoff_date ON fact_writeoffs(writeoff_date);
+CREATE INDEX IF NOT EXISTS idx_fact_writeoffs_account_date ON fact_writeoffs(account_id, writeoff_date);
+
+-- Dim_Accounts: open_date for Vintage Analysis page
+CREATE INDEX IF NOT EXISTS idx_dim_accounts_open_date ON dim_accounts(open_date);
+
+-- Dim_Agents: experience_tier for agent analysis
+CREATE INDEX IF NOT EXISTS idx_dim_agents_experience_tier ON dim_agents(experience_tier);

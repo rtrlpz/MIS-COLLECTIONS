@@ -136,3 +136,79 @@ BEGIN
             CHECK (login_time < logout_time);
     END IF;
 END $$;
+
+-- ============================================================================
+-- PHASE 6: NEW CONSTRAINTS (G1-G9)
+-- ============================================================================
+
+-- Fact_Interactions: channel must be a valid value
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_interactions_channel') THEN
+        ALTER TABLE fact_interactions ADD CONSTRAINT chk_fact_interactions_channel
+            CHECK (channel IN ('Dialer', 'Manual', 'FICO', 'SMS'));
+    END IF;
+END $$;
+
+-- Dim_Agents: experience_tier must be a valid value
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_agents_experience_tier') THEN
+        ALTER TABLE dim_agents ADD CONSTRAINT chk_dim_agents_experience_tier
+            CHECK (experience_tier IN ('senior', 'mid', 'junior'));
+    END IF;
+END $$;
+
+-- Dim_Agents: cost_per_hour must be positive
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_agents_cost_per_hour') THEN
+        ALTER TABLE dim_agents ADD CONSTRAINT chk_dim_agents_cost_per_hour
+            CHECK (cost_per_hour > 0);
+    END IF;
+END $$;
+
+-- Fact_Agent_Time_Log: cost_per_hour must be positive
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_agent_time_log_cost_per_hour') THEN
+        ALTER TABLE fact_agent_time_log ADD CONSTRAINT chk_fact_agent_time_log_cost_per_hour
+            CHECK (cost_per_hour > 0);
+    END IF;
+END $$;
+
+-- Fact_Agent_Time_Log: total_cost must be non-negative
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_agent_time_log_total_cost') THEN
+        ALTER TABLE fact_agent_time_log ADD CONSTRAINT chk_fact_agent_time_log_total_cost
+            CHECK (total_cost >= 0);
+    END IF;
+END $$;
+
+-- Fact_Writeoffs: writeoff_amount must be positive
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_writeoffs_amount') THEN
+        ALTER TABLE fact_writeoffs ADD CONSTRAINT chk_fact_writeoffs_amount
+            CHECK (writeoff_amount > 0);
+    END IF;
+END $$;
+
+-- Fact_Writeoffs: dpd_at_writeoff must be positive
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_writeoffs_dpd') THEN
+        ALTER TABLE fact_writeoffs ADD CONSTRAINT chk_fact_writeoffs_dpd
+            CHECK (dpd_at_writeoff >= 0);
+    END IF;
+END $$;
+
+-- Fact_Writeoffs: balance_before must be non-negative
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_writeoffs_balance') THEN
+        ALTER TABLE fact_writeoffs ADD CONSTRAINT chk_fact_writeoffs_balance
+            CHECK (balance_before >= 0);
+    END IF;
+END $$;

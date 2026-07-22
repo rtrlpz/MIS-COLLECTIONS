@@ -855,4 +855,93 @@ UNION ALL
 SELECT 'fact_agent_time_log' AS table_name, MAX(log_date) AS max_date, CURRENT_DATE - MAX(log_date) AS days_ago FROM fact_agent_time_log
 UNION ALL
 SELECT 'fact_eom_snapshot' AS table_name, MAX(snapshot_date) AS max_date, CURRENT_DATE - MAX(snapshot_date) AS days_ago FROM fact_eom_snapshot
+UNION ALL
+SELECT 'fact_writeoffs' AS table_name, MAX(writeoff_date) AS max_date, CURRENT_DATE - MAX(writeoff_date) AS days_ago FROM fact_writeoffs
 ORDER BY days_ago ASC;
+
+-- ========================================================================
+-- 10. v_dpd_migration_matrix
+-- Purpose: DPD bucket transitions between consecutive months per account
+-- Used by: Roll Rate Analysis page (Page 9) + Portfolio Management (Page 4)
+-- ========================================================================
+CREATE OR REPLACE VIEW v_dpd_migration_matrix AS
+WITH ranked_snapshots AS (
+    SELECT
+        account_id,
+        snapshot_date,
+        dpd_bucket,
+        balance,
+        LEAD(dpd_bucket) OVER (PARTITION BY account_id ORDER BY snapshot_date) AS next_bucket,
+        LEAD(snapshot_date) OVER (PARTITION BY account_id ORDER BY snapshot_date) AS next_date
+    FROM fact_eom_snapshot
+)
+SELECT
+    snapshot_date AS from_month,
+    next_date AS to_month,
+    account_id,
+    dpd_bucket AS from_bucket,
+    next_bucket AS to_bucket,
+    balance,
+    CASE
+        WHEN next_bucket IS NULL THEN 'Exited'
+        WHEN dpd_bucket = next_bucket THEN 'Same'
+        WHEN dpd_bucket = 'Current' AND next_bucket != 'Current' THEN 'Deteriorated'
+        WHEN dpd_bucket = '90+' AND next_bucket = 'Current' THEN 'Cured'
+        WHEN next_bucket::text > dpd_bucket::text THEN 'Deteriorated'
+        ELSE 'Improved'
+    END AS migration_direction
+FROM ranked_snapshots
+WHERE next_date IS NOT NULL;
+
+-- ========================================================================
+-- 11. v_weekly_agent_summary
+-- Purpose: Agent performance aggregated by ISO week for trend analysis
+-- Used by: Agent Performance page (Page 2) weekly trend charts
+-- ========================================================================
+CREATE OR REPLACE VIEW v_weekly_agent_summary AS
+SELECT
+    DATE_TRUNC('week', i.interaction_date)::date AS week_start,
+    i.agent_id,
+    a.agent_name,
+    a.team_name,
+    a.region,
+    a.experience_tier,
+    a.supervisor_id,
+    COUNT(DISTINCT i.interaction_id) AS total_interactions,
+    SUM(i.calls_attempted) AS total_calls,
+    SUM(i.calls_connected) AS connected_calls,
+    SUM(CASE WHEN i.rpc_flag = TRUE THEN 1 ELSE 0 END) AS rpc_count,
+    ROUND(
+        CASE WHEN SUM(i.calls_connected) > 0
+             THEN SUM(CASE WHEN i.rpc_flag = TRUE THEN 1 ELSE 0 END)::decimal / SUM(i.calls_connected) * 100
+             ELSE 0 END, 2
+    ) AS rpc_pct,
+    ROUND(AVG(i.aht_seconds), 0) AS avg_aht,
+    ROUND(AVG(i.acw_seconds), 0) AS avg_acw,
+    COUNT(DISTINCT i.account_id) AS accounts_contacted
+FROM fact_interactions i
+JOIN dim_agents a ON i.agent_id = a.agent_id
+GROUP BY 1, 2, 3, 4, 5, 6, 7;
+
+-- ========================================================================
+-- 12. v_rls_supervisor_map
+-- Purpose: RLS mapping table for Power BI Row-Level Security
+-- Used by: All dashboard pages with supervisor-level filtering
+-- Maps agent_id to supervisor_id so filters propagate correctly
+-- ========================================================================
+CREATE OR REPLACE VIEW v_rls_supervisor_map AS
+SELECT
+    a.agent_id,
+    a.supervisor_id,
+    a.team_name,
+    a.region,
+    a.experience_tier
+FROM dim_agents a
+UNION
+SELECT
+    NULL AS agent_id,
+    s.supervisor_id,
+    s.team_name,
+    s.region,
+    NULL AS experience_tier
+FROM dim_supervisors s;
