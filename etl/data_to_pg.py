@@ -109,6 +109,12 @@ def create_etl_load_log_table(conn):
                 csv_checksum VARCHAR(64)
             )
         """)
+        cursor.execute("""
+            DO $$ BEGIN
+                ALTER TABLE etl_load_log ADD COLUMN IF NOT EXISTS rows_loaded INT;
+            EXCEPTION WHEN duplicate_column THEN NULL;
+            END $$;
+        """)
         conn.commit()
         logging.info("  [INFO] Ensured etl_load_log table exists")
     except Exception as e:

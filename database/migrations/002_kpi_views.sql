@@ -299,8 +299,6 @@ WITH agent_daily AS (
         da.agent_name,
         da.supervisor_id,
         da.team_name,
-        dp.product_id,
-        dp.product_name,
         COUNT(*) AS payment_count,
         COUNT(DISTINCT CASE WHEN fp.is_cured THEN fp.account_id ELSE NULL END) AS cure_count,
         SUM(CASE WHEN fp.is_cured THEN fp.amount_paid ELSE 0 END) AS cured_amount,
@@ -308,11 +306,9 @@ WITH agent_daily AS (
         COUNT(DISTINCT CASE WHEN fp.is_cured AND fp.agent_id IS NULL THEN fp.account_id ELSE NULL END) AS self_cure_count
     FROM fact_payments fp
     JOIN dim_calendar dc ON fp.payment_date = dc.date
-    JOIN dim_accounts da2 ON fp.account_id = da2.account_id
-    JOIN dim_products dp ON da2.product_id = dp.product_id
     LEFT JOIN dim_employees da ON fp.agent_id = da.agent_id
 
-    GROUP BY fp.payment_date, dc.month_num, dc.month_name, fp.agent_id, da.agent_name, da.supervisor_id, da.team_name, dp.product_id, dp.product_name
+    GROUP BY fp.payment_date, dc.month_num, dc.month_name, fp.agent_id, da.agent_name, da.supervisor_id, da.team_name
 ),
 product_daily AS (
     SELECT
@@ -377,8 +373,8 @@ SELECT
     ad.agent_name,
     ad.supervisor_id,
     ad.team_name,
-    ad.product_id,
-    ad.product_name,
+    NULL AS product_id,
+    NULL AS product_name,
     ad.payment_count,
     ad.cure_count,
     ad.cured_amount,
@@ -757,13 +753,16 @@ SELECT 'team' AS granularity,
     SUM(total_calls) AS total_calls,
     SUM(connected_calls) AS connected_calls,
     SUM(rpc_count) AS rpc_count,
-    ROUND(AVG(rpc_pct), 2) AS avg_rpc_pct,
+    ROUND(SUM(rpc_count) * 100.0 / NULLIF(SUM(connected_calls), 0), 2) AS avg_rpc_pct,
     SUM(ptp_count) AS ptp_count,
-    ROUND(AVG(ptp_pct), 2) AS avg_ptp_pct,
+    ROUND(SUM(ptp_count) * 100.0 / NULLIF(SUM(rpc_count), 0), 2) AS avg_ptp_pct,
     SUM(kept_count) AS kept_count,
     SUM(broken_count) AS broken_count,
-    ROUND(AVG(kept_pct), 2) AS avg_kept_pct,
-    ROUND(AVG(bucket_conversion), 2) AS avg_bucket_conversion,
+    ROUND(SUM(kept_count) * 100.0 / NULLIF(SUM(kept_count) + SUM(broken_count), 0), 2) AS avg_kept_pct,
+    ROUND(
+        (SUM(kept_count) * 100.0 / NULLIF(SUM(kept_count) + SUM(broken_count), 0))
+        * SUM(ptp_count) / NULLIF(SUM(rpc_count), 0),
+    2) AS avg_bucket_conversion,
     SUM(capped_kp) AS capped_kp,
     SUM(cure_count) AS cure_count,
     ROUND(AVG(cure_rate), 2) AS avg_cure_rate,
@@ -786,13 +785,16 @@ SELECT 'portfolio' AS granularity,
     SUM(total_calls) AS total_calls,
     SUM(connected_calls) AS connected_calls,
     SUM(rpc_count) AS rpc_count,
-    ROUND(AVG(rpc_pct), 2) AS avg_rpc_pct,
+    ROUND(SUM(rpc_count) * 100.0 / NULLIF(SUM(connected_calls), 0), 2) AS avg_rpc_pct,
     SUM(ptp_count) AS ptp_count,
-    ROUND(AVG(ptp_pct), 2) AS avg_ptp_pct,
+    ROUND(SUM(ptp_count) * 100.0 / NULLIF(SUM(rpc_count), 0), 2) AS avg_ptp_pct,
     SUM(kept_count) AS kept_count,
     SUM(broken_count) AS broken_count,
-    ROUND(AVG(kept_pct), 2) AS avg_kept_pct,
-    ROUND(AVG(bucket_conversion), 2) AS avg_bucket_conversion,
+    ROUND(SUM(kept_count) * 100.0 / NULLIF(SUM(kept_count) + SUM(broken_count), 0), 2) AS avg_kept_pct,
+    ROUND(
+        (SUM(kept_count) * 100.0 / NULLIF(SUM(kept_count) + SUM(broken_count), 0))
+        * SUM(ptp_count) / NULLIF(SUM(rpc_count), 0),
+    2) AS avg_bucket_conversion,
     SUM(capped_kp) AS capped_kp,
     SUM(cure_count) AS cure_count,
     ROUND(AVG(cure_rate), 2) AS avg_cure_rate,
@@ -809,16 +811,8 @@ GROUP BY month_num, month_name;
 -- ========================================================================
 -- 8. v_etl_load_summary
 -- Purpose: Summary of latest ETL load per table from etl_load_log
+-- Note: etl_load_log table is defined in 001_create_tables.sql (migration order)
 -- ========================================================================
-CREATE TABLE IF NOT EXISTS etl_load_log (
-    id SERIAL PRIMARY KEY,
-    table_name TEXT NOT NULL,
-    rows_loaded INT,
-    loaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status TEXT,
-    csv_checksum TEXT
-);
-
 CREATE OR REPLACE VIEW v_etl_load_summary AS
 WITH ranked AS (
     SELECT

@@ -168,12 +168,6 @@ INCOME_BRACKET_CFG = {
 CHANNEL_CFG = {
     "channels": ["Dialer", "Manual", "FICO", "SMS"],
     "weights": [0.65, 0.15, 0.10, 0.10],  # 65% dialer, 15% manual, 10% each other
-    "rpc_rate_by_channel": {        # RPC% varies by channel
-        "Dialer": 0.42,
-        "Manual": 0.58,
-        "FICO": 0.08,
-        "SMS": 0.12,
-    },
     "outbound_only": True,          # All interactions are outbound (no inbound queue data)
 }
 

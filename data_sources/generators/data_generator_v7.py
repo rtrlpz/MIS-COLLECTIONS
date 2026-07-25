@@ -285,7 +285,7 @@ for i in range(1, CFG["num_supervisors"] + 1):
             days=random.randint(SUPERVISOR_HIRE_CFG["hire_date_start_month"] * 30,
                                 SUPERVISOR_HIRE_CFG["hire_date_end_month"] * 30)
         )),
-        "experience_tier":   "Senior",      # supervisors are always Senior
+        "experience_tier":   "senior",      # supervisors are always senior
         "cost_per_hour":     AGENT_HIRE_CFG["agent_cost_per_hour"]["senior"],
         "tenure_cohort":     None,
         "contact_skill":     None,

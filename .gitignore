@@ -56,8 +56,12 @@ reports/templates/*.csv
 dashboards/fix_syntetic_data.md
 
 # Ignore dashboards assets
+dashboards/assets/
 dashboards/assets/theme
 dashboards/assets/SVGs/png
 dashboards/assets/SVGs
 dashboards/assets/docs
 dashboards/assets/bg
+
+
+measures.tsv

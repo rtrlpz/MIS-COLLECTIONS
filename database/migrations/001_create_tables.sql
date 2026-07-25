@@ -207,6 +207,7 @@ CREATE TABLE fact_writeoffs (
 CREATE TABLE IF NOT EXISTS etl_load_log (
     id SERIAL PRIMARY KEY,
     table_name VARCHAR(100) NOT NULL,
+    rows_loaded INT,
     loaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20) NOT NULL,
     csv_checksum VARCHAR(64)

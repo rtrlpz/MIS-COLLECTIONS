@@ -149,7 +149,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dim_employees_experience_tier') THEN
         ALTER TABLE dim_employees ADD CONSTRAINT chk_dim_employees_experience_tier
-            CHECK (experience_tier IN ('senior', 'mid', 'junior') OR experience_tier IS NULL);
+            CHECK (experience_tier IN ('senior', 'mid', 'junior', 'Senior', 'Mid', 'Junior') OR experience_tier IS NULL);
     END IF;
 END $$;
 
@@ -272,7 +272,7 @@ BEGIN
     -- fact_eom_snapshot.status
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_eom_snapshot_status') THEN
         ALTER TABLE fact_eom_snapshot ADD CONSTRAINT chk_fact_eom_snapshot_status
-            CHECK (status IN ('Activo', 'Mora'));
+            CHECK (status IN ('Activo', 'Mora', 'WrittenOff'));
     END IF;
     -- fact_eom_snapshot.dpd_bucket
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_fact_eom_snapshot_dpd_bucket') THEN
