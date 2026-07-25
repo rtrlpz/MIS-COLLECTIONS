@@ -31,10 +31,9 @@
 - [x] Generator logging (console + file, timestamps, row counts, elapsed time, log-level arg)
 - [x] Output validation post-generation (row counts ±5%, no null PKs, FK integrity)
 - [x] `data_sources/__init__.py` (Python package)
-- [x] `data_sources/generators/config.py` (centralized constants: CFG, PRODUCT_CFG)
-- [x] Anomaly injection report (`anomaly_report.csv`, ~9,117 anomalies)
-- [x] `requirements.txt` with pinned versions
-- [x] `data_sources/generators/README.md`
+- [x] `data_sources/config.py` (centralized constants: CFG, PRODUCT_CFG)
+
+- [x] `data_sources/README.md`
 - [x] Output: ~506K interactions, ~31K PTP events, ~21K payments across 3 months
 
 > **Enhancements post-v7**: See Phase 5 section for progressive severity, monitoring pool, and utilization cap.
@@ -181,7 +180,7 @@
 - [x] `run_pipeline.bat` (125 lines) — Docker check → start containers → wait for PostgreSQL → migrations → generate data → ETL → colored output → timing per stage
 - [x] COLOR bug fixed (trailing colons removed)
 - [x] Pipeline runs end-to-end in ~83 seconds
-- [x] `migrate.sh` (47 lines) — Runs all SQL migrations via `cat file.sql | docker exec -i psql`
+- [x] `database/migrate.sh` (47 lines) — Runs all SQL migrations via `cat file.sql | docker exec -i psql`
 - [x] Exit codes per stage for error propagation
 
 ---

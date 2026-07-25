@@ -19,11 +19,8 @@ This directory contains everything needed to spin up the collections data wareho
 ## Quick Start
 
 ```bash
-# Start PostgreSQL + pgAdmin
-docker-compose -f database/docker-compose.yml up -d
-
 # Run migrations (from project root)
-bash migrate.sh
+bash database/migrate.sh
 ```
 
 ## Connection

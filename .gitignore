@@ -35,7 +35,8 @@ dashboards/docs/
 *.Report/
 
 # Ignore logs + transient ETL errors
-data_sources/generators/logs/
+data_sources/logs/
+data_sources/raw/
 etl/logs
 etl/errors/
 

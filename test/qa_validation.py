@@ -253,11 +253,11 @@ class TestETLIdempotency:
 class TestGeneratorSeed:
     def test_generator_seed_42_reproducible(self):
         root_path = Path(__file__).resolve().parent.parent
-        generator_script = root_path / "data_sources" / "generators" / "data_generator_v7.py"
+        generator_script = root_path / "data_sources" / "data_generator_v7.py"
         assert generator_script.exists(), f"Generator not found: {generator_script}"
 
-        output_dir_1 = root_path / "data_sources" / "generators" / "raw_test_1"
-        output_dir_2 = root_path / "data_sources" / "generators" / "raw_test_2"
+        output_dir_1 = root_path / "data_sources" / "raw_test_1"
+        output_dir_2 = root_path / "data_sources" / "raw_test_2"
 
         # Clean up and run generator twice
         for output_dir in [output_dir_1, output_dir_2]:

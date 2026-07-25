@@ -66,7 +66,7 @@ color 07
 echo [4/6] Running database migrations...
 for /f %%a in ('powershell -Command "[int](Get-Date -UFormat %%s)"') do set "step_start=%%a"
 :: Run migrations using bash script (works in git-bash)
-bash migrate.sh >nul 2>&1
+bash database/migrate.sh >nul 2>&1
 if errorlevel 1 (
     color 0C
     echo [ERROR] Database migrations failed. Check logs.
@@ -81,7 +81,7 @@ echo [OK] Migrations complete. (%elapsed% seconds)
 color 07
 echo [5/6] Generating data...
 for /f %%a in ('powershell -Command "[int](Get-Date -UFormat %%s)"') do set "step_start=%%a"
-%CONDA_PYTHON% data_sources/generators/data_generator_v7.py
+%CONDA_PYTHON% data_sources/data_generator_v7.py
 if errorlevel 1 (
     color 0C
     echo [ERROR] Data generation failed. Check logs for details.

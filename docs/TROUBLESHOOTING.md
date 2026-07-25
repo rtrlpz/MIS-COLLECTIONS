@@ -43,9 +43,9 @@ Common causes: corrupt data volume → delete `database/data/` and retry.
 set CONDA_PYTHON=C:\Users\<you>\.conda\envs\mis-collections\python.exe
 ```
 
-### bash migrate.sh fails
+### bash database/migrate.sh fails
 ```
-migrate.sh: line X: psql: command not found
+database/migrate.sh: line X: psql: command not found
 ```
 **Fix:** Run migrations manually:
 ```bash
@@ -66,18 +66,18 @@ Migrations must run in order: `001` → `006`. Running `002` before `001` will f
 ```
 ImportError: cannot import name 'DATA_EXPANSION_CFG'
 ```
-**Fix:** Run from the project root: `python data_sources/generators/data_generator_v7.py`. The relative import `from .config` expects the package context.
+**Fix:** Run from the project root: `python data_sources/data_generator_v7.py`. The relative import `from config` expects the package context.
 
 ### Output CSVs look empty or truncated
-Check `data_sources/generators/logs/generator.log` for errors. Common cause: disk space or permissions on the `raw/` directory.
+Check `data_sources/logs/generator.log` for errors. Common cause: disk space or permissions on the `raw/` directory.
 
 ## ETL Issues
 
 ### ETL fails — table doesn't exist
-**Fix:** Run migrations first: `bash migrate.sh`
+**Fix:** Run migrations first: `bash database/migrate.sh`
 
 ### ETL fails — CSV not found
-**Fix:** Run generator first: `python data_sources/generators/data_generator_v7.py`
+**Fix:** Run generator first: `python data_sources/data_generator_v7.py`
 
 ### --incremental mode skips months unexpectedly
 The incremental mode uses checksums to detect changes. If a CSV changed, delete the `etl_load_log` entry for that table:

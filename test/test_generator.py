@@ -11,7 +11,7 @@ import pytest
 
 
 ROOT_PATH = Path(__file__).resolve().parent.parent
-GENERATOR_SCRIPT = ROOT_PATH / "data_sources" / "generators" / "data_generator_v7.py"
+GENERATOR_SCRIPT = ROOT_PATH / "data_sources" / "data_generator_v7.py"
 
 
 class TestGeneratorOutput:
@@ -30,7 +30,7 @@ class TestGeneratorOutput:
 
     def test_generator_produces_csv_files(self):
         """Run generator and verify CSV files are created."""
-        output_dir = ROOT_PATH / "data_sources" / "generators" / "raw_test_gen"
+        output_dir = ROOT_PATH / "data_sources" / "raw_test_gen"
 
         if output_dir.exists():
             shutil.rmtree(output_dir)
@@ -82,7 +82,7 @@ class TestGeneratorRowCounts:
 
     def test_generated_csv_row_counts(self):
         """Run generator and verify CSV row counts."""
-        output_dir = ROOT_PATH / "data_sources" / "generators" / "raw_test_row_counts"
+        output_dir = ROOT_PATH / "data_sources" / "raw_test_row_counts"
         if output_dir.exists():
             shutil.rmtree(output_dir)
 
@@ -132,8 +132,8 @@ class TestGeneratorReproducibility:
 
     def test_seed_reproducibility(self):
         """Run generator twice with same seed, compare checksums."""
-        output_dir_1 = ROOT_PATH / "data_sources" / "generators" / "raw_test_1"
-        output_dir_2 = ROOT_PATH / "data_sources" / "generators" / "raw_test_2"
+        output_dir_1 = ROOT_PATH / "data_sources" / "raw_test_1"
+        output_dir_2 = ROOT_PATH / "data_sources" / "raw_test_2"
 
         for output_dir in [output_dir_1, output_dir_2]:
             if output_dir.exists():
@@ -168,7 +168,7 @@ class TestGeneratorDataQuality:
 
     def test_no_null_pks_in_generated_data(self):
         """Verify no null primary keys in generated CSVs."""
-        output_dir = ROOT_PATH / "data_sources" / "generators" / "raw_test_quality"
+        output_dir = ROOT_PATH / "data_sources" / "raw_test_quality"
         if output_dir.exists():
             shutil.rmtree(output_dir)
 
@@ -203,12 +203,12 @@ class TestGeneratorPostFixInvariants:
     """Test data invariants guaranteed by Phase 1-5 fixes."""
 
     ROOT_PATH = Path(__file__).resolve().parent.parent
-    GENERATOR_SCRIPT = ROOT_PATH / "data_sources" / "generators" / "data_generator_v7.py"
+    GENERATOR_SCRIPT = ROOT_PATH / "data_sources" / "data_generator_v7.py"
 
     @pytest.fixture(scope='class', autouse=True)
     def generated_data(self):
         """Run generator once per class."""
-        output_dir = self.ROOT_PATH / "data_sources" / "generators" / "raw_test_invariants"
+        output_dir = self.ROOT_PATH / "data_sources" / "raw_test_invariants"
         if output_dir.exists():
             shutil.rmtree(output_dir)
         result = subprocess.run(

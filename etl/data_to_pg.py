@@ -35,7 +35,7 @@ logging.basicConfig(
 
 # Paths
 ROOT_PATH = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT_PATH / "data_sources" / "generators" / "raw"
+DATA_DIR = ROOT_PATH / "data_sources" / "raw"
 
 # Table definitions
 SHARED_TABLES = ['Dim_Employees', 'Dim_Calendar', 'Dim_Clients', 'Dim_Products', 'Dim_Accounts']

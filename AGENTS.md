@@ -5,16 +5,16 @@
 **Conda env:** `mis-collections`
 
 ## Commands
-- Generate data: `python data_sources/generators/data_generator_v7.py`
+- Generate data: `python data_sources/data_generator_v7.py`
 - Start DB: `docker-compose -f database/docker-compose.yml up -d`
 - Run pipeline: `./run_pipeline.bat` (Windows CMD)
-- Run migrations: `bash migrate.sh`
+- Run migrations: `bash database/migrate.sh`
 - Run tests (fast): `python -m pytest test/ -v -m "not slow"`
 - Run all tests: `python -m pytest test/ -v`
 
 ## Critical Rules (must follow)
 - NEVER commit .env files, credentials, or secrets
-- NEVER modify generated CSVs (data_sources/generators/raw/)
+- NEVER modify generated CSVs (data_sources/raw/)
 - Table naming: Dim_ prefix for dimensions, Fact_ prefix for facts
 - All SQL follows PostgreSQL dialect
 - Tests use pytest with conftest.py fixtures
@@ -26,8 +26,8 @@
 ### Data Layer
 | File | Purpose |
 |---|---|
-| `data_sources/generators/data_generator_v7.py` | Generator (11 tables, 500K+ rows, weekend-bug-fixed) |
-| `data_sources/generators/config.py` | 45+ calibration params (CFG + PRODUCT_CFG) |
+| `data_sources/data_generator_v7.py` | Generator (11 tables, 500K+ rows, weekend-bug-fixed) |
+| `data_sources/config.py` | 45+ calibration params (CFG + PRODUCT_CFG) |
 | `data_sources/schema/dictionary.md` | Column-level docs |
 | `database/docker-compose.yml` | Postgres 15 + pgAdmin |
 | `database/migrations/001_create_tables.sql` | DDL: 11 tables (star schema) |
@@ -40,7 +40,7 @@
 | `database/seeds/002_dim_calendar.sql` | 365 calendar rows (full year 2025) |
 | `etl/data_to_pg.py` | CSV → PostgreSQL (idempotent, incremental, transactional) |
 
-### Analysis Layer (17 SQL files in `analysis/sql/`)
+### Analysis Layer (17 SQL files in `analysis/`)
 | Directory | Files |
 |---|---|
 | `agent_level_operational_supervisors/` | agent_scorecard, agent_exception_report, coaching_opportunities, daily_agent_activity, eda_agents, schedule_adherence |
@@ -87,6 +87,8 @@
 |---|---|
 | `docs/QUICKSTART.md` | 5-minute setup guide |
 | `docs/TROUBLESHOOTING.md` | Docker/ETL error resolution |
+| `docs/CHANGELOG.md` | Version history (0.1.0 → 1.0.0) |
+| `docs/CONTEXT.md` | Full project context |
 | `docs/KPI_VIEWS.md` | All 12 KPI views documented |
 | `docs/kpi_definitions.md` | 319-line KPI reference with formulas |
 | `docs/data_dictionary.md` | Full column-level dictionary |
@@ -140,4 +142,4 @@
 - Phase 11: Publish, user guide, handoff
 
 ## Reference
-For full project context read: `CONTEXT.md`
+For full project context read: `docs/CONTEXT.md`

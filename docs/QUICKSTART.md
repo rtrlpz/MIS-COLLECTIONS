@@ -24,7 +24,7 @@ docker-compose -f database/docker-compose.yml up -d
 
 # 4. Run full pipeline (generate, migrate, load)
 ./run_pipeline.bat         # Windows
-# bash migrate.sh && python data_sources/generators/data_generator_v7.py && python etl/data_to_pg.py
+# bash database/migrate.sh && python data_sources/data_generator_v7.py && python etl/data_to_pg.py
 
 # 5. Verify
 python -m pytest test/ -v -m "not slow"
@@ -44,10 +44,10 @@ python -m pytest test/ -v -m "not slow"
 
 ```
 .
-├── data_sources/generators/   # Data generator (v7)
+├── data_sources/               # Data generator (v7)
 ├── database/                  # Docker + SQL (migrations, seeds)
 ├── etl/                       # CSV → PostgreSQL loader
-├── analysis/sql/              # 17 analytical queries
+├── analysis/                  # 17 analytical queries
 ├── dashboards/                # Power BI files + DAX measures
 ├── test/                      # pytest test suite
 └── docs/                      # Documentation

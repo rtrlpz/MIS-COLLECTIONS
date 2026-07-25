@@ -145,7 +145,7 @@ MIS-CollectionsDB/
 docker-compose -f database/docker-compose.yml up -d
 
 # 2. Generate synthetic data
-python data_sources/generators/data_generator_v7.py
+python data_sources/data_generator_v7.py
 
 # 3. Run the full ETL pipeline
 ./run_pipeline.bat

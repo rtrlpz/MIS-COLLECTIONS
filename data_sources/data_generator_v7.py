@@ -54,7 +54,7 @@ console_formatter = logging.Formatter("%(asctime)s | %(levelname)-8s | %(message
 console_handler.setFormatter(console_formatter)
 logger.addHandler(console_handler)
 
-# File handler → data_sources/generators/logs/
+# File handler → data_sources/logs/
 LOG_DIR = BASE_PATH / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = LOG_DIR / "generator.log"
@@ -99,7 +99,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     "--output-dir", type=str, default=None,
-    help="Output directory for generated CSVs (default: data_sources/generators/raw)"
+    help="Output directory for generated CSVs (default: data_sources/raw)"
 )
 parser.add_argument(
     "--months", type=str, default="1,2,3,4,5,6,7,8,9,10,11,12",
