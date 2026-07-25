@@ -31,7 +31,7 @@
 | `data_sources/schema/dictionary.md` | Column-level docs |
 | `database/docker-compose.yml` | Postgres 15 + pgAdmin |
 | `database/migrations/001_create_tables.sql` | DDL: 11 tables (star schema) |
-| `database/migrations/002_kpi_views.sql` | 9 KPI views (contact, promise, recovery, productivity, handle time, daily_mis, monthly, etl, freshness) |
+| `database/migrations/002_kpi_views.sql` | 12 KPI views (contact, promise, recovery, productivity, handle time, daily_mis, monthly, dpd_migration, weekly_agent, etl, freshness, scorecards) |
 | `database/migrations/003_constraints.sql` | 15 CHECK constraints |
 | `database/migrations/004_agents_scorecards.sql` | v_agent_scorecards (composite weighted: RPC 25%, KP 25%, Cure 20%, Util 15%, AHT 15%) |
 | `database/migrations/005_indexes.sql` | 27 indexes |
@@ -50,12 +50,11 @@
 ### DAX Layer
 | File | Content |
 |---|---|
-| `dashboards/assets/dax/collections_dax_v2.csv` | **256 measures** (13 tables). Source of truth. Import into PBIX. |
+| `dashboards/assets/dax/collections_dax_v2.csv` | **258 measures** (13 tables). Source of truth. Import into PBIX. |
 | `dashboards/assets/dax/dax_targets_and_comparisons.md` | Goals & Targets patterns (31 measures documented) |
-| `dashboards/assets/dax/collections_dax.csv` | Legacy v1 (73 measures, preserved as backup) |
 | `dashboards/assets/dax/generate_dax_reference.py` | Script to regenerate dax_measures_all.md from CSV |
 | `dashboards/assets/docs/dax_measures_dictionary_v2.md` | v2.2 full documentation (formulas, formats, dependencies) |
-| `dashboards/assets/docs/dax_measures_all.md` | Complete DAX reference (all 256 as code blocks) |
+| `dashboards/assets/docs/dax_measures_all.md` | Complete DAX reference (all 258 as code blocks) |
 | `dashboards/assets/docs/legacy/dax_measures_dictionary.md` | Legacy v1 docs |
 | `dashboards/assets/docs/dashboard_blueprint.md` | **Page-by-page wireframe** (9 dashboards, 1920x1080 canvas, visual specs, field wells, DAX refs) |
 | `dashboards/assets/docs/dashboard_blueprint.pdf` | **PDF export** of blueprint (printable) |
@@ -66,9 +65,15 @@
 ### PBIX Files
 | File | Status |
 |---|---|
-| `dashboards/collections_project/collections_dashboard_v4.pbix` | Latest iteration (build plan says START FRESH, don't modify) |
-| `dashboards/collections_project/collections_dashboard_v3.pbix` | Legacy |
-| `dashboards/collections_project/collections_dashboard_v2.pbix` | Legacy (8.9 MB) |
+| `dashboards/collections_project/collections_dashboard_v5.pbix` | Latest iteration (37 MB) |
+| `dashboards/collections_project/collections_dashboard_v4.pbix` | Previous iteration (15 MB) |
+
+### Dashboards Support
+| File | Purpose |
+|---|---|
+| `dashboards/scripts/import_measures.cs` | C# script to bulk-import DAX measures into PBIX |
+| `dashboards/scripts/prefix_removal.cs` | C# script for measure prefix cleanup |
+| `dashboards/scripts/csv_to_tsv.py` | Utility to convert DAX CSV to TSV format |
 
 ### Testing Layer
 | File | Content |
@@ -80,9 +85,13 @@
 ### Key Docs
 | File | Content |
 |---|---|
+| `docs/QUICKSTART.md` | 5-minute setup guide |
+| `docs/TROUBLESHOOTING.md` | Docker/ETL error resolution |
+| `docs/KPI_VIEWS.md` | All 12 KPI views documented |
 | `docs/kpi_definitions.md` | 319-line KPI reference with formulas |
 | `docs/data_dictionary.md` | Full column-level dictionary |
 | `docs/executive_summary.md` | 1-page leadership summary |
+| `CHANGELOG.md` | Version history (0.1.0 → 1.0.0) |
 | `dashboards/assets/docs/execution_guide.md` | 2,499-line enterprise build guide (13 sections) |
 | `dashboards/assets/docs/mis_collections_build_plan.md` | 5-phase Power BI build plan |
 | `dashboards/assets/docs/reference_guide.html` | 1,555-line DAX + dashboard blueprint |
@@ -112,24 +121,22 @@
 - Dim_Calendar: 365 rows (full year 2025)
 - Generator seed 42 row counts (12mo): Interactions ~1.36M / PTP ~58K / Payments ~49K / Agent Time ~21K / EOM ~186K / Writeoffs ~222
 
-## DAX v2.2 (256 measures across 13 tables)
-- **Base (89)**: `_Outreach & Activity` (20), `_Promise & Conversion` (13), `_Recovery & Collection` (16), `_Portfolio Health` (23), `_Goals & Targets` (31 including 2 calc tables + 1 selected goal + 7 goals + 7 gaps + 7 status + 7 color)
+## DAX v2.2 (258 measures across 13 tables)
+- **Base (91)**: `_Outreach & Activity` (20), `_Promise & Conversion` (13), `_Recovery & Collection` (16), `_Portfolio Health` (23), `_Goals & Targets` (31 including 2 calc tables + 1 selected goal + 7 goals + 7 gaps + 7 status + 7 color)
 - **Time Intelligence (120)**: MoM (36) + WoW (21) + DoD (21) + YoY (21) + OTC (21)
 - **Dashboard-Specific (47)**: `_Executive` (3), `_Agent Performance` (6), `_Dialer Performance` (4), `_Portfolio Management` (3), `_Financial Recovery` (9), `_Vintage Analysis` (3), `_Roll Rate Analysis` (5)
 - **Goal targets**: PTP% 80%, KP% 80%, ACW RPC 120s, ACW Non-RPC 25s, Capped KP/RPC Arrears 37%, Cures/THT 2.4, Utilization 90%
 - **RAG colors**: Green #00B050, Amber #FFC000, Red #FF0000
 - **2 calculated tables**: Dim_Targets (7 goals with thresholds), Color Reference (3 RAG hex codes)
-- Legacy v1 preserved: `collections_dax.csv`, `docs/legacy/dax_measures_dictionary.md`
+- Legacy v1 preserved: `dashboards/assets/docs/legacy/dax_measures_dictionary.md`
 - CSV is **source of truth** — import into PBIX, do NOT author measures exclusively in PBIX
 - **DAX coverage per dashboard**: Exec 95%, Agent 95%, Dialer 80%, Portfolio 95%, Ops 55%, Credit 80%, Financial 95%, Vintage 85%, Roll Rate 90%
-- **Blueprint ready**: `dashboards/assets/docs/dashboard_blueprint.md` — page-by-page wireframes, visual specs, field wells, formatting
-- **Blueprint PDF**: `dashboards/assets/docs/dashboard_blueprint.pdf` — printable PDF export
-- **Plan PDF**: `dashboards/assets/docs/PLAN_DASHBOARDS.pdf` — printable implementation plan
+- **Blueprint ready**: `dashboards/assets/docs/dashboard_blueprint.md` — page-by-page wireframes, visual specs, field wells, DAX refs
 - **4 schema gaps** (campaign, occupancy, login/logout, answered calls) — deferred
 
 ## Next Phase
-- Phase 9: Build Power BI dashboard (fresh PBIX, 9 pages, import mode, star schema, 256 DAX measures, RLS by supervisor) — **Blueprint ready**
-- Phase 10: Excel MIS report generator (openpyxl at `reports/generate_daily_mis.py`)
+- Phase 9: Build Power BI dashboard (fresh PBIX, 9 pages, import mode, star schema, 258 DAX measures, RLS by supervisor) — **Blueprint ready**
+- Phase 10: Excel MIS report generator (openpyxl at `reports/generate_daily_mis.py`) — needs real MIS report layout study first
 - Phase 11: Publish, user guide, handoff
 
 ## Reference

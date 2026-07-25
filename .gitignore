@@ -1,6 +1,9 @@
 # Ignore Power BI files (Dashboards)
 *.pbix
 
+# Ignore Power BI model files (generated)
+dashboards/models/
+
 # Ignore all CSV files (everywhere in the repo)
 *.csv
 
@@ -8,7 +11,7 @@
 interview_prep/
 
 # Ignore Excel outputs
-reports/outputs/*.xlsx
+reports/output/*.xlsx
 
 # Ignore database data/credentials
 pgdata/
@@ -19,7 +22,6 @@ database/data/
 # Ignore unused documentation and word docs
 docs/*.docx
 docs/unused/*
-docs/unused/TODO/*
 docs/interviews/*
 dashboards/docs/
 *.docx
@@ -32,16 +34,17 @@ dashboards/docs/
 *.SemanticModel/
 *.Report/
 
-# Ignore logs
-data_sources/generators/logs/*.log
+# Ignore logs + transient ETL errors
+data_sources/generators/logs/
 etl/logs
+etl/errors/
 
 # Ignore Python cache
 __pycache__/
 *.pyc
 
 # Ignore excel reports
-reports/outputs/*.csv
+reports/output/*.csv
 reports/templates/*.xlsx
 reports/templates/*.csv
 
@@ -52,16 +55,10 @@ reports/templates/*.csv
 *.tmp
 .opencode/
 
-# Temporary ignore for testing
-dashboards/fix_syntetic_data.md
-
-# Ignore dashboards assets
+# Generated/transient files in dashboards
 dashboards/assets/
-dashboards/assets/theme
-dashboards/assets/SVGs/png
-dashboards/assets/SVGs
-dashboards/assets/docs
-dashboards/assets/bg
-
-
-measures.tsv
+dashboards/assets/theme/
+dashboards/assets/SVGs/png/
+dashboards/assets/SVGs/
+dashboards/assets/docs/
+dashboards/assets/bg/  

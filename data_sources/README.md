@@ -1,37 +1,30 @@
-### 🎲 Data Sources & Generation (Tier 0 Architecture)
-This directory contains the Python-based data generation engine. Instead of relying on static, perfect dummy data, this script creates a synthetic but highly realistic Collections ecosystem.
+# Data Sources — Synthetic Data Generator
 
-The generator is designed to simulate the specific operational friction found in banking (e.g., late agent logins, varying contact rates, and delayed payments), providing a robust dataset for advanced ETL and attribution testing.
+This directory contains the synthetic data generation engine for the collections analytics platform.
 
-### ⚙️ How It Works
-The script (data_generator_v7.py) utilizes the Faker library and custom probability logic to generate five core datasets over a 31-day period (October 2025).
+## Contents
 
-Key Business Logic Simulated:
+| Path | Purpose |
+|------|---------|
+| `generators/data_generator_v7.py` | Main generator (11 tables, 1.8M rows, 12 months) |
+| `generators/config.py` | 45+ calibration parameters (CFG + PRODUCT_CFG) |
+| `schema/dictionary.md` | Column-level data dictionary |
 
-Agent Noise: 15% of agents log in late, affecting morning "Utilization Alignment."
+## Quick Start
 
-Contact Reality: A realistic 15-25% connection rate, with RPC (Right Party Contact) success influenced by an assigned "Agent Skill Factor."
+```bash
+# From project root
+python data_sources/generators/data_generator_v7.py
+```
 
-Payment Lag (Attribution): Payments resulting from a promise (PTP) occur 1 to 3 days after the call.
+Output CSVs are written to `data_sources/generators/raw/`:
+- `shared/` — 5 dimension tables (accounts, calendar, clients, employees, products)
+- `YYYY_month/` — 6 fact tables per month (interactions, ptp, payments, agent_time, eom_snapshot, writeoffs)
 
-Orphan Payments: 25% of all payments are generated with no associated agent_id, simulating organic digital or branch payments.
+## Key Facts
 
-### 🚀 How to Run the Generator
-Ensure you have your Python environment activated and the required dependencies installed (see the root requirements.txt).
-
-Open your terminal and navigate to the project root.
-
-Run the generator script:
-
-Bash
-python 01_data_sources/data_generator_v7.py
-
-
-### ⏱️ Performance & Output
-*   **Execution Time:** The script typically completes in **~15 to 30 seconds**, depending on your machine's CPU.
-*   **Output Location:** Once complete, a new directory named `scotiabank_refined/` (or your configured output path) will be created inside this folder.
-*   **File Volumes:** 
-    *   `accounts.csv`: ~10,000 to 15,000 rows.
-    *   `dialer_interactions.csv`: ~150,000+ rows (simulating heavy daily dialing).
-    *   `ptp_log.csv`, `cures_log.csv`, `agent_time_log.csv`: Variable rows based on interaction outcomes.
-
+- **12 months** (Jan-Dec 2025) with seasonal patterns
+- **~1.36M interactions**, ~58K PTPs, ~49K payments, ~21K agent time, ~186K EOM snapshots, ~222 writeoffs
+- Weekday-only interactions (bug fixed), payments allowed on weekends
+- ±8% monthly performance drift per agent for realistic variance
+- See `generators/config.py` for all calibration knobs

@@ -1,5 +1,12 @@
 # MIS Collections — Local Analytics Environment
 
+![Python](https://img.shields.io/badge/python-3.12-blue)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791)
+![Tests](https://img.shields.io/badge/tests-76%20passing-brightgreen)
+![DAX](https://img.shields.io/badge/DAX-258%20measures-orange)
+![Status](https://img.shields.io/badge/status-90%25%20complete-yellow)
+![Phase](https://img.shields.io/badge/phase-8%20(docs)-blueviolet)
+
 End-to-end collections analytics platform simulating a bank's full data infrastructure, from synthetic raw data generation to interactive business dashboards.
 
 ---
@@ -60,13 +67,48 @@ Agents pushed past **85% utilization** experience a measurable drop in KP%. Over
 
 ```
 Data Generation (Python)  →  Database Layer (PostgreSQL)
-                                   ↓
-                           Semantic Layer (SQL Views)
-                                   ↓
-                    Visualization (Power BI / Excel)
+                                    ↓
+                            Semantic Layer (SQL Views)
+                                    ↓
+                     Visualization (Power BI / Excel)
 ```
 
 A standard 4-tier data architecture: synthetic data with real-world friction → structured star schema → centralized KPI calculations → automated reporting.
+
+## Data Lineage
+
+```mermaid
+flowchart LR
+    subgraph Generation
+        G[data_generator_v7.py<br/>config.py]
+        CSV[raw/ CSVs<br/>11 tables, 1.8M rows]
+    end
+    subgraph Database
+        PG[(PostgreSQL 15<br/>MSI_CollectionsDB)]
+        MIG[migrations/<br/>6 SQL files]
+        SEED[seeds/<br/>products + calendar]
+    end
+    subgraph Views
+        V[12 KPI Views<br/>v_contact_metrics<br/>v_promise_metrics<br/>v_recovery_metrics<br/>v_daily_mis<br/>v_monthly_summary<br/>...]
+        A[17 Analysis Queries<br/>agent / team / portfolio]
+    end
+    subgraph BI
+        DAX[dashboards/assets/dax/<br/>258 DAX measures]
+        PBI[dashboards/<br/>9 PBIX pages]
+        EXCEL[reports/<br/>MIS Excel generator]
+    end
+    G --> CSV
+    CSV -->|ETL: data_to_pg.py| PG
+    MIG --> PG
+    SEED --> PG
+    PG --> V
+    PG --> A
+    PG --> DAX
+    DAX --> PBI
+    V --> EXCEL
+```
+
+**Upstream → Downstream:** Generator → CSVs → PostgreSQL (star schema) → SQL Views → DAX measures → Power BI dashboards + Excel reports.
 
 ---
 
@@ -109,7 +151,23 @@ python data_sources/generators/data_generator_v7.py
 ./run_pipeline.bat
 ```
 
+Detailed setup: [`docs/QUICKSTART.md`](docs/QUICKSTART.md)
+
 ---
+
+## Documentation
+
+| Doc | Description |
+|-----|-------------|
+| [`docs/QUICKSTART.md`](docs/QUICKSTART.md) | 5-minute setup guide |
+| [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Error resolution reference |
+| [`docs/KPI_VIEWS.md`](docs/KPI_VIEWS.md) | View documentation (12 views) |
+| [`docs/kpi_definitions.md`](docs/kpi_definitions.md) | KPI formulas and definitions |
+| [`docs/data_dictionary.md`](docs/data_dictionary.md) | Column-level dictionary |
+| [`docs/execution_guide.md`](docs/execution_guide.md) | Enterprise build guide |
+| [`CHANGELOG.md`](CHANGELOG.md) | Version history |
+| [`ROADMAP.md`](ROADMAP.md) | Phase completion tracking |
+| [`CONTEXT.md`](CONTEXT.md) | Full project context |
 
 ## Future Work
 
