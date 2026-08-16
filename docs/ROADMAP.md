@@ -194,11 +194,11 @@
 - [x] `docs/data_dictionary.md` — Full data dictionary (10 tables)
 - [x] `docs/execution_guide.md` — Granular task instructions
 - [x] `data_sources/schema/dictionary.md` — Column-level docs for all tables
-- [x] `dashboards/assets/reference_guide.html` — 994-line DAX + dashboard blueprint reference
-- [x] `dashboards/assets/dax_measures_dictionary.md` — 73 DAX measures (type-safe, Cured Amounts added)
-- [x] `dashboards/assets/mis_collections_build_plan.md` — 396-line build plan for Phases 8–9
-- [x] `dashboards/assets/dax/collections_dax_v2.csv` — 87 DAX measures across 5 tables (source of truth)
-- [x] `dashboards/assets/docs/dax_measures_dictionary_v2.md` — Full documentation with formulas, formats, dependencies
+- [x] `docs/dashboards/reference_guide.html` — DAX + dashboard blueprint reference
+- [x] `docs/dashboards/legacy/dax_measures_dictionary.md` — 73 DAX measures (v1 backup)
+- [x] `docs/dashboards/mis_collections_build_plan.md` — 396-line build plan for Phases 8–9
+- [x] `dashboards/dax/collections_dax_v2.csv` — 87 DAX measures across 5 tables (source of truth)
+- [x] `docs/dashboards/dax_measures_dictionary_v2.md` — Full documentation with formulas, formats, dependencies
 - [x] `PLAN_DASHBOARDS.md` — 9-dashboard implementation plan (generator G1-G9, schema, DAX ~320 measures)
 
 - [ ] `QUICKSTART.md` — 5-minute setup (prerequisites + 3 commands)
@@ -254,18 +254,18 @@
 ## PHASE 9 — BI / Reporting 🔵 Blueprint Ready (9 Dashboards)
 
 ### Build Plan Complete
-- [x] `dashboards/assets/docs/mis_collections_build_plan.md` — 5-phase build plan
+- [x] `docs/dashboards/mis_collections_build_plan.md` — 5-phase build plan
 - [x] Architecture defined: single .pbix, 9 pages, 3 Excel sheets
-- [x] **DAX v2.2 complete**: **256 measures** — `dashboards/assets/dax/collections_dax_v2.csv` (source of truth)
-- [x] `dashboards/assets/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
-- [x] `dashboards/assets/docs/dax_measures_dictionary_v2.md` — v2.2 documentation (13 tables, formats, deps)
-- [x] `dashboards/assets/docs/dax_measures_all.md` — Complete DAX reference (all 256 as code blocks)
+- [x] **DAX v2.2 complete**: **256 measures** — `dashboards/dax/collections_dax_v2.csv` (source of truth)
+- [x] `dashboards/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
+- [x] `docs/dashboards/dax_measures_dictionary_v2.md` — v2.2 documentation (13 tables, formats, deps)
+- [x] `docs/dashboards/dax_measures_all.md` — Complete DAX reference (all 256 as code blocks)
 - [x] 2 calculated tables: `Dim_Targets` (7 goal definitions), `Color Reference` (RAG hex codes)
 - [x] Legacy v1 files preserved as backups (`collections_dax.csv`, `legacy/dax_measures_dictionary.md`)
 - [x] `PLAN_DASHBOARDS.md` — Full implementation plan with DAX coverage analysis per dashboard (256 measures)
-- [x] **`dashboards/assets/docs/dashboard_blueprint.md`** — Page-by-page wireframes (1920x1080 canvas), visual specs, field wells, formatting
-- [x] **`dashboards/assets/docs/dashboard_blueprint.pdf`** — Printable PDF export of blueprint
-- [x] **`dashboards/assets/docs/PLAN_DASHBOARDS.pdf`** — Printable PDF export of implementation plan, DAX references
+- [x] **`docs/dashboards/dashboard_blueprint.md`** — Page-by-page wireframes (1920x1080 canvas), visual specs, field wells, formatting
+- [x] **`docs/dashboards/dashboard_blueprint.pdf`** — Printable PDF export of blueprint
+- [x] **`docs/dashboards/PLAN_DASHBOARDS.pdf`** — Printable PDF export of implementation plan, DAX references
 
 ### Dashboard Pages (9 consolidated from original 10)
 - [ ] Page 1 — Executive Collections (merged with Scorecard: operational + risk + cost per account) — **95% DAX ready**

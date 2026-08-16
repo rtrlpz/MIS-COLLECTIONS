@@ -4,7 +4,7 @@
 // ============================================================
 
 // === CONFIGURATION ===
-var tsvPath = @"C:/Users/Leand/Desktop/Portafolio-Projects/MIS-COLLECTIONS/dashboards/assets/dax/measures.tsv";
+var tsvPath = @"C:/Users/Leand/Desktop/Portafolio-Projects/MIS-COLLECTIONS/dashboards/dax/measures.tsv"; // 252 measures (v3.0)
 
 // Helper class to map format strings
 public static class MeasureHelper

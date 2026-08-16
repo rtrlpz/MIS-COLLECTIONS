@@ -1,8 +1,8 @@
 import csv
 from pathlib import Path
-BASE = Path(__file__).parent
-INPUT = BASE / "collections_dax_v2.csv"
-OUTPUT = BASE / "measures.tsv"
+DAX = Path(__file__).parent.parent / "dax"
+INPUT = DAX / "collections_dax_v2.csv"
+OUTPUT = DAX / "measures.tsv"
 rows = []
 with open(INPUT, newline="", encoding="utf-8") as f:
     for r in csv.reader(f):

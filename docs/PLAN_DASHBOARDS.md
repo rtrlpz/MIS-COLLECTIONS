@@ -47,10 +47,10 @@
 | **TOTAL** | **256** | **✅ All in CSV** |
 
 ### Documentation Files
-- `dashboards/assets/dax/collections_dax_v2.csv` — 256 measures (source of truth)
-- `dashboards/assets/docs/dax_measures_all.md` — Complete DAX reference (all 256 as code blocks)
-- `dashboards/assets/docs/dax_measures_dictionary_v2.md` — v2.2 (tables, formats, dependencies)
-- `dashboards/assets/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
+- `dashboards/dax/collections_dax_v2.csv` — 256 measures (source of truth)
+- `docs/dashboards/dax_measures_all.md` — Complete DAX reference (all 256 as code blocks)
+- `docs/dashboards/dax_measures_dictionary_v2.md` — v2.2 (tables, formats, dependencies)
+- `dashboards/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
 
 ---
 

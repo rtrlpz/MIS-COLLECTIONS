@@ -37,7 +37,7 @@ class TestGeneratorOutput:
 
         result = subprocess.run(
             ["python", str(GENERATOR_SCRIPT), "--seed", "42", "--output-dir", str(output_dir)],
-            capture_output=True, text=True, timeout=300
+            capture_output=True, text=True, timeout=600
         )
         assert result.returncode == 0, f"Generator failed: {result.stderr}"
 
@@ -70,13 +70,14 @@ class TestGeneratorRowCounts:
         'Dim_Employees': 88,
         'Dim_Clients': 10000,
         'Dim_Products': 3,
-        'Dim_Calendar': 122,
-        'Dim_Accounts': 15567,
-        'Fact_Interactions': 342996,
-        'Fact_PTP_Log': 22150,
-        'Fact_Payments': 19504,
-        'Fact_Agent_Time_Log': 5280,
-        'Fact_EOM_Snapshot': 46701,
+        'Dim_Calendar': 396,
+        'Dim_Accounts': 15482,
+        'Fact_Interactions': 1355587,
+        'Fact_PTP_Log': 58811,
+        'Fact_Payments': 49419,
+        'Fact_Agent_Time_Log': 20880,
+        'Fact_EOM_Snapshot': 185784,
+        'Fact_Writeoffs': 222,
     }
     TOLERANCE = 0.05  # ±5% for fact tables
 
@@ -88,7 +89,7 @@ class TestGeneratorRowCounts:
 
         result = subprocess.run(
             ["python", str(GENERATOR_SCRIPT), "--seed", "42", "--output-dir", str(output_dir)],
-            capture_output=True, text=True, timeout=300
+            capture_output=True, text=True, timeout=600
         )
         assert result.returncode == 0, f"Generator failed: {result.stderr}"
 
@@ -110,10 +111,10 @@ class TestGeneratorRowCounts:
 
         # Check fact table counts aggregated across months
         month_dirs = sorted(d for d in output_dir.iterdir() if d.is_dir() and d.name != 'shared')
-        assert len(month_dirs) == 3, f"Expected 3 month dirs, got {len(month_dirs)}"
+        assert len(month_dirs) == 12, f"Expected 12 month dirs, got {len(month_dirs)}"
 
         for table in ['Fact_Interactions', 'Fact_PTP_Log', 'Fact_Payments',
-                       'Fact_Agent_Time_Log', 'Fact_EOM_Snapshot']:
+                       'Fact_Agent_Time_Log', 'Fact_EOM_Snapshot', 'Fact_Writeoffs']:
             total = 0
             for month_dir in month_dirs:
                 df = pd.read_csv(month_dir / f"{table}.csv")
@@ -140,7 +141,7 @@ class TestGeneratorReproducibility:
                 shutil.rmtree(output_dir)
             result = subprocess.run(
                 ["python", str(GENERATOR_SCRIPT), "--seed", "42", "--output-dir", str(output_dir)],
-                capture_output=True, text=True, timeout=300
+                capture_output=True, text=True, timeout=600
             )
             assert result.returncode == 0, f"Generator failed: {result.stderr}"
 
@@ -174,7 +175,7 @@ class TestGeneratorDataQuality:
 
         result = subprocess.run(
             ["python", str(GENERATOR_SCRIPT), "--seed", "42", "--output-dir", str(output_dir)],
-            capture_output=True, text=True, timeout=300
+            capture_output=True, text=True, timeout=600
         )
         assert result.returncode == 0, f"Generator failed: {result.stderr}"
 
@@ -213,7 +214,7 @@ class TestGeneratorPostFixInvariants:
             shutil.rmtree(output_dir)
         result = subprocess.run(
             ["python", str(self.GENERATOR_SCRIPT), "--seed", "42", "--output-dir", str(output_dir)],
-            capture_output=True, text=True, timeout=300
+            capture_output=True, text=True, timeout=600
         )
         assert result.returncode == 0, f"Generator failed: {result.stderr}"
         yield output_dir

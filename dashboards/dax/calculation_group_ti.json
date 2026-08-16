@@ -1,0 +1,115 @@
+{
+  "name": "_Time Intelligence",
+  "description": "Time Intelligence Calculation Group. Replaces 120 individual TI measures. Apply as a slicer/filter to any base measure to get the time comparison.",
+  "precedence": 10,
+  "calculationItems": [
+    {
+      "name": "Current Period",
+      "expression": "SELECTEDMEASURE()",
+      "formatString": "",
+      "ordinal": 0
+    },
+    {
+      "name": "Prior Month",
+      "expression": "CALCULATE(SELECTEDMEASURE(), DATEADD('Dim_Calendar'[date], -1, MONTH))",
+      "formatString": "inherit",
+      "ordinal": 1
+    },
+    {
+      "name": "MoM Change",
+      "expression": "SELECTEDMEASURE() - CALCULATE(SELECTEDMEASURE(), DATEADD('Dim_Calendar'[date], -1, MONTH))",
+      "formatString": "+0.0%;-0.0%",
+      "ordinal": 2
+    },
+    {
+      "name": "MoM % Change",
+      "expression": "VAR _Prior = CALCULATE(SELECTEDMEASURE(), DATEADD('Dim_Calendar'[date], -1, MONTH)) RETURN DIVIDE(SELECTEDMEASURE() - _Prior, _Prior)",
+      "formatString": "+0.0%;-0.0%",
+      "ordinal": 3
+    },
+    {
+      "name": "Prior Week",
+      "expression": "VAR _ISO = SELECTEDVALUE('Dim_Calendar'[iso_week]) VAR _Dates = CALCULATETABLE(VALUES('Dim_Calendar'[date]), 'Dim_Calendar'[iso_week] = _ISO - 1) RETURN CALCULATE(SELECTEDMEASURE(), _Dates)",
+      "formatString": "inherit",
+      "ordinal": 4
+    },
+    {
+      "name": "WoW Change",
+      "expression": "VAR _ISO = SELECTEDVALUE('Dim_Calendar'[iso_week]) VAR _Dates = CALCULATETABLE(VALUES('Dim_Calendar'[date]), 'Dim_Calendar'[iso_week] = _ISO - 1) VAR _Prior = CALCULATE(SELECTEDMEASURE(), _Dates) RETURN SELECTEDMEASURE() - _Prior",
+      "formatString": "+0.0%;-0.0%",
+      "ordinal": 5
+    },
+    {
+      "name": "WoW % Change",
+      "expression": "VAR _ISO = SELECTEDVALUE('Dim_Calendar'[iso_week]) VAR _Dates = CALCULATETABLE(VALUES('Dim_Calendar'[date]), 'Dim_Calendar'[iso_week] = _ISO - 1) VAR _Prior = CALCULATE(SELECTEDMEASURE(), _Dates) RETURN DIVIDE(SELECTEDMEASURE() - _Prior, _Prior)",
+      "formatString": "+0.0%;-0.0%",
+      "ordinal": 6
+    },
+    {
+      "name": "Prior Day",
+      "expression": "CALCULATE(SELECTEDMEASURE(), DATEADD('Dim_Calendar'[date], -1, DAY))",
+      "formatString": "inherit",
+      "ordinal": 7
+    },
+    {
+      "name": "DoD Change",
+      "expression": "SELECTEDMEASURE() - CALCULATE(SELECTEDMEASURE(), DATEADD('Dim_Calendar'[date], -1, DAY))",
+      "formatString": "+0.0%;-0.0%",
+      "ordinal": 8
+    },
+    {
+      "name": "DoD % Change",
+      "expression": "VAR _Prior = CALCULATE(SELECTEDMEASURE(), DATEADD('Dim_Calendar'[date], -1, DAY)) RETURN DIVIDE(SELECTEDMEASURE() - _Prior, _Prior)",
+      "formatString": "+0.0%;-0.0%",
+      "ordinal": 9
+    },
+    {
+      "name": "Prior Year",
+      "expression": "CALCULATE(SELECTEDMEASURE(), SAMEPERIODLASTYEAR('Dim_Calendar'[date]))",
+      "formatString": "inherit",
+      "ordinal": 10
+    },
+    {
+      "name": "YoY Change",
+      "expression": "SELECTEDMEASURE() - CALCULATE(SELECTEDMEASURE(), SAMEPERIODLASTYEAR('Dim_Calendar'[date]))",
+      "formatString": "+0.0%;-0.0%",
+      "ordinal": 11
+    },
+    {
+      "name": "YoY % Change",
+      "expression": "VAR _Prior = CALCULATE(SELECTEDMEASURE(), SAMEPERIODLASTYEAR('Dim_Calendar'[date])) RETURN DIVIDE(SELECTEDMEASURE() - _Prior, _Prior)",
+      "formatString": "+0.0%;-0.0%",
+      "ordinal": 12
+    },
+    {
+      "name": "Overall Avg",
+      "expression": "CALCULATE(SELECTEDMEASURE(), ALL('Dim_Calendar'))",
+      "formatString": "inherit",
+      "ordinal": 13
+    },
+    {
+      "name": "OTC Change",
+      "expression": "SELECTEDMEASURE() - CALCULATE(SELECTEDMEASURE(), ALL('Dim_Calendar'))",
+      "formatString": "+0.0%;-0.0%",
+      "ordinal": 14
+    },
+    {
+      "name": "OTC % Change",
+      "expression": "VAR _Overall = CALCULATE(SELECTEDMEASURE(), ALL('Dim_Calendar')) RETURN DIVIDE(SELECTEDMEASURE() - _Overall, _Overall)",
+      "formatString": "+0.0%;-0.0%",
+      "ordinal": 15
+    },
+    {
+      "name": "YTD",
+      "expression": "CALCULATE(SELECTEDMEASURE(), DATESYTD('Dim_Calendar'[date]))",
+      "formatString": "inherit",
+      "ordinal": 16
+    },
+    {
+      "name": "Rolling 3M",
+      "expression": "CALCULATE(SELECTEDMEASURE(), DATESINPERIOD('Dim_Calendar'[date], LASTDATE('Dim_Calendar'[date]), -3, MONTH))",
+      "formatString": "inherit",
+      "ordinal": 17
+    }
+  ]
+}

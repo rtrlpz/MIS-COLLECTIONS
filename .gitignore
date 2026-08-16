@@ -1,31 +1,33 @@
 # Ignore Power BI files (Dashboards)
 *.pbix
 
-# Ignore Power BI model files (generated)
+# Ignore Power BI model files (generated, STALE)
 dashboards/models/
 
-# Ignore all CSV files (everywhere in the repo)
-*.csv
+# Ignore DAX-derived transient outputs in dashboards
+dashboards/dax/measures.tsv
 
 # Ignore personal interview prep folder
 interview_prep/
+docs/interviews/
+
+# Ignore private/real-world reference data (NEVER commit)
+docs/unused/
+docs/*.docx
+*.docx
+*.pdf
 
 # Ignore Excel outputs
 reports/output/*.xlsx
+reports/output/*.csv
+reports/templates/*.xlsx
+reports/templates/*.csv
 
 # Ignore database data/credentials
 pgdata/
 database/.env
 database/data/
 .env
-
-# Ignore unused documentation and word docs
-docs/*.docx
-docs/unused/*
-docs/interviews/*
-dashboards/docs/
-*.docx
-*.pdf
 
 # Ignore IDE files
 .idea/
@@ -34,7 +36,7 @@ dashboards/docs/
 *.SemanticModel/
 *.Report/
 
-# Ignore logs + transient ETL errors
+# Ignore generated logs + raw data (never edit generated CSVs)
 data_sources/logs/
 data_sources/raw/
 etl/logs
@@ -44,11 +46,6 @@ etl/errors/
 __pycache__/
 *.pyc
 
-# Ignore excel reports
-reports/output/*.csv
-reports/templates/*.xlsx
-reports/templates/*.csv
-
 # Ignore pytest cache
 .pytest_cache
 
@@ -56,10 +53,5 @@ reports/templates/*.csv
 *.tmp
 .opencode/
 
-# Generated/transient files in dashboards
-dashboards/assets/
-dashboards/assets/theme/
-dashboards/assets/SVGs/png/
-dashboards/assets/SVGs/
-dashboards/assets/docs/
-dashboards/assets/bg/  
+# Local-only dashboards output (PBIX are *.pbix; keep models/ stale exports local)
+dashboards/pbix/

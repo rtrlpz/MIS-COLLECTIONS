@@ -34,30 +34,20 @@ MIS-COLLECTIONS/
 │   └── portfolio_level_strategic_directors/   # 5 files
 │
 ├── dashboards/                    # VISUALIZATION LAYER
-│   ├── assets/
-│   │   ├── dax/                   # DAX SOURCE OF TRUTH (CSV + docs)
-│   │   │   ├── collections_dax_v2.csv           # 258 measures (13 tables, source of truth)
-│   │   │   ├── collections_dax.csv              # Legacy v1 (73 measures)
-│   │   │   ├── dax_targets_and_comparisons.md   # Goals & Targets patterns (31 measures documented)
-│   │   │   └── generate_dax_reference.py        # Script to regenerate dax_measures_all.md from CSV
-│   │   ├── docs/
-│   │   │   ├── dax_measures_dictionary_v2.md    # v2.2: 258 measures documented (tables, formats, deps)
-│   │   │   ├── dax_measures_all.md              # Complete DAX reference: all 258 as code blocks
-│   │   │   ├── dashboard_blueprint.md           # Page-by-page wireframes (1920x1080 canvas)
-│   │   │   ├── dashboard_blueprint.pdf          # PDF export of blueprint
-│   │   │   ├── PLAN_DASHBOARDS.pdf              # PDF export of 9-dashboard implementation plan
-│   │   │   ├── md_to_pdf.py                     # Markdown to PDF converter script
-│   │   │   ├── mis_collections_build_plan.md    # 5-phase Power BI build plan
-│   │   │   ├── execution_guide.md               # 2,499-line enterprise build guide
-│   │   │   ├── reference_guide.html             # 1,555-line DAX reference
-│   │   │   └── legacy/dax_measures_dictionary.md # v1 backup
-│   │   ├── theme/Tema 1.json                    # Power BI theme (#262A76, Calibri)
-│   │   ├── SVGs/                                 # Icons (Google Material, Streamline)
-│   │   ├── screenshots/architecture_diagram.svg
-│   │   └── bg/                                   # Background images
-│   └── collections_project/
-│       ├── collections_dashboard_v5.pbix         # Latest iteration (37 MB)
-│       └── collections_dashboard_v4.pbix         # Previous iteration (15 MB)
+│   ├── dax/                   # DAX SOURCE OF TRUTH (CSV + docs)
+│   │   ├── collections_dax_v2.csv           # 258 measures (13 tables, source of truth)
+│   │   ├── calculation_group_ti.json        # _Time Intelligence Calculation Group (18 items)
+│   │   ├── dax_targets_and_comparisons.md   # Goals & Targets patterns (31 measures documented)
+│   │   └── generate_dax_reference.py        # Script to regenerate dax_measures_all.md from CSV
+│   ├── theme/Tema 1.json                    # Power BI theme (#262A76, Calibri)
+│   ├── scripts/                             # C# + Python helpers (import_measures, create_calc_group, prefix_removal, csv_to_tsv, md_to_pdf)
+│   ├── pbix/                                # Working dashboard (PBIX files gitignored)
+│   │   └── collections_dashboard_v3.pbix    # Current working iteration
+│   ├── models/                              # Tabular Editor exports (gitignored, STALE — regenerate from v3)
+│   └── assets/                              # Visual assets only
+│       ├── icons/                           # SVG + PNG icons
+│       ├── screenshots/architecture_diagram.svg
+│       └── bg/                              # Canvas/background templates
 │
 ├── data_sources/                  # DATA GENERATION LAYER
 │   ├── config.py                  # 45+ calibration params (CFG + PRODUCT_CFG)
@@ -83,10 +73,24 @@ MIS-COLLECTIONS/
 │   └── errors/                    # Error CSVs from failed loads
 │
 ├── docs/                          # DOCUMENTATION LAYER
+│   ├── README.md                  # Documentation index (single entry point)
+│   ├── CONTEXT.md ROADMAP.md CHANGELOG.md QUICKSTART.md TROUBLESHOOTING.md
 │   ├── kpi_definitions.md         # 319-line KPI reference with formulas
+│   ├── KPI_VIEWS.md               # All 12 KPI views documented
 │   ├── data_dictionary.md         # Full column-level dictionary
 │   ├── executive_summary.md       # 1-page leadership summary
-│   └── interviews/                # Case study prep materials
+│   ├── PLAN_DASHBOARDS.md         # 9-dashboard implementation plan
+│   ├── PHASES_12_14_GUIDE.md      # CACS / dialer-WFM / PEGA roadmap
+│   ├── dashboards/                # Dashboard docs (moved from dashboards/assets/docs)
+│   │   ├── dashboard_blueprint.md/.pdf   # Page-by-page wireframes (1920x1080)
+│   │   ├── execution_guide.md            # 2,499-line enterprise build guide
+│   │   ├── mis_collections_build_plan.md # 5-phase Power BI build plan
+│   │   ├── dax_measures_all.md           # Complete DAX reference (all 258)
+│   │   ├── dax_measures_dictionary_v2.md # v2.2 full DAX dictionary
+│   │   ├── reference_guide.html          # 1,555-line DAX reference
+│   │   └── legacy/                       # v1 backups
+│   ├── unused/                    # PRIVATE archive (gitignored): real MTD xlsx, historic CSVs, tech-exam SQL, PBIX prototypes
+│   └── interviews/                # Personal interview prep (gitignored)
 │
 ├── reports/                       # EXCEL REPORTING LAYER (Phase D pending)
 │   └── (empty — generate_daily_mis.py pending)
@@ -283,7 +287,7 @@ All 17 SQL files verified with valid content — none empty.
 ### ⏳ PENDING (Next Phases)
 
 #### Phase 9 — Power BI Dashboard Build (9 dashboards) ← CURRENT
-- Build fresh PBIX (not modify existing collections_dashboard_v4.pbix)
+- Build fresh PBIX (not modify existing collections_dashboard_v3.pbix)
 - **Canvas**: 1920 x 1080 (Full HD, 16:9)
 - **9 pages** (consolidated from original 10 — Executive Collections merged with Scorecard):
   1. Executive Collections (merged) — operational + risk + cost per account (**95% DAX ready**)
@@ -297,9 +301,9 @@ All 17 SQL files verified with valid content — none empty.
   9. Roll Rate Analysis — Migration matrix, Skip/deteriorate rates, Stuck 90+ (**90% DAX ready**)
 - Import mode, star schema, **258 DAX measures** across 13 tables + 2 calculated tables
 - RLS by supervisor_id on Dim_Agents
-- **Blueprint ready**: `dashboards/assets/docs/dashboard_blueprint.md` — page-by-page wireframes (1920x1080), visual specs, field wells, formatting
-- **Blueprint PDF**: `dashboards/assets/docs/dashboard_blueprint.pdf` — printable PDF export
-- **Plan PDF**: `dashboards/assets/docs/PLAN_DASHBOARDS.pdf` — printable implementation plan
+- **Blueprint ready**: `docs/dashboards/dashboard_blueprint.md` — page-by-page wireframes (1920x1080), visual specs, field wells, formatting
+- **Blueprint PDF**: `docs/dashboards/dashboard_blueprint.pdf` — printable PDF export
+- **Plan PDF**: `docs/dashboards/PLAN_DASHBOARDS.pdf` — printable implementation plan
 - **DAX source**: `dax_measures_all.md` (258 measures as copy-paste code blocks)
 
 #### Phase 10 — Excel Daily MIS Report
@@ -328,13 +332,13 @@ All 17 SQL files verified with valid content — none empty.
 - None currently. Weekend interaction bug fixed. Dim_Agents denormalized. Pipeline verified end-to-end. KPI views corrected: cure count uses `COUNT(DISTINCT account_id)` (no double-count), BB Conversion uses correct `kept_pct * ptp_pct / 100` formula.
 
 ## Key Documents
-- `dashboards/assets/docs/execution_guide.md` — 2,499-word enterprise Power BI build guide (13 sections)
-- `dashboards/assets/docs/mis_collections_build_plan.md` — 5-phase build plan for Phase C/D/E
-- `dashboards/assets/docs/reference_guide.html` — 1,555-line DAX + dashboard blueprint
-- `dashboards/assets/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
-- `dashboards/assets/dax/collections_dax_v2.csv` — 258 measures (source of truth, 13 tables)
-- `dashboards/assets/docs/dax_measures_dictionary_v2.md` — v2.2 full documentation (formulas, formats, deps)
-- `dashboards/assets/docs/dax_measures_all.md` — Complete DAX reference (all 258 as code blocks)
+- `docs/dashboards/execution_guide.md` — 2,499-word enterprise Power BI build guide (13 sections)
+- `docs/dashboards/mis_collections_build_plan.md` — 5-phase build plan for Phase C/D/E
+- `docs/dashboards/reference_guide.html` — 1,555-line DAX + dashboard blueprint
+- `dashboards/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
+- `dashboards/dax/collections_dax_v2.csv` — 258 measures (source of truth, 13 tables)
+- `docs/dashboards/dax_measures_dictionary_v2.md` — v2.2 full documentation (formulas, formats, deps)
+- `docs/dashboards/dax_measures_all.md` — Complete DAX reference (all 258 as code blocks)
 - `docs/kpi_definitions.md` — Business formulas and benchmarks for all KPIs
 - `docs/PLAN_DASHBOARDS.md` — 9-dashboard implementation plan with DAX coverage analysis
 
@@ -360,8 +364,8 @@ All 17 SQL files verified with valid content — none empty.
 - **Generator row counts (seed 42, 3mo, v7 calibrated)**: Dim tables exact (8/80/10000/3/122/15567), Facts ±5% (Interactions 342996, PTP 22150, Payments 19504, Agent Time 5280, EOM Snapshot 46701).
 - **Phase 5 — Generator enhancements**: 6 edits to `data_generator_v7.py`. (1) `other_pool` restricted to accounts that have ever been in Mora (`ever_mora` set tracks initial Mora + replenishments). (2) Self-cure rate decays by `0.5^cure_count` (min 0.1) for repeat offenders. (3) Agent connection rate penalized by `1.0 - 0.2*cure_count` (min 0.4). (4) AHT/ACW boosted by `1.0 + 0.15*cure_count` for escalated accounts. (5) `cure_count` tracked per account, incremented on each cure (self-cure or agent-assisted). (6) Utilization cap lowered from 1.0 to 0.95.
 - **Phase 6 — Invariant tests**: Added `TestGeneratorPostFixInvariants` class (4 tests) to `test/test_generator.py`. Test 20 (cure-flag completeness): 0 rows with `is_cured=True` and `cure_flag="None"`. Test 21 (PTP-payment consistency): all kept PTPs have `amount_paid >= 95%` of `promised_amount`. Test 22 (grace-period integrity): all `grace_until_date >= promised_date`. Test 23 (re-entry rate bounds): 10-25% of cured accounts re-default within 1 month. All 4 tests pass with seed 42.
-- **DAX v2 (June 2026)**: Full audit of all 3 source files (dax_measures_dictionary.md, collections_dax.csv, execution_guide.md patterns). Rebuilt into `dashboards/assets/dax/collections_dax_v2.csv` (87 measures across 5 tables) and `dashboards/assets/docs/dax_measures_dictionary_v2.md` (full documentation). Changes: removed 5 broken cross-table measures (Schedule Paid Full/Partial/Broken, Total Expected, Schedule Fulfillment Rate), rewrote Roll Rate from broken RELATEDTABLE pattern to CALCULATE+CONTAINS, added format specs column, added Roll Rate measures with documented calculated column alternative. Legacy v1 files preserved as backups.
-- **DAX targets & comparisons (July 2026)**: Added `dashboards/assets/dax/dax_targets_and_comparisons.md` — 120 new DAX measures (29 goals/RAG + 91 time intelligence) plus 2 calculated tables. New `_Goals & Targets` measure table with goals for PTP% 80%, KP% 80%, ACW RPC 120s, ACW Non-RPC 25s, Capped KP/RPC Arrears 37%, Cures/THT 2.4, Utilization 90%. 3-tier RAG (Green #00B050, Amber #FFC000, Red #FF0000). 5 comparison types: MoM, WoW, DoD, YoY, OTC — each with Prior Period, Abs Change, and % Change variants. Updated `collections_dax_v2.csv` with 57 new rows (29 _Goals & Targets, 28 _Time Intelligence additions). Updated `dax_measures_dictionary_v2.md` to v2.1. Total DAX stock: 207 measures (87 base + 120 new). ROADMAP.md updated to reflect actual counts.
+- **DAX v2 (June 2026)**: Full audit of all 3 source files (dax_measures_dictionary.md, collections_dax.csv, execution_guide.md patterns). Rebuilt into `dashboards/dax/collections_dax_v2.csv` (87 measures across 5 tables) and `docs/dashboards/dax_measures_dictionary_v2.md` (full documentation). Changes: removed 5 broken cross-table measures (Schedule Paid Full/Partial/Broken, Total Expected, Schedule Fulfillment Rate), rewrote Roll Rate from broken RELATEDTABLE pattern to CALCULATE+CONTAINS, added format specs column, added Roll Rate measures with documented calculated column alternative. Legacy v1 files preserved as backups.
+- **DAX targets & comparisons (July 2026)**: Added `dashboards/dax/dax_targets_and_comparisons.md` — 120 new DAX measures (29 goals/RAG + 91 time intelligence) plus 2 calculated tables. New `_Goals & Targets` measure table with goals for PTP% 80%, KP% 80%, ACW RPC 120s, ACW Non-RPC 25s, Capped KP/RPC Arrears 37%, Cures/THT 2.4, Utilization 90%. 3-tier RAG (Green #00B050, Amber #FFC000, Red #FF0000). 5 comparison types: MoM, WoW, DoD, YoY, OTC — each with Prior Period, Abs Change, and % Change variants. Updated `collections_dax_v2.csv` with 57 new rows (29 _Goals & Targets, 28 _Time Intelligence additions). Updated `dax_measures_dictionary_v2.md` to v2.1. Total DAX stock: 207 measures (87 base + 120 new). ROADMAP.md updated to reflect actual counts.
 - **Dashboard consolidation (July 2026)**: 9 dashboards selected (from original 14+4=18). Excluded: WFM, QA, Compliance, Customer Experience, Recovery Forecast. Merged Executive Collections + Executive Scorecard into single page. `docs/PLAN_DASHBOARDS.md` created with full implementation plan (generator G1-G9, schema changes, DAX expansion to ~320 measures, 12-month data).
 - **Phase 8.5 complete (July 2026)**: All G1-G9 generator enhancements implemented. Schema updated with +9 columns, +1 table (fact_writeoffs), +3 views, +8 constraints, +6 indexes. 12 months of data generated (Jan-Dec 2025) and loaded into PostgreSQL (1.8M rows). All tests passing. Generator output verified: open_date spread, channel mix, credit limits, income brackets, experience tiers, writeoffs.
 - **DAX v2.2 complete (July 2026)**: Expanded from 136 to 258 measures across 13 tables. Added 84 time intelligence measures (WoW/DoD/YoY/OTC for 7 key metrics). Added 22 dashboard-specific measures (Executive 3, Agent 6, Dialer 4, Portfolio 3, Financial Recovery 9, Vintage 3, Roll Rate 5). All measures in CSV (source of truth). Created `dax_measures_all.md` (all 258 as DAX code blocks). Updated `dax_measures_dictionary_v2.md` to v2.2. Updated `docs/PLAN_DASHBOARDS.md` with per-dashboard DAX coverage analysis (range: 55%-95%). 4 require schema changes (deferred).
@@ -372,11 +376,11 @@ All 17 SQL files verified with valid content — none empty.
 - **DB connection**: host=localhost, port=5433, user=[REDACTED], password=[REDACTED], db=MSI_CollectionsDB
 - **Pipeline command**: `./run_pipeline.bat` (from project root in CMD)
 - **Run tests**: `python -m pytest test/ -v -m "not slow"`
-- **DAX base CSV**: `dashboards/assets/dax/collections_dax_v2.csv` (258 measures, source of truth)
-- **DAX full reference**: `dashboards/assets/docs/dax_measures_all.md` (all 258 as code blocks)
-- **DAX dictionary**: `dashboards/assets/docs/dax_measures_dictionary_v2.md` (v2.2)
-- **DAX targets module**: `dashboards/assets/dax/dax_targets_and_comparisons.md`
-- **Execution guide**: `dashboards/assets/docs/execution_guide.md`
-- **Build plan**: `dashboards/assets/docs/mis_collections_build_plan.md`
+- **DAX base CSV**: `dashboards/dax/collections_dax_v2.csv` (258 measures, source of truth)
+- **DAX full reference**: `docs/dashboards/dax_measures_all.md` (all 258 as code blocks)
+- **DAX dictionary**: `docs/dashboards/dax_measures_dictionary_v2.md` (v2.2)
+- **DAX targets module**: `dashboards/dax/dax_targets_and_comparisons.md`
+- **Execution guide**: `docs/dashboards/execution_guide.md`
+- **Build plan**: `docs/dashboards/mis_collections_build_plan.md`
 - **Dashboard plan**: `docs/PLAN_DASHBOARDS.md` (9 dashboards, DAX coverage analysis)
 - **Total DAX measures**: 258 (91 base + 120 time intelligence + 47 dashboard-specific)

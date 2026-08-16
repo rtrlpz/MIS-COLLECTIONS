@@ -102,7 +102,7 @@ pip install pytest
 ## Power BI Issues
 
 ### DAX measure errors (yellow triangles)
-Verify the measure formula in `dashboards/assets/dax/collections_dax_v2.csv` references existent columns. Common mismatches:
+Verify the measure formula in `dashboards/dax/collections_dax_v2.csv` references existent columns. Common mismatches:
 - `product_id` → should be on `Dim_Products`, not `Fact_EOM_Snapshot`
 - `open_date` → should be on `Dim_Accounts`, not `Fact_EOM_Snapshot`
 

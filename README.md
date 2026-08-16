@@ -93,7 +93,7 @@ flowchart LR
         A[17 Analysis Queries<br/>agent / team / portfolio]
     end
     subgraph BI
-        DAX[dashboards/assets/dax/<br/>258 DAX measures]
+        DAX[dashboards/dax/<br/>258 DAX measures]
         PBI[dashboards/<br/>9 PBIX pages]
         EXCEL[reports/<br/>MIS Excel generator]
     end
@@ -164,9 +164,11 @@ Detailed setup: [`docs/QUICKSTART.md`](docs/QUICKSTART.md)
 | [`docs/KPI_VIEWS.md`](docs/KPI_VIEWS.md) | View documentation (12 views) |
 | [`docs/kpi_definitions.md`](docs/kpi_definitions.md) | KPI formulas and definitions |
 | [`docs/data_dictionary.md`](docs/data_dictionary.md) | Column-level dictionary |
-| [`docs/execution_guide.md`](docs/execution_guide.md) | Enterprise build guide |
-| [`CHANGELOG.md`](CHANGELOG.md) | Version history |
-| [`ROADMAP.md`](ROADMAP.md) | Phase completion tracking |
+| [`docs/dashboards/execution_guide.md`](docs/dashboards/execution_guide.md) | Enterprise build guide |
+| [`docs/CONTEXT.md`](docs/CONTEXT.md) | Full project context |
+| [`docs/README.md`](docs/README.md) | Documentation index |
+| [`CHANGELOG.md`](docs/CHANGELOG.md) | Version history |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Phase completion tracking |
 | [`CONTEXT.md`](CONTEXT.md) | Full project context |
 
 ## Future Work

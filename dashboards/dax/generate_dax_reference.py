@@ -13,59 +13,33 @@ OUT_PATH = os.path.join(os.path.dirname(__file__), "..", "docs", "dax_measures_a
 # Table display order and descriptions
 TABLE_INFO = {
     "_Outreach & Activity": "Base contact metrics, agent productivity, and handle time.",
-    "_Promise & Conversion": "Promise-to-pay pipeline, KP%, BB Conversion, Capped KP.",
-    "_Recovery & Collection": "Cures, collection amounts, payment method breakdown.",
-    "_Portfolio Health": "EOM snapshot metrics, DPD bucket distribution, arrears, roll rates.",
+    "_Promise & Recovery": "Promise-to-pay pipeline, KP%, BB Conversion, Capped KP, cures, recovery amounts, payment methods.",
+    "_Portfolio Health": "EOM snapshot, DPD buckets, arrears, roll rates, migration, skip-path analysis.",
     "_Goals & Targets": "Goal values, gaps, RAG status, color hex for 7 key KPI metrics.",
-    "_Time Intelligence": "MoM, WoW, DoD, YoY, OTC, YTD, and rolling window calculations.",
-    "_Executive": "VP-level portfolio health metrics for Executive Collections dashboard.",
-    "_Agent Performance": "Individual agent metrics for leaderboard and coaching.",
-    "_Dialer Performance": "Dialer campaign efficiency metrics.",
-    "_Portfolio Management": "Portfolio-level risk and concentration metrics.",
-    "_Financial Recovery": "Financial recovery efficiency and cost metrics.",
-    "_Vintage Analysis": "Vintage (open_date) age and balance metrics.",
-    "_Roll Rate Analysis": "Roll rate trend and net migration metrics.",
+    "_Composites & Strategy": "Composite scores, agent metrics, dialer performance, financial efficiency, vintage analysis, credit risk.",
+    "_Time Intelligence": "Calculation Group — MoM, WoW, DoD, YoY, OTC, YTD, Rolling 3M (18 items). Apply as slicer to any base measure.",
 }
 
-# Time Intelligence sub-sections
-TI_SECTIONS = {
-    "MoM": "Month-over-Month",
-    "WoW": "Week-over-Week",
-    "DoD": "Day-over-Day",
-    "YoY": "Year-over-Year",
-    "OTC": "Overall-to-Current",
-    "YTD": "Year-to-Date",
-    "Rolling": "Rolling Window",
-}
+CG_JSON_PATH = os.path.join(os.path.dirname(__file__), "calculation_group_ti.json")
+
 
 def clean_expression(expr):
     """Clean CSV-escaped DAX expression for display."""
-    # Remove outer quotes if present
     expr = expr.strip()
     if expr.startswith('"') and expr.endswith('"'):
         expr = expr[1:-1]
-    # Unescape doubled quotes
     expr = expr.replace('""', '"')
-    # Unescape triple quotes (CSV artifact)
-    expr = expr.replace('"""', '"')
     return expr.strip()
 
-def classify_ti_measure(name):
-    """Classify a Time Intelligence measure into its sub-section."""
-    if "WoW" in name or "Prior Week" in name:
-        return "WoW"
-    elif "DoD" in name or "Prior Day" in name:
-        return "DoD"
-    elif "YoY" in name or "Prior Year" in name:
-        return "YoY"
-    elif "OTC" in name or "Overall" in name:
-        return "OTC"
-    elif "YTD" in name:
-        return "YTD"
-    elif "Rolling" in name:
-        return "Rolling"
-    else:
-        return "MoM"
+
+def load_cg_items():
+    """Load Calculation Group items from JSON."""
+    import json
+    if not os.path.exists(CG_JSON_PATH):
+        return []
+    with open(CG_JSON_PATH, "r", encoding="utf-8") as f:
+        cg = json.load(f)
+    return cg.get("calculationItems", [])
 
 def generate_md():
     # Read CSV
@@ -95,7 +69,7 @@ def generate_md():
     lines.append("# DAX Measures — Complete Reference")
     lines.append("")
     lines.append(f"**Total Measures:** {len(rows)}")
-    lines.append(f"**Source:** `dashboards/assets/dax/collections_dax_v2.csv`")
+    lines.append(f"**Source:** `dashboards/dax/collections_dax_v2.csv`")
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -120,29 +94,39 @@ def generate_md():
             lines.append(f"*{desc}*")
             lines.append("")
 
-        # Special handling for Time Intelligence: split into sub-sections
+        # Special handling for Time Intelligence: legacy measures + CG reference
         if table_name == "_Time Intelligence":
-            ti_groups = OrderedDict()
-            for sec_key in TI_SECTIONS:
-                ti_groups[sec_key] = []
-
+            lines.append("> **Note:** These 118 legacy measures are preserved for backward compatibility.")
+            lines.append("> They are **replaced** by the `_Time Intelligence` Calculation Group (18 items).")
+            lines.append("> Once the CG is verified, delete these individual measures from the model.")
+            lines.append("")
+            lines.append("### Legacy Measures (118)")
+            lines.append("")
             for m in measures:
-                sec = classify_ti_measure(m["name"])
-                ti_groups[sec].append(m)
-
-            for sec_key, sec_label in TI_SECTIONS.items():
-                sec_measures = ti_groups.get(sec_key, [])
-                if not sec_measures:
-                    continue
-                lines.append(f"### {sec_key} — {sec_label} ({len(sec_measures)} measures)")
+                lines.append(f"**{m['name']}**")
                 lines.append("")
-                for m in sec_measures:
-                    lines.append(f"**{m['name']}**")
-                    lines.append("")
-                    lines.append("```dax")
-                    lines.append(m["expression"])
-                    lines.append("```")
-                    lines.append("")
+                lines.append("```dax")
+                lines.append(m["expression"])
+                lines.append("```")
+                lines.append("")
+            lines.append("---")
+            lines.append("")
+            lines.append("### Calculation Group (18 items)")
+            lines.append("")
+            lines.append("Apply `_Time Intelligence[Calculation Item]` as a slicer/filter to any base measure.")
+            lines.append("")
+            cg_items = load_cg_items()
+            for item in cg_items:
+                name = item.get("name", "?")
+                expr = item.get("expression", "")
+                fmt = item.get("formatString", "inherit")
+                ordinal = item.get("ordinal", 0)
+                lines.append(f"**{ordinal}. {name}** — Format: `{fmt}`")
+                lines.append("")
+                lines.append("```dax")
+                lines.append(expr)
+                lines.append("```")
+                lines.append("")
 
         # Special handling for Goals & Targets: split calculated tables vs measures
         elif table_name == "_Goals & Targets":
