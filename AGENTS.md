@@ -123,6 +123,17 @@
 - Dim_Calendar: 365 rows (full year 2025)
 - Generator seed 42 row counts (12mo): Interactions ~1.36M / PTP ~58K / Payments ~49K / Agent Time ~21K / EOM ~186K / Writeoffs ~222
 
+## Learning Environment (`learning/`)
+If asked about a task/skill material at `learning/`, follow these contracts (see `learning/README.md`):
+- **Tracks:** `sql/` `python/` `notebooks/` `excel/` `powerbi/` × `basic/medium/advanced` (tasks.md + results.md + work/) + single-level `git-cli/`
+- **tasks.md:** scenario + steps-with-why + guiding questions + conceptual checks. **NO code, NO numbers** — tasks must teach method, never expected results (lesson learned: a "Tarjeta dominates" hint contradicted real data)
+- **results.md:** guidance-only — reasoning path, steps-with-why, verification strategy, traps/alternatives. No full runnable solutions, no computed outputs. Syntax fragments ONLY where syntax is the lesson
+- **Answer-key discipline:** learner attempts in `work/`, then peeks at results.md
+- **Reference:** `_reference/` is copied (self-contained) per user choice; DB queries are a QA gate only, never a content source
+- **Reproduce-from-scratch ethos:** learners re-derive the project's `v_*` KPI views in SQL/Python and audit against them; divergence = finding, not failure
+- **House rules practiced in the track:** never commit `.env`/credentials, never edit generated CSVs, DAX measures CSV-first, RAG/targets from `_reference/kpi_glossary.md`
+- **Ignored:** `learning/**/work/*` (keeps `.gitkeep`), `**/.ipynb_checkpoints/`; all `.md` tracked
+
 ## DAX v3.0 (252 measures across 6 tables + 1 CG)
 - **Base (107)**: `_Outreach & Activity` (22), `_Promise & Recovery` (29), `_Portfolio Health` (25), `_Goals & Targets` (31)
 - **Composites (27)**: `_Composites & Strategy` — all unique composites (scores, tiers, efficiency, credit risk, vintage)
