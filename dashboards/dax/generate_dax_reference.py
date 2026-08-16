@@ -8,7 +8,7 @@ import os
 import re
 
 CSV_PATH = os.path.join(os.path.dirname(__file__), "collections_dax_v2.csv")
-OUT_PATH = os.path.join(os.path.dirname(__file__), "..", "docs", "dax_measures_all.md")
+OUT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "dashboards", "dax_measures_all.md")
 
 # Table display order and descriptions
 TABLE_INFO = {

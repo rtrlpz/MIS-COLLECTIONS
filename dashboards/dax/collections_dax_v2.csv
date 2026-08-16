@@ -130,7 +130,7 @@ _Composites & Strategy,Average Vintage Balance,AVERAGE('Fact_EOM_Snapshot'[balan
 _Composites & Strategy,Cure Rate by Vintage,"DIVIDE([Total Cures], CALCULATE(DISTINCTCOUNT('Fact_EOM_Snapshot'[account_id]), ALL('Dim_Calendar')), 0)"
 _Composites & Strategy,Avg Credit Limit,"AVERAGEX(FILTER(Fact_EOM_Snapshot, Fact_EOM_Snapshot[snapshot_date] = MAX(Fact_EOM_Snapshot[snapshot_date])), RELATED(Dim_Accounts[credit_limit]))"
 _Composites & Strategy,Credit Utilization %,"DIVIDE([Portfolio Total Arrears], SUMX(FILTER(Fact_EOM_Snapshot, Fact_EOM_Snapshot[snapshot_date] = MAX(Fact_EOM_Snapshot[snapshot_date])), RELATED(Dim_Accounts[credit_limit])), 0)"
-_Composites & Strategy,Income Segment,"CALCULATE(SELECTEDVALUE(Dim_Clients[income_bracket], "Multiple"), RELATEDTABLE(Dim_Accounts), Dim_Accounts[account_id] = SELECTEDVALUE(Fact_EOM_Snapshot[account_id]))"
+_Composites & Strategy,Income Segment,"CALCULATE(SELECTEDVALUE(Dim_Clients[income_bracket], ""Multiple""), RELATEDTABLE(Dim_Accounts), Dim_Accounts[account_id] = SELECTEDVALUE(Fact_EOM_Snapshot[account_id]))"
 _Composites & Strategy,Rolling 3M KP Rate,"CALCULATE([KP Rate], DATESINPERIOD('Dim_Calendar'[date], LASTDATE('Dim_Calendar'[date]), -3, MONTH))"
 _Composites & Strategy,Portfolio Balance Prior Month,"CALCULATE(SUM('Fact_EOM_Snapshot'[balance]), 'Fact_EOM_Snapshot'[snapshot_date] = EOMONTH(MAX('Fact_EOM_Snapshot'[snapshot_date]), -1))"
 _Time Intelligence,RPC Rate Prior Month,"CALCULATE([RPC Rate], DATEADD('Dim_Calendar'[date], -1, MONTH))"

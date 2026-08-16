@@ -837,7 +837,7 @@ DIVIDE([Portfolio Total Arrears], SUMX(FILTER(Fact_EOM_Snapshot, Fact_EOM_Snapsh
 **Income Segment**
 
 ```dax
-CALCULATE(VALUES(Dim_Clients[income_bracket]), RELATEDTABLE(Dim_Accounts), Dim_Accounts[account_id] = SELECTEDVALUE(Fact_EOM_Snapshot[account_id]))
+CALCULATE(SELECTEDVALUE(Dim_Clients[income_bracket], "Multiple"), RELATEDTABLE(Dim_Accounts), Dim_Accounts[account_id] = SELECTEDVALUE(Fact_EOM_Snapshot[account_id]))
 ```
 
 **Rolling 3M KP Rate**
