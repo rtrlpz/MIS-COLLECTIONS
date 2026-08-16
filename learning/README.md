@@ -62,6 +62,8 @@ Each track has `basic / medium / advanced` levels. `tasks.md` poses the supervis
 | Power BI | Power BI Desktop (Windows) + the DB | `powerbi/README.md` |
 | git-cli | a terminal with `git` | nothing to install |
 
+> **One-time env setup:** modules 3 and 4 need two extra packages in the `mis-collections` env — `pip install jupyterlab openpyxl`. Verify with `import openpyxl` and `jupyter --version`.
+
 ## Reference strategy (the shared library)
 
 `_reference/` holds the environment's shared map, copied **self-contained** so the lab works offline:

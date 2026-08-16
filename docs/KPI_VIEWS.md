@@ -1,6 +1,6 @@
 # KPI View Documentation
 
-## Views (defined in `002_kpi_views.sql`)
+## Views (12 in `002_kpi_views.sql`; `v_agent_scorecards` in `004_agents_scorecards.sql`)
 
 | # | View | Granularity | Purpose | Key Columns |
 |---|------|-------------|---------|-------------|
@@ -15,7 +15,8 @@
 | 9 | `v_data_freshness` | N/A | Days since last data load per fact table | `table_name`, `max_date`, `days_ago` |
 | 10 | `v_dpd_migration_matrix` | account | DPD bucket transitions between months | `from_bucket`, `to_bucket`, `migration_direction` (Same/Deteriorated/Improved/Cured) |
 | 11 | `v_weekly_agent_summary` | agent | Weekly performance aggregation | `rpc_pct`, `avg_aht`, `avg_acw`, `accounts_contacted` |
-| 12 | `v_agent_scorecards` | agent | Composite weighted performance score | `composite_score` = RPC 25% + KP 25% + Cure 20% + Util 15% + AHT 15% |
+| 12 | `v_rls_supervisor_map` | supervisor | Supervisor↔agent mapping (row-level security in PBIX) | `supervisor_id`, `supervisor_name`, `agent_id`, `agent_name` |
+| 13 | `v_agent_scorecards` | agent | Composite weighted performance score | `composite_score` = RPC 25% + KP 25% + Cure 20% + Util 15% + AHT 15% |
 
 ## View Dependencies (star schema sources)
 

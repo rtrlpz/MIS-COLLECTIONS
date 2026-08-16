@@ -31,7 +31,7 @@
 | `data_sources/schema/dictionary.md` | Column-level docs |
 | `database/docker-compose.yml` | Postgres 15 + pgAdmin |
 | `database/migrations/001_create_tables.sql` | DDL: 11 tables (star schema) |
-| `database/migrations/002_kpi_views.sql` | 12 KPI views (contact, promise, recovery, productivity, handle time, daily_mis, monthly, dpd_migration, weekly_agent, etl, freshness, scorecards) |
+| `database/migrations/002_kpi_views.sql` | 12 KPI views (contact, promise, recovery, productivity, handle time, daily_mis, monthly, dpd_migration, weekly_agent, etl, freshness, rls_supervisor_map) |
 | `database/migrations/003_constraints.sql` | 15 CHECK constraints |
 | `database/migrations/004_agents_scorecards.sql` | v_agent_scorecards (composite weighted: RPC 25%, KP 25%, Cure 20%, Util 15%, AHT 15%) |
 | `database/migrations/005_indexes.sql` | 27 indexes |
@@ -88,7 +88,7 @@
 | `docs/TROUBLESHOOTING.md` | Docker/ETL error resolution |
 | `docs/CHANGELOG.md` | Version history (0.1.0 → 1.0.0) |
 | `docs/CONTEXT.md` | Full project context |
-| `docs/KPI_VIEWS.md` | All 12 KPI views documented |
+| `docs/KPI_VIEWS.md` | All 13 KPI views documented |
 | `docs/kpi_definitions.md` | 319-line KPI reference with formulas |
 | `docs/data_dictionary.md` | Full column-level dictionary |
 | `docs/executive_summary.md` | 1-page leadership summary |
@@ -103,7 +103,7 @@
 
 ## Key Facts
 - DB: localhost:5433, user=[REDACTED], password=[REDACTED], db=MSI_CollectionsDB
-- Star schema: 5 dim tables (Employees/Clients/Products/Accounts/Calendar), 6 fact tables (Interactions/PTP/Payments/AgentTime/EOMSnapshot/Writeoffs), 12 KPI views
+- Star schema: 5 dim tables (Employees/Clients/Products/Accounts/Calendar), 6 fact tables (Interactions/PTP/Payments/AgentTime/EOMSnapshot/Writeoffs), 13 KPI views (12 in 002_kpi_views.sql incl. v_rls_supervisor_map, + v_agent_scorecards in 004)
 - Dim_Employees: unified table (8 supervisors + 80 agents), self-ref FK, denormalized team/region/skills
 - Dim_Accounts: includes denormalized `product_type` (avoids snowflake join to Dim_Products)
 - Fact_Payments: `ptp_id` has no FK constraint (avoids fact-to-fact chain)
