@@ -14,9 +14,10 @@ Single entry point for all MIS-Collections documentation. Private/personal mater
 ## Schema & KPI Reference
 | Doc | Purpose |
 |---|---|
-| `KPI_VIEWS.md` | All 12 KPI views documented |
+| `KPI_VIEWS.md` | All 13 KPI views documented |
 | `kpi_definitions.md` | KPI formulas and benchmarks |
 | `data_dictionary.md` | Full column-level dictionary |
+| `schema_v2_notes.md` | Audited schema findings + post-learning redesign backlog |
 | `executive_summary.md` | 1-page leadership summary |
 
 ## Planning

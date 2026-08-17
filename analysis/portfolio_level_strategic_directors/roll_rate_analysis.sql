@@ -8,9 +8,8 @@
 -- ========================================================================
 
 -- ========================================================================
--- NOTE: Currently only October 2025 data is loaded in fact_eom_snapshot
--- This query will return 0 rows for migration analysis until November/December data is loaded
--- The query is structured correctly to work once multiple months exist
+-- NOTE: Requires consecutive months in fact_eom_snapshot. Full year Jan-Dec
+-- 2025 is loaded (12 months), so the migration matrix is meaningful.
 -- ========================================================================
 
 WITH with_prev AS (
@@ -121,6 +120,16 @@ WITH bucket_transitions AS (
         dpd_bucket,
         LAG(dpd_bucket) OVER (PARTITION BY account_id ORDER BY snapshot_date) AS prev_bucket
     FROM fact_eom_snapshot
+),
+bucket_ranks AS (
+    SELECT
+        account_id,
+        snapshot_date,
+        dpd_bucket,
+        prev_bucket,
+        CASE dpd_bucket WHEN 'Current' THEN 0 WHEN '1-30' THEN 1 WHEN '31-60' THEN 2 WHEN '61-90' THEN 3 WHEN '90+' THEN 4 ELSE 5 END AS cur_rank,
+        CASE prev_bucket WHEN 'Current' THEN 0 WHEN '1-30' THEN 1 WHEN '31-60' THEN 2 WHEN '61-90' THEN 3 WHEN '90+' THEN 4 ELSE 5 END AS prev_rank
+    FROM bucket_transitions
 )
 
 SELECT 
@@ -132,8 +141,8 @@ SELECT
     SUM(CASE WHEN dpd_bucket = '31-60' THEN 1 ELSE 0 END) AS moved_to_31_60,
     SUM(CASE WHEN dpd_bucket = '61-90' THEN 1 ELSE 0 END) AS moved_to_61_90,
     SUM(CASE WHEN dpd_bucket = '90+' THEN 1 ELSE 0 END) AS moved_to_90_plus,
-    ROUND(SUM(CASE WHEN dpd_bucket > prev_bucket THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS pct_rolled_forward
-FROM bucket_transitions
+    ROUND(SUM(CASE WHEN cur_rank > prev_rank THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS pct_rolled_forward
+FROM bucket_ranks
 WHERE prev_bucket IS NOT NULL
 GROUP BY prev_bucket
 ORDER BY 

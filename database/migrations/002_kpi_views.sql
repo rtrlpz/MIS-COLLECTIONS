@@ -868,6 +868,18 @@ WITH ranked_snapshots AS (
         LEAD(dpd_bucket) OVER (PARTITION BY account_id ORDER BY snapshot_date) AS next_bucket,
         LEAD(snapshot_date) OVER (PARTITION BY account_id ORDER BY snapshot_date) AS next_date
     FROM fact_eom_snapshot
+),
+bucket_ranks AS (
+    SELECT
+        account_id,
+        snapshot_date,
+        dpd_bucket,
+        next_bucket,
+        next_date,
+        balance,
+        CASE dpd_bucket WHEN 'Current' THEN 0 WHEN '1-30' THEN 1 WHEN '31-60' THEN 2 WHEN '61-90' THEN 3 WHEN '90+' THEN 4 ELSE 5 END AS from_rank,
+        CASE next_bucket WHEN 'Current' THEN 0 WHEN '1-30' THEN 1 WHEN '31-60' THEN 2 WHEN '61-90' THEN 3 WHEN '90+' THEN 4 ELSE 5 END AS to_rank
+    FROM ranked_snapshots
 )
 SELECT
     snapshot_date AS from_month,
@@ -881,10 +893,10 @@ SELECT
         WHEN dpd_bucket = next_bucket THEN 'Same'
         WHEN dpd_bucket = 'Current' AND next_bucket != 'Current' THEN 'Deteriorated'
         WHEN dpd_bucket = '90+' AND next_bucket = 'Current' THEN 'Cured'
-        WHEN next_bucket::text > dpd_bucket::text THEN 'Deteriorated'
+        WHEN to_rank > from_rank THEN 'Deteriorated'
         ELSE 'Improved'
     END AS migration_direction
-FROM ranked_snapshots
+FROM bucket_ranks
 WHERE next_date IS NOT NULL;
 
 -- ========================================================================
