@@ -26,7 +26,7 @@ The CSVs and the DB are the **same content**. The ETL (`etl/data_to_pg.py`) load
 data_sources/raw/
 ├── shared/                    ← dimension tables (one file each, full 12 months)
 │   ├── Dim_Accounts.csv       (~15.5K accounts)
-│   ├── Dim_Calendar.csv       (365 rows, full year 2025)
+│   ├── Dim_Calendar.csv       (396 rows: Dec 2024 + full 2025)
 │   ├── Dim_Clients.csv        (10,000 clients)
 │   ├── Dim_Employees.csv      (88 people: 8 supervisors + 80 agents)
 │   └── Dim_Products.csv       (3 products)
@@ -51,7 +51,7 @@ data_sources/raw/
 | `dim_employees` | Dimension | 1 agent/supervisor | 88 | `agent_id`, `agent_name`, `employee_type`, `supervisor_id`, `team_name`, `region`, `hire_date`, `experience_tier`, `cost_per_hour`, `tenure_cohort`, `contact_skill`, `negotiation_skill`, `efficiency_skill` |
 | `dim_clients` | Dimension | 1 client | 10,000 | `client_id`, `full_name`, `dob`, `segment`, `income_bracket`, `risk_score` |
 | `dim_products` | Dimension | 1 product | 3 | `product_id`, `product_name`, `product_type`, `annual_rate_pct`, `grace_days`, `min_payment_rule` |
-| `dim_calendar` | Dimension | 1 day | 365 | `date` (PK), `year`, `quarter`, `month_num`, `month_name`, `iso_week`, `day_of_week`, `day_name`, `is_weekday`, `is_month_end`, `is_payday_week`, `payday_factor` |
+| `dim_calendar` | Dimension | 1 day | 396 (Dec 2024 + 2025) | `date` (PK), `year`, `quarter`, `month_num`, `month_name`, `iso_week`, `day_of_week`, `day_name`, `is_weekday`, `is_month_end`, `is_payday_week`, `payday_factor` |
 | `dim_accounts` | Dimension | 1 account | 15,482 | `account_id`, `client_id`, `product_id`, `product_type`, `open_date`, `credit_limit`, `due_day`, `min_payment`, `initial_balance`, `initial_status` |
 | `fact_interactions` | Fact | 1 call row | 1,355,587 | `interaction_id`, `interaction_date`, `interaction_time`, `agent_id`, `account_id`, `calls_attempted`, `calls_connected`, `rpc_flag`, `call_outcome`, `channel`, `aht_seconds`, `acw_seconds`, `rpc_arrears`, `dpd_at_contact` |
 | `fact_ptp_log` | Fact | 1 promise | 58,811 | `ptp_id`, `ptp_date`, `ptp_time`, `agent_id`, `account_id`, `promised_amount`, `promised_date`, `grace_until_date`, `status`, `rpc_arrears_at_contact` |

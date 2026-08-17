@@ -70,7 +70,7 @@ learning/
 
 **Verification strategy:**
 - Sanity: what's the biggest a rate can be? If your math returns numbers >1, numerator/denominator are misaligned (different filters, or a join inflating the numerator).
-- Cross-check with the project's own KPI views (e.g., the by-channel numbers in `v_*` contact views) — your *approximation* should match where the same definition applies. If it doesn't, the difference is usually the denominator or the filter window; hunt that, not your keyboard.
+- Cross-check with the project's own KPI views: `v_contact_metrics` has **no channel grain** (agent/team/monthly only), so there is no per-channel view to match. Instead, compare your *overall* January RPC% (summed across channels) to the view's agent/monthly number. If you excluded FICO/SMS per the dialect while the view does not filter channels, the two differ **for a documented reason** — state that reason, don't force a match.
 - Check FICO/SMS handling matches the documented convention — the glossary flags those channels as non-dialing, so they typically don't belong in a "contact rate" denominator at all.
 
 **Common traps & worth knowing:**

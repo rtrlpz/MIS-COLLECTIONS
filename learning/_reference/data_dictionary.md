@@ -37,7 +37,7 @@
 
 Note CSV `product_id` format is `PRD-01` (aligned with generator in later commits).
 
-### `dim_calendar` — 365 rows (full year 2025)
+### `dim_calendar` — 396 rows (Dec 2024 prepended for day-leading window functions + full 2025)
 
 `date` PK · `year`, `quarter`, `month_num`, `month_name` · `iso_week`, `day_of_week`, `day_name` · `is_weekday` (Mon–Fri only — **no weekend interactions**) · `is_month_end` · `is_payday_week` · `payday_factor` (drives self-cure/payment spikes).
 

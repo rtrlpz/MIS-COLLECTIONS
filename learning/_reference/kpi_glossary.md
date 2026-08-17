@@ -11,7 +11,7 @@
 | Metric | Formula (live columns) | Benchmark / notes |
 |---|---|---|
 | **Total connections** | `SUM(calls_connected)` | A call that was answered — not necessarily the right party. |
-| **RPC count** | `COUNT(*) WHERE rpc_flag = TRUE` | Single most important *contact quality* metric. FICO/SMS excluded from RPC rate. |
+| **RPC count** | `COUNT(*) WHERE rpc_flag = TRUE` | Single most important *contact quality* metric. FICO/SMS are non-dialing channels — the dialect convention is to exclude them from the RPC rate, but `v_contact_metrics` does NOT filter channels, so an excluded-channel rate differs from the view (a documented divergence, not a bug). |
 | **RPC%** | `SUM(rpc_flag::int) / SUM(calls_connected)` | **35–60%** typical. Low RPC% = stale or badly segmented dialer list. |
 | **RPC / Op Hr** | `SUM(rpc_count) / SUM(operational_hours)` | Efficiency per hour worked — rewards output, not logged time. |
 | **RPC arrears** | `SUM(rpc_arrears)` on RPC rows | The collectible pool "exposed" through RPC activity. Denominator of Capped KP / RPC Arrears. |
@@ -21,7 +21,7 @@
 | Metric | Formula | Benchmark / notes |
 |---|---|---|
 | **# PTP** | `COUNT(*)` in period | Only RPCs can generate PTPs. One account can have several PTPs. |
-| **PTP%** | `PTP_count / RPC_count` | **20–65%** here; below 40% = persuasion problem. |
+| **PTP%** | `PTP_count / RPC_count` | **5–40%** typical on 12-mo data (median ~15). Judge low-vs-high relative to peers/period, not an absolute line. |
 | **# Kept** | `COUNT(*) WHERE status = 'Kept'` | Promise honored (matching payment ≤30 days). |
 | **# Broken** | `COUNT(*) WHERE status = 'Broken'` | High broken vs kept = agents overpromising to hit PTP%. |
 | **KP%** | `Kept / (Kept + Broken)` | **65–90%**. *Excludes `Pending`* promises. Denominated over resolved promises only. |
@@ -35,13 +35,13 @@
 |---|---|---|
 | **Cures** | `COUNT(DISTINCT account_id)` with arrears eliminated | Distinct accounts — one account cured twice in a month counts once. |
 | **Cured amount** | `SUM(amount_paid)` on cured payments | Gross recovery revenue; includes spontaneous (non-PTP) payments. |
-| **Cures / THT** | `Cures / SUM(tht_hours)` | Core productivity. THT isolates actual on-call time. **0.08–0.30**. |
+| **Cures / THT** | `Cures / SUM(tht_hours)` | Core productivity. THT isolates actual on-call time. **0.02–0.15** (median ~0.05 on 12-mo data). |
 
 ## 4. Productivity (source: `fact_agent_time_log`)
 
 | Metric | Formula | Benchmark |
 |---|---|---|
-| **Utilization** | `operational_hours / schedule_hours` (column `utilization` is decimal 0–1) | **30–60%** in this portfolio; below 0.65 → adherence review. |
+| **Utilization** | column `utilization` is decimal 0–1 = actual talk-time (THT) ÷ operational hours | **30–60%** here. This is *talk-share* of an operational day — ~90% is impossible by construction. The hidden 85–97% *availability* factor that sizes op-hours is a different metric, not exposed as a KPI. |
 
 ## 5. Handle time (source: `fact_interactions`)
 
@@ -62,6 +62,7 @@
 6. **Monitoring pool:** only accounts that have ever been in Mora are dialed — you won't see clean `Activo` accounts in interactions.
 7. **Weekday rule:** `fact_interactions` is Mon–Fri only; payments CAN occur on weekends (`payment_date = date made`).
 8. **Scorecard weights** (used in advanced): RPC 25% · KP 25% · Cure 20% · Util 15% · AHT 15% — composite in `v_agent_scorecards`.
+9. **Channel convention vs the views:** the dialect excludes FICO/SMS from RPC%, but `v_contact_metrics` (and the KPI views generally) do NOT filter channels. Exclude them in your own rate if you follow the dialect — and expect a small, *explainable* difference vs the view. Name it; don't force a match.
 
 ## 7. Goals & targets (from the DAX Dim_Targets module — reused in powerbi track)
 
@@ -83,5 +84,5 @@ KPI views exclude non-production roles (Team Leader, Ops Sr Manager, etc.). In t
 
 ## 9. Cardinality cheat sheet (from `dim_accounts`)
 
-- **`product_type`**: `Tarjeta` (credit card, highest delinquency), `Prestamo` (personal loan), `Hipoteca` (mortgage, largest balances, senior-agent handling).
-- **DPD buckets** in `fact_eom_snapshot.dpd_bucket`: e.g. `0-30`, `31-60`, `61-90`, `91-120`, `120+` (exact labels in `003_constraints.sql` / snapshot data).
+- **`product_type`**: `Tarjeta` (credit card), `Prestamo` (personal loan), `Hipoteca` (mortgage — largest balances and arrears exposure, senior-agent handling). Delinquency rate is ~7% for all three on 12-mo data — no product dominates.
+- **DPD buckets** in `fact_eom_snapshot.dpd_bucket`: `Current`, `1-30`, `31-60`, `61-90`, `90+`. Ordering is by *severity rank*, never by comparing bucket names as text.
