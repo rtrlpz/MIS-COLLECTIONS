@@ -94,7 +94,7 @@
 | A3 — Expand calendar | Dim_Calendar seed expanded to 13 months (Jan-Dec 2025) | None | 365 rows in seed file |
 | A4 — Regenerate data | Run generator for 12 months (Jan-Dec 2025) with seed 42 | A1, A3 | Row counts within ±5% of expected |
 | A5 — Reload PostgreSQL | Run ETL with full truncate + load | A2, A4 | All 12 months loaded, `v_etl_load_summary` shows 12 months per fact table |
-| A6 — Update tests | conftest.py + qa_validation.py for new columns/tables | A5 | All tests pass (fast + slow) |
+| A6 — Update tests | conftest.py + test_qa_validation.py for new columns/tables | A5 | All tests pass (fast + slow) |
 | A7 — Verify KPI views | Spot-check all views (9 existing + 3 new) return data | A5 | Views return rows, no NULLs in required columns |
 | A8 — DAX expansion | Add 120 time intelligence + 14 dashboard-specific + 2 financial measures to CSV | A5 | CSV has 256 measures across 13 tables |
 

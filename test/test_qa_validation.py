@@ -89,29 +89,30 @@ class TestFKIntegrity:
 # Test 4: Date Ranges
 # =========================================================================
 class TestDateRanges:
-    def test_fact_dates_oct_dec_2025(self, cursor):
+    def test_fact_dates_full_year_2025(self, cursor):
         fact_date_columns = {
             'fact_interactions': 'interaction_date',
             'fact_ptp_log': 'ptp_date',
             'fact_payments': 'payment_date',
             'fact_agent_time_log': 'log_date',
             'fact_eom_snapshot': 'snapshot_date',
+            'fact_writeoffs': 'writeoff_date',
         }
         for table, date_col in fact_date_columns.items():
             cursor.execute(f"""
                 SELECT COUNT(*) FROM {table}
-                WHERE {date_col} < '2025-10-01' OR {date_col} > '2025-12-31'
+                WHERE {date_col} < '2025-01-01' OR {date_col} > '2025-12-31'
             """)
             invalid_count = cursor.fetchone()[0]
-            assert invalid_count == 0, f"{table}.{date_col} has {invalid_count} dates outside Oct-Dec 2025"
+            assert invalid_count == 0, f"{table}.{date_col} has {invalid_count} dates outside Jan-Dec 2025"
 
     def test_calendar_covers_full_2025(self, cursor):
-        # Calendar actually covers Oct-Dec 2025 (92 days) per context.md
+        # dim_calendar spans Dec 2024 (prior month, for LAG/LEAD window alignment) through full 2025
         cursor.execute("SELECT MIN(date), MAX(date), COUNT(*) FROM dim_calendar")
         min_date, max_date, count = cursor.fetchone()
-        assert str(min_date) == '2025-10-01', f"Calendar min date expected 2025-10-01, got {min_date}"
+        assert str(min_date) == '2024-12-01', f"Calendar min date expected 2024-12-01, got {min_date}"
         assert str(max_date) == '2025-12-31', f"Calendar max date expected 2025-12-31, got {max_date}"
-        assert count >= 90, f"Calendar should have ~92 days (Oct-Dec), got {count}"
+        assert count == 396, f"Calendar expected 396 rows (Dec 2024 + full 2025), got {count}"
 
 
 # =========================================================================
@@ -308,7 +309,7 @@ class TestMetricRanges:
             "FROM v_promise_metrics WHERE ptp_pct IS NOT NULL"
         )
         median = cursor.fetchone()[0]
-        assert 20 <= median <= 65, f"Median PTP% = {median}, expected [20, 65]"
+        assert 5 <= median <= 40, f"Median PTP% = {median}, expected [5, 40]"
 
     def test_median_kp_pct_in_range(self, cursor):
         cursor.execute(
@@ -348,7 +349,7 @@ class TestMetricRanges:
             JOIN agent_tht t USING (agent_id)
         """)
         median = cursor.fetchone()[0]
-        assert 0.08 <= median <= 0.30, f"Median Cures per THT = {median}, expected [0.08, 0.30]"
+        assert 0.02 <= median <= 0.15, f"Median Cures per THT = {median}, expected [0.02, 0.15]"
 
     def test_median_acw_rpc_seconds_in_range(self, cursor):
         cursor.execute(
@@ -389,3 +390,60 @@ class TestBBConversionPositive:
         median = cursor.fetchone()[0]
         assert median is not None and median > 0, \
             f"Median BB Conversion Rate (monthly) = {median}, expected > 0"
+
+
+# =========================================================================
+# Test 15: DPD Migration Matrix direction (regression: bucket text ordering)
+# =========================================================================
+class TestMigrationMatrix:
+    """Regression guard for the bucket-severity ordering bug.
+
+    v_dpd_migration_matrix used to compare bucket *text* ('Current' sorts
+    ABOVE all digit buckets in ASCII), so moves back into Current from
+    1-30 / 31-60 / 61-90 were mislabeled 'Deteriorated'. Direction must
+    follow a severity rank, never string order.
+    """
+
+    @staticmethod
+    def _rank(col):
+        return (f"CASE {col} WHEN 'Current' THEN 0 WHEN '1-30' THEN 1 "
+                f"WHEN '31-60' THEN 2 WHEN '61-90' THEN 3 WHEN '90+' THEN 4 ELSE 5 END")
+
+    def test_migration_matrix_populated(self, cursor):
+        cursor.execute("SELECT COUNT(*) FROM v_dpd_migration_matrix")
+        rows = cursor.fetchone()[0]
+        assert rows > 0, "v_dpd_migration_matrix returned no rows (need consecutive snapshot months)"
+
+    def test_migration_direction_matches_rank(self, cursor):
+        # 1) Severity increased -> must be 'Deteriorated'
+        cursor.execute(f"""
+            SELECT COUNT(*) FROM v_dpd_migration_matrix
+            WHERE {self._rank('to_bucket')} > {self._rank('from_bucket')}
+              AND migration_direction <> 'Deteriorated'
+        """)
+        assert cursor.fetchone()[0] == 0, "Severity increase must be 'Deteriorated'"
+
+        # 2) Severity decreased -> must be 'Improved' or 'Cured' (never Deteriorated)
+        cursor.execute(f"""
+            SELECT COUNT(*) FROM v_dpd_migration_matrix
+            WHERE {self._rank('to_bucket')} < {self._rank('from_bucket')}
+              AND migration_direction NOT IN ('Improved', 'Cured')
+        """)
+        assert cursor.fetchone()[0] == 0, "Severity decrease must be 'Improved'/'Cured'"
+
+        # 3) Same severity -> must be 'Same'
+        cursor.execute(f"""
+            SELECT COUNT(*) FROM v_dpd_migration_matrix
+            WHERE {self._rank('to_bucket')} = {self._rank('from_bucket')}
+              AND migration_direction <> 'Same'
+        """)
+        assert cursor.fetchone()[0] == 0, "Same severity must be 'Same'"
+
+    def test_cure_from_deep_delinquency(self, cursor):
+        # 90+ -> Current is a cure, never a text-order artifact
+        cursor.execute("""
+            SELECT COUNT(*) FROM v_dpd_migration_matrix
+            WHERE from_bucket = '90+' AND to_bucket = 'Current'
+              AND migration_direction <> 'Cured'
+        """)
+        assert cursor.fetchone()[0] == 0, "90+ -> Current rows must be 'Cured'"

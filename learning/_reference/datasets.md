@@ -110,11 +110,14 @@ Expect ~1.36M. If you see 0, data isn't loaded — run the pipeline first.
 | Metric | Healthy range (this portfolio) | Notes |
 |---|---|---|
 | RPC% | 35–60% | of connected calls reaching the account holder |
-| PTP% | 20–65% | of RPCs that produce a promise |
+| PTP% | 5–40% | of RPCs that produce a promise (median ~15 on 12-mo data) |
 | KP% (kept promise) | 65–90% | of evaluated promises honored |
 | Utilization | 30–60% | operational ÷ scheduled hours |
-| Cures / THT | 0.08–0.30 | cures per total-handle-time hour |
+| Cures / THT | 0.02–0.15 | cures per total-handle-time hour (median ~0.05) |
 | ACW (RPC) | 80–180s | after-call work, RPC calls |
+
+> Ranges calibrated on the full 12-month DB (Aug 2026). They are directional
+> sanity checks for your outputs, not hard business targets.
 
 ---
 

@@ -78,7 +78,7 @@
 | File | Content |
 |---|---|
 | `test/conftest.py` | Fixtures, METRIC_RANGES, GENERATOR_ROW_COUNTS, DB cursor |
-| `test/qa_validation.py` | 66 tests (64 fast + 2 slow): data integrity, KPI views, metric ranges |
+| `test/test_qa_validation.py` | 68 tests (66 fast + 2 slow): data integrity, KPI views, metric ranges, migration-matrix regression |
 | `test/test_generator.py` | 10 tests: generator output, row counts, reproducibility, 4 invariant tests |
 
 ### Key Docs
@@ -108,7 +108,7 @@
 - Dim_Accounts: includes denormalized `product_type` (avoids snowflake join to Dim_Products)
 - Fact_Payments: `ptp_id` has no FK constraint (avoids fact-to-fact chain)
 - Weekend bug FIXED: interactions Mon-Fri only, payments allowed on weekends
-- 74 fast tests + 2 slow = 76 total passing (0 failures) — includes 4 Phase 6 invariant tests
+- 76 fast tests + 2 slow = 78 total passing (0 failures) — includes 4 Phase 6 invariant tests + 3 migration-matrix regression tests
 - Config calibrated May 2026 — 11 param changes + 2 new params (see CONTEXT.md Session Notes)
 - SQL view fixes: cure count uses COUNT(DISTINCT account_id), BB Conversion uses kept_pct * ptp_pct / 100
 - Monthly drift: ±8% per-agent rate drift each month (RPC% swings 38–67%)

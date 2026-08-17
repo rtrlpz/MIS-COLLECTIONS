@@ -132,7 +132,7 @@
 
 ### Test Files Created
 - [x] `test/conftest.py` — Pytest fixtures: DB cursor, table metadata, PK/FK mappings, KPI views, GENERATOR_ROW_COUNTS, METRIC_RANGES, custom `slow` mark
-- [x] `test/qa_validation.py` — Data integrity + metric percentile test classes (66 tests: 64 fast + 2 slow)
+- [x] `test/test_qa_validation.py` — Data integrity + metric percentile test classes (68 tests: 66 fast + 2 slow)
 - [x] `test/test_generator.py` — Generator unit tests + CSV row count validation + Phase 6 invariant tests (10 tests)
 - [x] `test/test_kpi_views.sql` (168 lines) — SQL validation queries for KPI views
 - [x] `test/README.md` — Test documentation

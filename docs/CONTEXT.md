@@ -97,7 +97,7 @@ MIS-COLLECTIONS/
 │
 ├── test/                          # TESTING LAYER — 76 tests passing (74 fast + 2 slow)
 │   ├── conftest.py               # Fixtures, METRIC_RANGES, GENERATOR_ROW_COUNTS
-│   ├── qa_validation.py          # 66 tests: data integrity + KPI views + metric ranges
+│   ├── test_qa_validation.py    # 68 tests: data integrity + KPI views + metric ranges + migration matrix
 │   ├── test_generator.py          # 10 tests: generator + row counts + 4 invariants
 │   └── test_kpi_views.sql         # SQL view validation queries
 │
@@ -239,8 +239,8 @@ All 17 SQL files verified with valid content — none empty.
 
 #### Phase 6 (Testing) — 100% Complete
 - `test/conftest.py` — Pytest fixtures, GENERATOR_ROW_COUNTS, METRIC_RANGES constants
-- `test/qa_validation.py` — Data integrity tests:
-  - 64 fast tests passing (0 failures): structural integrity + 9 KPI views + metric percentile ranges + capped KP + BB Conversion
+- `test/test_qa_validation.py` — Data integrity tests:
+  - 66 fast tests passing (0 failures): structural integrity + KPI views + metric percentile ranges + capped KP + BB Conversion + DPD migration-matrix regression
   - 2 slow tests (ETL idempotency, generator seed reproducibility)
 - `test/test_generator.py` — Generator unit tests + CSV row count validation + 4 Phase 6 invariant tests:
   - `TestGeneratorOutput` (3 tests), `TestGeneratorRowCounts` (1 test), `TestGeneratorReproducibility` (1 test), `TestGeneratorDataQuality` (1 test)

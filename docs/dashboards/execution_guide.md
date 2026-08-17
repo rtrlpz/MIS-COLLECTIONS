@@ -243,7 +243,7 @@ msi-collections/
 │   └── interviews/                  # Case study prep
 │
 ├── test/                        # QA validation
-│   ├── qa_validation.py        # 11+ test classes
+│   ├── test_qa_validation.py    # 11+ test classes
 │   ├── test_generator.py       # Reproducibility tests
 │   └── conftest.py             # Pytest fixtures (DB connection)
 │

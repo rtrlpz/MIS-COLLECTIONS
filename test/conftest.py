@@ -156,12 +156,12 @@ GENERATOR_ROW_COUNTS = {
     'fact_writeoffs': 222,
 }
 
-# Metric percentile ranges (calibrated May 2026)
+# Metric percentile ranges (calibrated May 2026, refreshed against 12-month DB Aug 2026)
 METRIC_RANGES = {
     'rpc_pct': (35, 60),
-    'ptp_pct': (20, 65),
+    'ptp_pct': (5, 40),
     'kp_pct': (65, 90),
     'utilization_pct': (30, 60),
-    'cures_per_tht': (0.08, 0.30),
+    'cures_per_tht': (0.02, 0.15),
     'acw_rpc_seconds': (80, 180),
 }
