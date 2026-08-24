@@ -74,14 +74,14 @@ try:
         CFG, PRODUCT_CFG, CONTACT_NON_RPC, NON_CONTACT, PAY_METHODS, PAY_WEIGHTS,
         VINTAGE_CFG, AGENT_HIRE_CFG, CREDIT_LIMIT_CFG, INCOME_BRACKET_CFG,
         CHANNEL_CFG, WRITEOFF_CFG, DATA_EXPANSION_CFG, SUPERVISOR_HIRE_CFG,
-        AGENT_COST_CFG, STRATEGY_CFG,
+        AGENT_COST_CFG, STRATEGY_CFG, RECOVERY_CFG,
     )
 except ImportError:
     from config import (
         CFG, PRODUCT_CFG, CONTACT_NON_RPC, NON_CONTACT, PAY_METHODS, PAY_WEIGHTS,
         VINTAGE_CFG, AGENT_HIRE_CFG, CREDIT_LIMIT_CFG, INCOME_BRACKET_CFG,
         CHANNEL_CFG, WRITEOFF_CFG, DATA_EXPANSION_CFG, SUPERVISOR_HIRE_CFG,
-        AGENT_COST_CFG, STRATEGY_CFG,
+        AGENT_COST_CFG, STRATEGY_CFG, RECOVERY_CFG,
     )
 
 BASE_PATH  = Path(__file__).resolve().parent
@@ -337,7 +337,6 @@ for i in range(1, CFG["num_agents"] + 1):
         "rpc_rate":          clamp(random.uniform(r_lo, r_hi) * contact_skill, 0.15, 0.85),
         "ptp_rate":          clamp(random.uniform(p_lo, p_hi) * negotiation_skill, 0.20, 0.90),
         "kp_tendency":       clamp(random.uniform(k_lo, k_hi) * negotiation_skill, 0.30, 0.95),
-        "utilization":       random.uniform(*CFG["utilization"]),
         "aht_rpc_adj":       random.gauss(0, CFG["aht_rpc_adj_std"]),
         "aht_nrpc_adj":      random.gauss(0, CFG["aht_nrpc_adj_std"]),
         "acw_rpc_adj":       random.gauss(0, CFG["acw_rpc_adj_std"]),
@@ -674,11 +673,15 @@ for sim_date in DATE_RANGE:
         else:
             cure_flag = "None"
 
-        # Resolve PTP: Kept if on-time AND payment covers ≥95% of promised
+        # Resolve PTP (N5): cumulative plan completion. Kept the moment total
+        # paid reaches ≥95% of promised within grace; Broken when grace
+        # expires still short. Installment plans stay Pending between parts.
         if ptp_rec and ptp_rec["status"] == "Pending":
-            on_time  = sim_date <= ptp_rec["grace_until"]
-            full_pay = pay["amount"] >= ptp_rec["promised_amount"] * 0.95
-            ptp_rec["status"] = "Kept" if (on_time and full_pay) else "Broken"
+            ptp_rec["paid_total"] = round(ptp_rec.get("paid_total", 0.0) + pay["amount"], 2)
+            if sim_date <= ptp_rec["grace_until"] and ptp_rec["paid_total"] >= ptp_rec["promised_amount"] * 0.95:
+                ptp_rec["status"] = "Kept"
+            elif sim_date > ptp_rec["grace_until"]:
+                ptp_rec["status"] = "Broken"
 
         pay_ctr += 1
         fact_payments.append({
@@ -917,15 +920,26 @@ for sim_date in DATE_RANGE:
                     will_pay = random.random() < kp_p
 
                     if will_pay:
-                        delay = random.randint(*CFG["payment_delay_days"])
-                        pay_date = min(sim_date + timedelta(days=delay), END)
-                        payment_queue[pay_date].append({
-                            "account_id": acct_id,
-                            "agent_id": agent_id,
-                            "amount": amt,
-                            "ptp_id": ptp_id,
-                            "method": random.choices(PAY_METHODS, weights=PAY_WEIGHTS)[0],
-                        })
+                        # N5 (P4): ~35% of clients pay in two installments.
+                        # The promise resolves on CUMULATIVE paid vs promised
+                        # (see §3A) — not on the first payment alone.
+                        n_inst = random.choices([1, 2], weights=[0.65, 0.35])[0]
+                        if n_inst == 1:
+                            _sched = [(amt, min(sim_date + timedelta(days=random.randint(*CFG["payment_delay_days"])), END))]
+                        else:
+                            _amt1 = round(amt * random.uniform(0.40, 0.60), 2)
+                            _amt2 = round(amt - _amt1, 2)
+                            _d1 = min(sim_date + timedelta(days=random.randint(*CFG["payment_delay_days"])), END)
+                            _d2 = min(max(_d1 + timedelta(days=random.randint(1, 7)), sim_date), END)
+                            _sched = [(_amt1, _d1), (_amt2, _d2)]
+                        for _a, _d in _sched:
+                            payment_queue[_d].append({
+                                "account_id": acct_id,
+                                "agent_id": agent_id,
+                                "amount": _a,
+                                "ptp_id": ptp_id,
+                                "method": random.choices(PAY_METHODS, weights=PAY_WEIGHTS)[0],
+                            })
 
                     ptp_registry[ptp_id] = {
                         "account_id": acct_id,
@@ -1007,6 +1021,24 @@ for sim_date in DATE_RANGE:
                     "min_payment":     new_min,
                 })
 
+    # ── 3H2. POST-CHARGE-OFF RECOVERIES (N4) ───────────────────────────────
+    # Charged-off accounts may still yield partial collections through any
+    # channel; each event drains the remaining recoverable balance.
+    for acct_id, state in account_state.items():
+        rec_left = state.get("recoverable", 0.0)
+        if rec_left > 0 and random.random() < RECOVERY_CFG["prob_daily"]:
+            amount = round(min(rec_left, rec_left * random.uniform(*RECOVERY_CFG["amount_pct"])), 2)
+            state["recoverable"] = round(rec_left - amount, 2)
+            fact_recoveries.append({
+                "recovery_id":           fmt_id("REC", len(fact_recoveries) + 1, 6),
+                "recovery_date":         str(sim_date),
+                "account_id":            acct_id,
+                "product_type":          state["product_type"],
+                "amount_recovered":      amount,
+                "channel":               random.choices(PAY_METHODS, weights=PAY_WEIGHTS)[0],
+                "remaining_recoverable": state["recoverable"],
+            })
+
     # ── 3H. END-OF-MONTH SNAPSHOT ─────────────────────────────────────────
     if eom_today:
         for acct_id, state in account_state.items():
@@ -1059,6 +1091,7 @@ for sim_date in DATE_RANGE:
                     state["balance"] = round(max(0.0, state["balance"] - writeoff_amt), 2)
                     state["arrears"] = 0.0
                     state["status"]  = "WrittenOff"
+                    state["recoverable"] = writeoff_amt   # N4: collection target post-charge-off
 
     logger.debug(
         f"{sim_date} | INT: {int_ctr:>7,} | PTP: {ptp_ctr:>5,} | "
@@ -1079,6 +1112,7 @@ df_payments     = pd.DataFrame(fact_payments)
 df_time_log     = pd.DataFrame(fact_time_log)
 df_eom          = pd.DataFrame(fact_eom_snapshots)
 df_writeoffs    = pd.DataFrame(fact_writeoffs)   # G6
+df_recoveries   = pd.DataFrame(fact_recoveries)   # N4
 
 df_ptp = pd.DataFrame(fact_ptp_log)
 
@@ -1128,6 +1162,7 @@ logger.info("  Fact_Payments:        %s", f"{len(df_payments):>8,}")
 logger.info("  Fact_Agent_Time_Log:  %s", f"{len(df_time_log):>8,}")
 logger.info("  Fact_EOM_Snapshot:    %s", f"{len(df_eom):>8,}")
 logger.info("  Fact_Writeoffs:       %s", f"{len(df_writeoffs):>8,}")
+logger.info("  Fact_Recoveries:      %s", f"{len(df_recoveries):>8,}")
 logger.info("  Fact tables finalized in %.1f seconds", time.time() - t_stage)
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1199,6 +1234,7 @@ facts = {
     "Fact_Agent_Time_Log": (df_time_log,      "log_date"),
     "Fact_EOM_Snapshot":   (df_eom,           "snapshot_date"),
     "Fact_Writeoffs":      (df_writeoffs,     "writeoff_date"),   # G6
+    "Fact_Recoveries":     (df_recoveries,    "recovery_date"),   # N4
 }
 
 for period in pd.date_range(START, END, freq="MS"):

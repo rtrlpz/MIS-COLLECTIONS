@@ -107,12 +107,14 @@ class TestDateRanges:
             assert invalid_count == 0, f"{table}.{date_col} has {invalid_count} dates outside Jan-Dec 2025"
 
     def test_calendar_covers_full_2025(self, cursor):
-        # dim_calendar spans Dec 2024 (prior month, for LAG/LEAD window alignment) through full 2025
+        # dim_calendar spans Dec 2024 (prior month, for LAG/LEAD window
+        # alignment) through full 2025 PLUS the I3/P3 extension into Mar 2026,
+        # covering promised_date/grace_until_date spill-over from late-Dec PTPs.
         cursor.execute("SELECT MIN(date), MAX(date), COUNT(*) FROM dim_calendar")
         min_date, max_date, count = cursor.fetchone()
         assert str(min_date) == '2024-12-01', f"Calendar min date expected 2024-12-01, got {min_date}"
-        assert str(max_date) == '2025-12-31', f"Calendar max date expected 2025-12-31, got {max_date}"
-        assert count == 396, f"Calendar expected 396 rows (Dec 2024 + full 2025), got {count}"
+        assert str(max_date) == '2026-03-31', f"Calendar max date expected 2026-03-31 (I3 extension), got {max_date}"
+        assert count == 486, f"Calendar expected 486 rows (Dec 2024 + 2025 + Jan-Mar 2026), got {count}"
 
 
 # =========================================================================
@@ -193,6 +195,7 @@ class TestKPIViewOutput:
         ('v_data_freshness', []),
         ('v_promise_timeline', []),
         ('v_monthend_portfolio', ['mora_pct']),
+        ('v_writeoff_recovery', ['recovery_pct']),
     ])
     def test_view_returns_rows(self, cursor, view_name, pct_columns):
         cursor.execute(f"SELECT COUNT(*) FROM {view_name}")
@@ -211,6 +214,7 @@ class TestKPIViewOutput:
         ('v_data_freshness', []),
         ('v_promise_timeline', []),
         ('v_monthend_portfolio', ['mora_pct']),
+        ('v_writeoff_recovery', ['recovery_pct']),
     ])
     def test_percentage_columns_in_range(self, cursor, view_name, pct_columns):
         if not pct_columns:
@@ -433,6 +437,7 @@ class TestMigrationMatrix:
             SELECT COUNT(*) FROM v_dpd_migration_matrix
             WHERE {self._rank('to_bucket')} > {self._rank('from_bucket')}
               AND migration_direction <> 'Deteriorated'
+              AND to_bucket IS NOT NULL
         """)
         assert cursor.fetchone()[0] == 0, "Severity increase must be 'Deteriorated'"
 
@@ -441,6 +446,7 @@ class TestMigrationMatrix:
             SELECT COUNT(*) FROM v_dpd_migration_matrix
             WHERE {self._rank('to_bucket')} < {self._rank('from_bucket')}
               AND migration_direction NOT IN ('Improved', 'Cured')
+              AND to_bucket IS NOT NULL
         """)
         assert cursor.fetchone()[0] == 0, "Severity decrease must be 'Improved'/'Cured'"
 
@@ -449,6 +455,7 @@ class TestMigrationMatrix:
             SELECT COUNT(*) FROM v_dpd_migration_matrix
             WHERE {self._rank('to_bucket')} = {self._rank('from_bucket')}
               AND migration_direction <> 'Same'
+              AND to_bucket IS NOT NULL
         """)
         assert cursor.fetchone()[0] == 0, "Same severity must be 'Same'"
 

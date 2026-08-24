@@ -34,7 +34,6 @@ CFG = {
     "rpc_rate_base":   (0.35, 0.65),
     "ptp_rate_base":   (0.65, 0.88),
     "kp_tendency":     (0.70, 0.92),
-    "utilization":     (0.85, 0.97),
 
     # Handle-time normal distributions (seconds)
     "aht_rpc":  {"mu": 245, "sigma": 52},
@@ -219,6 +218,16 @@ WRITEOFF_CFG = {
     "write_off_amount_pct": {       # % of outstanding balance written off
         "91+": 1.0,                 # Full write-off at 91+
     },
+}
+
+# --- N4 (P4): Post-charge-off recoveries ---
+# After a write-off, a small daily probability of partial collection against
+# the written-off balance (industry: a meaningful minority of charged-off
+# dollars is eventually recovered). Events land in fact_recoveries and power
+# the recovery-curve KPI on the Financial Recovery page.
+RECOVERY_CFG = {
+    "prob_daily": 0.004,            # ~1 expected event per account per ~8.5 months
+    "amount_pct": (0.10, 0.35),     # each event recovers 10-35% of what's left
 }
 
 # --- G7: 12-Month Data Expansion ---

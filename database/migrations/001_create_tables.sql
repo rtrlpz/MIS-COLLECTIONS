@@ -1,6 +1,7 @@
 -- =========================================================================
 -- 1. CLEANUP (Reverse order to handle Foreign Keys)
 -- =========================================================================
+DROP TABLE IF EXISTS fact_recoveries CASCADE;
 DROP TABLE IF EXISTS fact_writeoffs CASCADE;
 DROP TABLE IF EXISTS fact_eom_snapshot CASCADE;
 DROP TABLE IF EXISTS fact_agent_time_log CASCADE;
@@ -247,6 +248,20 @@ CREATE TABLE fact_eom_snapshot (
 -- =========================================================================
 
 -- GRAIN: one row per write-off event; account exits the active book at this point
+-- N4: post-charge-off collections — the recovery-curve backbone
+-- GRAIN: one row per recovery event against a written-off account
+CREATE TABLE fact_recoveries (
+    recovery_id VARCHAR(15) PRIMARY KEY,
+    recovery_date DATE NOT NULL,
+    account_id VARCHAR(15) NOT NULL,
+    product_type VARCHAR(50),
+    amount_recovered DECIMAL(12,2),
+    channel VARCHAR(50),
+    remaining_recoverable DECIMAL(12,2),
+    CONSTRAINT fk_rec_accounts FOREIGN KEY (account_id) REFERENCES dim_accounts(account_id),
+    CONSTRAINT fk_rec_date FOREIGN KEY (recovery_date) REFERENCES dim_calendar(date)
+);
+
 CREATE TABLE fact_writeoffs (
     writeoff_id VARCHAR(15) PRIMARY KEY,
     writeoff_date DATE NOT NULL,

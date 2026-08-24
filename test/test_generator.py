@@ -231,15 +231,21 @@ class TestGeneratorPostFixInvariants:
             assert len(bad) == 0, f"{md.name}: {len(bad)} rows with is_cured=True and cure_flag=None"
 
     def test_ptp_payment_consistency(self, generated_data):
-        """Kept PTPs have amount_paid >= 95% of promised_amount."""
+        """Kept PTPs have TOTAL paid >= 95% of promised_amount.
+
+        N5 (P4): plans may settle in two installments, so the invariant is
+        evaluated per plan (sum of that ptp_id's payments), never per row.
+        """
         import pandas as pd
         month_dirs = sorted(d for d in generated_data.iterdir() if d.is_dir() and d.name != 'shared')
         for md in month_dirs:
             pay = pd.read_csv(md / "Fact_Payments.csv")
             ptp = pd.read_csv(md / "Fact_PTP_Log.csv")
-            merged = pay[pay['ptp_id'].notna()].merge(ptp, on='ptp_id', how='left', suffixes=('_pay', '_ptp'))
+            linked = pay[pay['ptp_id'].notna()]
+            totals = linked.groupby('ptp_id')['amount_paid'].sum().rename('total_paid')
+            merged = ptp.merge(totals, on='ptp_id', how='left')
             kept = merged[merged['status'] == 'Kept']
-            underpaid = kept[kept['amount_paid'] < kept['promised_amount'] * 0.95]
+            underpaid = kept[kept['total_paid'] < kept['promised_amount'] * 0.95]
             assert len(underpaid) == 0, f"{md.name}: {len(underpaid)} kept PTPs underpaid"
 
     def test_grace_period_integrity(self, generated_data):

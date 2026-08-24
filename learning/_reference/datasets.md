@@ -61,7 +61,8 @@ data_sources/raw/
 | `fact_payments` | Fact | 1 payment | 49,419 | `payment_id`, `payment_date`, `payment_time`, `account_id`, `ptp_id`, `agent_id`, `amount_paid`, `payment_method`, `is_cured`, `cure_flag`, `dpd_at_payment`, `balance_before/after`, `arrears_before/after`, `amount_to_arrears`, `amount_to_principal`, `dpd_after_payment` |
 | `fact_agent_time_log` | Fact | 1 agent-day | 20,880 | `log_id`, `log_date`, `agent_id`, `login_time`, `logout_time`, `break_minutes`, `operational_hours`, `tht_hours`, `utilization`, `schedule_hours`, `cost_per_hour`, `total_cost` |
 | `fact_eom_snapshot` | Fact | 1 account-month | 185,784 | `snapshot_date`, `snapshot_month`, `account_id`, `status`, `balance`, `arrears`, `dpd`, `dpd_bucket`, `min_payment` |
-| `fact_writeoffs` | Fact | 1 write-off | 222 | `writeoff_id`, `writeoff_date`, `account_id`, `product_type`, `writeoff_amount`, `balance_before`, `dpd_at_writeoff` |
+| `fact_writeoffs` | Fact | 1 write-off | 222 |
+| `fact_recoveries` | Fact | 1 post-charge-off recovery event | 0 until regen | `recovery_id`, `amount_recovered`, `remaining_recoverable` | `writeoff_id`, `writeoff_date`, `account_id`, `product_type`, `writeoff_amount`, `balance_before`, `dpd_at_writeoff` |
 
 > **Naming rule (project convention, reproduced here):** `Dim_` = descriptive side of the star; `Fact_` = measurable/transactional side. You will rediscover *why* this matters when you first join a fact to two dims.
 
@@ -86,7 +87,8 @@ These are the project's **reference implementations**. When your SQL/Python repr
 | `v_data_freshness` | how recent the data is (data ops) |
 | `v_rls_supervisor_map` | supervisor↔agent mapping (row-level security in PBIX) |
 | `v_promise_timeline` | promise lifecycle: made/due/grace dates, first payment, on-time flag |
-| `v_monthend_portfolio` | month-end portfolio state (accounts, Mora %, balances, bucket counts) |
+| `v_monthend_portfolio` | month-end portfolio state (accounts, Mora %, balances, bucket counts, cure rate vs prior stock) |
+| `v_writeoff_recovery` | recovery curve by write-off cohort month (charged-off vs recovered $) |
 | `v_agent_scorecards` | composite weighted score (RPC 25% / KP 25% / Cure 20% / Util 15% / AHT 15%) |
 
 ---

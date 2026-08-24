@@ -35,7 +35,8 @@ TABLES = [
     'dim_calendar', 'dim_accounts', 'fact_interactions', 'fact_ptp_log',
     'fact_payments', 'fact_agent_time_log', 'fact_eom_snapshot', 'fact_writeoffs',
     # P2/P3 additions
-    'dim_delinquency_bucket', 'dim_strategy', 'dim_employee_history'
+    'dim_delinquency_bucket', 'dim_strategy', 'dim_employee_history',
+    'fact_recoveries'
 ]
 
 PK_MAPPING = {
@@ -54,6 +55,7 @@ PK_MAPPING = {
     'dim_delinquency_bucket': ['bucket_key'],
     'dim_strategy': ['strategy_id'],
     'dim_employee_history': ['hist_id'],
+    'fact_recoveries': ['recovery_id'],
 }
 
 FK_RELATIONSHIPS = [
@@ -77,6 +79,8 @@ FK_RELATIONSHIPS = [
     ('fact_writeoffs', 'account_id', 'dim_accounts', 'account_id'),
     ('fact_writeoffs', 'writeoff_date', 'dim_calendar', 'date'),
     ('dim_employee_history', 'agent_id', 'dim_employees', 'agent_id'),            # I4 (P3)
+    ('fact_recoveries', 'account_id', 'dim_accounts', 'account_id'),              # N4 (P4)
+    ('fact_recoveries', 'recovery_date', 'dim_calendar', 'date'),                 # N4 (P4)
 ]
 
 # KPI Views and their percentage columns
@@ -90,6 +94,9 @@ KPI_VIEWS = {
     'v_monthly_summary': ['avg_rpc_pct', 'avg_ptp_pct', 'avg_kept_pct', 'avg_cure_rate', 'avg_utilization_pct'],
     'v_etl_load_summary': [],
     'v_data_freshness': [],
+    'v_promise_timeline': [],
+    'v_monthend_portfolio': ['mora_pct'],
+    'v_writeoff_recovery': ['recovery_pct'],
 }
 
 # Fact tables with date columns

@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.5.0] — 2026-08-24
+
+### P4 — Semantics & Extras (audit I1/N4/N5/N6/W4) — CODE COMPLETE, REGEN PENDING
+
+**I1 — Industry-correct portfolio cure rate**
+- `v_monthend_portfolio` gains `cured_accounts`, `mora_stock_entering` (prior month-end Mora), and `portfolio_cure_rate` = cures ÷ delinquent stock entering the month — the definition the audit demanded. Feb sample: 2,572 stock → 60.50%
+- The legacy cures÷payments ratio stays in `v_recovery_metrics` under its honest meaning; agent scorecards keep their conversion component by design
+
+**N5 — Multi-payment promise plans**
+- ~35% of will-pay clients now settle in two installments; promises resolve on **cumulative paid ≥95% within grace**, staying Pending between parts (was: first payment alone decided Kept/Broken)
+- Invariant `test_ptp_payment_consistency` updated to per-plan sums (per-row check was installment-hostile)
+
+**N4 — Post-charge-off recoveries**
+- New `fact_recoveries` (001 DDL + live via idempotent `010`); generator §3H2 emits daily partial collections draining a per-account recoverable balance set at write-off (`RECOVERY_CFG`: p=0.004/day, 10–35% of remainder)
+- New `v_writeoff_recovery`: recovery-curve KPI by write-off cohort month for the Financial Recovery page
+
+**W4 — `Exited` transitions finally reachable**
+- Migration matrix previously dropped every account's final-month row; post-C2 that hid real book exits. WHERE now admits pre-end finals → **Exited = 203** (222 write-offs − 19 December cohorts with no following month); rank-invariant tests exclude exits (no destination bucket ≠ severity transition)
+- Calendar test updated to the extended span (Dec 2024 → Mar 2026, 486 rows)
+
+**N6 — Housekeeping**
+- Dead `CFG["utilization"]` removed (THT-normalized utilization made it unused); client segments renamed to non-product-colliding values (`Retail/Mass Affluent/Affluent/Small Business/Corporate`) — materializes at regen
+- `etl_load_log` self-heals on next pipeline run (each load writes rows); manual back-dating deliberately avoided
+
+### Ops incident (resolved same day)
+A targeted pytest run using `-k "...row_counts..."` accidentally matched slow-marked `TestETLIdempotency` (name match bypassed the marker), which reloaded old CSVs over the live DB and reverted P1/P3 label repairs. **Recovered by re-running idempotent seeds/007/008/009**; verified baseline restored (184,210 snapshots · 0 NULL bucket_keys · 60.0/24.9/15.1 strategy split · calendar→2026-03-31 · Exited=203). Rule going forward: targeted runs always pair `-k` with `-m "not slow"`.
+
 ## [1.4.0] — 2026-08-24
 
 ### P3 — Realism Engine Upgrades (audit I4/I5/I7/I8) — CODE COMPLETE, REGEN PENDING

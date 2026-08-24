@@ -59,8 +59,11 @@ echo "  [OK] 008_dim_delinquency_bucket.sql"
 cat database/migrations/009_strategy_scd2.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
 echo "  [OK] 009_strategy_scd2.sql"
 
+cat database/migrations/010_fact_recoveries.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
+echo "  [OK] 010_fact_recoveries.sql"
+
 # ── Post-migration assertion: all expected views must exist ─────────────────
-EXPECTED_VIEWS=15
+EXPECTED_VIEWS=16
 ACTUAL_VIEWS=$(docker exec postgres_collections psql -U rtrlpz -d MSI_CollectionsDB -t -A -c \
   "SELECT COUNT(*) FROM pg_views WHERE schemaname='public' AND viewname LIKE 'v\\_%';" | tr -d '[:space:]')
 if [ "$ACTUAL_VIEWS" != "$EXPECTED_VIEWS" ]; then

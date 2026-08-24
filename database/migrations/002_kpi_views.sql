@@ -960,7 +960,8 @@ SELECT
         ELSE 'Improved'
     END AS migration_direction
 FROM bucket_ranks
-WHERE next_date IS NOT NULL;
+WHERE next_date IS NOT NULL
+   OR snapshot_date < (SELECT MAX(snapshot_date) FROM fact_eom_snapshot);
 
 -- ========================================================================
 -- 11. v_weekly_agent_summary
@@ -1073,22 +1074,82 @@ LEFT JOIN (
 -- portfolio state. Balance/arrears may be summed across accounts WITHIN one
 -- month-end row below, never across rows (dates). Consumers wanting "the
 -- book as of now" filter MAX(snapshot_month); they never re-sum snapshots.
+--
+-- I1 (P4): adds the industry-correct CURE RATE — accounts cured during the
+-- month ÷ Mora accounts entering the month (prior month-end stock). The old
+-- cures÷payments ratio remains available in v_recovery_metrics under its
+-- honest name (payment_cure_conversion semantics); agent-level scorecards
+-- keep their conversion-based component by design.
 -- ========================================================================
 CREATE OR REPLACE VIEW v_monthend_portfolio AS
+WITH monthly AS (
+    SELECT
+        s.snapshot_date,
+        s.snapshot_month,
+        COUNT(*)                                                   AS accounts_in_book,
+        COUNT(*) FILTER (WHERE s.status = 'Mora')                  AS mora_accounts,
+        SUM(s.balance)                                             AS total_balance,
+        SUM(s.arrears)                                             AS total_arrears,
+        COUNT(*) FILTER (WHERE s.dpd_bucket = 'Current')           AS bucket_current,
+        COUNT(*) FILTER (WHERE s.dpd_bucket = '1-30')              AS bucket_1_30,
+        COUNT(*) FILTER (WHERE s.dpd_bucket = '31-60')             AS bucket_31_60,
+        COUNT(*) FILTER (WHERE s.dpd_bucket = '61-90')             AS bucket_61_90,
+        COUNT(*) FILTER (WHERE s.dpd_bucket = '90+')               AS bucket_90_plus
+    FROM fact_eom_snapshot s
+    GROUP BY s.snapshot_date, s.snapshot_month
+),
+cures AS (
+    SELECT TO_CHAR(fp.payment_date, 'FMMonth_YYYY') AS snapshot_month,
+           COUNT(DISTINCT fp.account_id)            AS cured_accounts
+    FROM fact_payments fp
+    WHERE fp.is_cured
+    GROUP BY 1
+)
 SELECT
-    s.snapshot_date,
-    s.snapshot_month,
-    COUNT(*)                                                   AS accounts_in_book,
-    COUNT(*) FILTER (WHERE s.status = 'Mora')                  AS mora_accounts,
-    ROUND(COUNT(*) FILTER (WHERE s.status = 'Mora') * 100.0
-          / NULLIF(COUNT(*), 0), 2)                            AS mora_pct,
-    SUM(s.balance)                                             AS total_balance,
-    SUM(s.arrears)                                             AS total_arrears,
-    COUNT(*) FILTER (WHERE s.dpd_bucket = 'Current')           AS bucket_current,
-    COUNT(*) FILTER (WHERE s.dpd_bucket = '1-30')              AS bucket_1_30,
-    COUNT(*) FILTER (WHERE s.dpd_bucket = '31-60')             AS bucket_31_60,
-    COUNT(*) FILTER (WHERE s.dpd_bucket = '61-90')             AS bucket_61_90,
-    COUNT(*) FILTER (WHERE s.dpd_bucket = '90+')               AS bucket_90_plus
-FROM fact_eom_snapshot s
-GROUP BY s.snapshot_date, s.snapshot_month
-ORDER BY s.snapshot_date;
+    m.snapshot_date,
+    m.snapshot_month,
+    m.accounts_in_book,
+    m.mora_accounts,
+    ROUND(m.mora_accounts * 100.0 / NULLIF(m.accounts_in_book, 0), 2)   AS mora_pct,
+    m.total_balance,
+    m.total_arrears,
+    m.bucket_current,
+    m.bucket_1_30,
+    m.bucket_31_60,
+    m.bucket_61_90,
+    m.bucket_90_plus,
+    COALESCE(c.cured_accounts, 0)                                       AS cured_accounts,
+    LAG(m.mora_accounts) OVER (ORDER BY m.snapshot_date)                AS mora_stock_entering,
+    ROUND(COALESCE(c.cured_accounts, 0) * 100.0
+          / NULLIF(LAG(m.mora_accounts) OVER (ORDER BY m.snapshot_date), 0), 2)
+                                                                        AS portfolio_cure_rate
+FROM monthly m
+LEFT JOIN cures c ON c.snapshot_month = m.snapshot_month
+ORDER BY m.snapshot_date;
+
+-- ========================================================================
+-- 15. v_writeoff_recovery
+-- Purpose: N4 — recovery-curve KPI for the Financial Recovery page.
+-- One row per write-off cohort month: charged-off amount vs cumulative
+-- post-charge-off collections from fact_recoveries.
+-- ========================================================================
+CREATE OR REPLACE VIEW v_writeoff_recovery AS
+WITH wo AS (
+    SELECT account_id,
+           MIN(writeoff_date) AS writeoff_date,
+           SUM(writeoff_amount) AS written_off
+    FROM fact_writeoffs
+    GROUP BY account_id
+)
+SELECT
+    TO_CHAR(w.writeoff_date, 'YYYY-MM')                                        AS writeoff_month,
+    COUNT(DISTINCT w.account_id)                                               AS accounts_written_off,
+    SUM(w.written_off)                                                         AS total_written_off,
+    COALESCE(SUM(r.amount_recovered), 0)                                       AS recovered_amount,
+    ROUND(COALESCE(SUM(r.amount_recovered), 0) * 100.0
+          / NULLIF(SUM(w.written_off), 0), 2)                                  AS recovery_pct
+FROM wo w
+LEFT JOIN fact_recoveries r
+       ON r.account_id = w.account_id AND r.recovery_date > w.writeoff_date
+GROUP BY 1
+ORDER BY 1;
