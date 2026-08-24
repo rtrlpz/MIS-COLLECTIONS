@@ -44,4 +44,17 @@ echo "  [OK] 005_indexes.sql"
 cat database/migrations/006_comments.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
 echo "  [OK] 006_comments.sql"
 
+cat database/migrations/007_remove_post_writeoff_snapshots.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
+echo "  [OK] 007_remove_post_writeoff_snapshots.sql"
+
+# ── Post-migration assertion: all expected views must exist ─────────────────
+EXPECTED_VIEWS=13
+ACTUAL_VIEWS=$(docker exec postgres_collections psql -U rtrlpz -d MSI_CollectionsDB -t -A -c \
+  "SELECT COUNT(*) FROM pg_views WHERE schemaname='public' AND viewname LIKE 'v\\_%';" | tr -d '[:space:]')
+if [ "$ACTUAL_VIEWS" != "$EXPECTED_VIEWS" ]; then
+  echo "  [FAIL] Expected $EXPECTED_VIEWS views, found '$ACTUAL_VIEWS'. Migration drift detected."
+  exit 1
+fi
+echo "  [OK] view count = $EXPECTED_VIEWS"
+
 echo "Migrations complete."

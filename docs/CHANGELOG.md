@@ -1,5 +1,53 @@
 # Changelog
 
+## [1.2.1] — 2026-08-24
+
+### P1 Audit Hotfix — Correctness (Kimball audit, Critical items)
+
+**C1 — `v_agent_scorecards` restored**
+- Live DB had 12 views; migration run had historically died at 004 (005/006 never applied). Re-applied 004/005/006 → **13 views**, scorecard live (960 agent-months, avg composite 35.8)
+- `database/migrate.sh` hardened: post-run assertion fails (`exit 1`) if view count ≠ 13 — prevents silent drift recurring
+
+**C2 — Written-off accounts exit the EOM book**
+- Root cause: after write-off, accounts kept being re-snapshotted monthly as `90+` with residual principal → contaminated roll-rate matrices, 90+-stock trends and portfolio aggregates
+- Generator (§3H): skips `WrittenOff` accounts in snapshot loop; final row = write-off month-end (consistent with `fact_writeoffs.balance_before`)
+- New `007_remove_post_writeoff_snapshots.sql`: idempotent DELETE of post-writeoff snapshots; applied live → **−1,574 zombie rows** (185,784→184,210); Dec-90+ 425→222 (203 live + 19 Dec write-off finals)
+
+**C3 — Ratio-of-sums rollups (kills remaining AVG-of-rates bias)**
+- `v_productivity_metrics`: team/monthly utilization = ΣTHT/Σop-hours (was AVG of daily ratios); view now also exposes `operational_hours`, `tht_hours`
+- `v_handle_time_metrics`: exposes per-bucket Σseconds + counts; averages derived by division
+- `v_monthly_summary` team/portfolio grains: util, cure_rate, AHT×2, ACW×2 all SUM(numerator)/SUM(denominator) (cure uses Σcures/Σpayments — redefinition vs snapshot stock deferred to P4/I1); existing columns preserved, additions appended (CREATE OR REPLACE-safe)
+- Portfolio before→after spot: Jan cure 13.24→14.96, Feb AHT 264.5→266.5, util stable at 2dp
+
+**I6 — Self-cure DPD integrity**
+- Generator §3C: `dpd_at_payment` now records true pre-cure DPD (was hardcoded 0), restoring the DPD-at-cure distribution for ~20% of cures
+
+### Tests
+- `test_percentage_columns_in_range` now asserts identical ranges in ONE filtered pass per view (was one full-view scan per column; a single scan of stacked `v_monthly_summary` costs ~80s)
+- Fast QA suite green: 52 checks through `v_daily_mis` + 17 targeted (monthly_summary ranges, metric medians vs new formulas, CappedKP, BB conversion, migration-matrix regression) = **69 passed, 0 failures**
+- **Deferred:** generator-spawning suites (`test_generator.py`, 2 slow tests) gated to P3 regeneration — they validate regenerated output, not today's stale CSVs
+
+## [1.2.0] — 2026-08-24
+
+### Learning Environment — Plain-Language Overhaul (Phase A)
+- Rewrote `learning/README.md`: plain-language master guide — track map with real work-request examples, session routine, "a normal week as a collections BI analyst" vignettes mapped to tasks, simplified house rules, one-time setup steps
+- Rewrote all 6 track READMEs (`sql`, `python`, `notebooks`, `excel`, `powerbi`, `git-cli`): each now opens with "At work, you reach for this when…" scenarios, plain level tables with move-up criteria, minimal trees
+- Rewrote `learning/sql/basic/tasks.md` (entry point): added inline mini-glossary (fact/dimension/grain/snapshot), realistic supervisor-request framing, concrete "Done when" checks per task; contracts preserved (no code, no numbers)
+- Contracts unchanged: tasks.md still scenario + steps-with-why + guiding questions; results.md still guidance-only. Remaining 15 task files keep original style pending user feedback on new tone
+
+## [1.1.0] — 2026-08-17
+
+### Power BI Model — PBIX Live Fixes (collections_dashboard_v3.pbix)
+- **Created `Dim_Targets`** calculated table (7 goals: PTP% 80%, KP% 80%, ACW RPC 120s, ACW Non-RPC 25s, Capped KP/RPC Arrears 37%, Cures/THT 2.4, Utilization 90%; amber/green thresholds, direction, sort order) — resolves 29 `_Goals & Targets` measures in `SemanticError` state (`Cannot find table 'Dim_Targets'`)
+- **Created `Color Reference`** calculated table (3 RAG rows: Green `#00B050`, Amber `#FFC000`, Red `#FF0000`) and replaced the misplaced DATATABLE partition inside `_Goals & Targets` with standard `{BLANK()}` — resolves `* Color` measures referencing `'Color Reference'`
+- **Fixed `Income Segment`** syntax error (`SELECTEDVALUE(..., Multiple")` → `"Multiple")` per CSV row 133)
+- **Validated:** all 29 Goals measures + `Income Segment` now `Ready`; live DAX sweep confirms Goal values, Status (Red/Amber), Color hexes, `Dim_Targets`=7 rows, `Color Reference`=3 rows
+- **Model now:** 25 tables (11 base + 6 measure + 2 calc + 5 hidden date + 1 CG), 132 measures + 18-item CG, zero measure errors
+- **Note:** No RLS roles yet (Phase 9 pending); `Monthly Recovery Rate` legacy measure not present in v3 — use `[Net Recovery]`/`[Collection Efficiency]`
+
+### Blueprint — Executive Page v3 Alignment
+- `dashboard_blueprint.md` §2.8 updated: legacy table names (`_Executive`, `_Promise & Conversion`, `_Recovery & Collection`) → live v3 tables (`_Composites & Strategy`, `_Promise & Recovery`), added `Dim_Targets`/`Color Reference`/`_Time Intelligence` CG rows, CG-vs-snapshot caveat documented
+
 ## [1.0.0] — 2026-07-25
 
 ### Phase 3 — DAX Cleanup & Gap Analysis

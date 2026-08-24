@@ -462,6 +462,7 @@ WITH agent_daily AS (
         da.team_name,
         atl.utilization AS utilization_pct,
         atl.operational_hours,
+        atl.tht_hours,
         atl.schedule_hours,
         COALESCE(fi.total_calls, 0) AS total_calls
     FROM fact_agent_time_log atl
@@ -475,14 +476,19 @@ WITH agent_daily AS (
     ) fi ON atl.agent_id = fi.agent_id AND atl.log_date = fi.interaction_date
 ),
 team_daily AS (
+    -- C3: weighted utilization = total handle time / total operating time
+    -- (never AVG of daily ratios — biased when days differ in length/load)
     SELECT
         supervisor_id,
         team_name,
         date,
         month_num,
         month_name,
-        AVG(utilization_pct) AS utilization_pct,
+        CASE WHEN SUM(operational_hours) > 0
+             THEN SUM(tht_hours) / SUM(operational_hours)
+             ELSE 0 END AS utilization_pct,
         SUM(operational_hours) AS operational_hours,
+        SUM(tht_hours) AS tht_hours,
         SUM(schedule_hours) AS schedule_hours,
         SUM(total_calls) AS total_calls
     FROM agent_daily
@@ -496,8 +502,11 @@ monthly AS (
         team_name,
         month_num,
         month_name,
-        AVG(utilization_pct) AS utilization_pct,
+        CASE WHEN SUM(operational_hours) > 0
+             THEN SUM(tht_hours) / SUM(operational_hours)
+             ELSE 0 END AS utilization_pct,
         SUM(operational_hours) AS operational_hours,
+        SUM(tht_hours) AS tht_hours,
         SUM(schedule_hours) AS schedule_hours,
         SUM(total_calls) AS total_calls
     FROM agent_daily
@@ -516,7 +525,9 @@ SELECT
     CASE
         WHEN operational_hours > 0 THEN ROUND(total_calls::numeric / operational_hours, 2)
         ELSE 0
-    END AS contacts_per_agent_hour
+    END AS contacts_per_agent_hour,
+    operational_hours,
+    tht_hours
 FROM agent_daily
 
 UNION ALL
@@ -534,7 +545,9 @@ SELECT
     CASE
         WHEN operational_hours > 0 THEN ROUND(total_calls::numeric / operational_hours, 2)
         ELSE 0
-    END AS contacts_per_agent_hour
+    END AS contacts_per_agent_hour,
+    operational_hours,
+    tht_hours
 FROM team_daily
 
 UNION ALL
@@ -552,7 +565,9 @@ SELECT
     CASE
         WHEN operational_hours > 0 THEN ROUND(total_calls::numeric / operational_hours, 2)
         ELSE 0
-    END AS contacts_per_agent_hour
+    END AS contacts_per_agent_hour,
+    operational_hours,
+    tht_hours
 FROM monthly;
 
 -- ========================================================================
@@ -569,10 +584,16 @@ WITH agent_daily AS (
         da.agent_name,
         da.supervisor_id,
         da.team_name,
-        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_rpc,
-        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_nonrpc,
-        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_rpc,
-        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_nonrpc
+        -- C3: raw numerator/denominator parts — rollups must SUM these and
+        -- divide, never average the daily means.
+        SUM(CASE WHEN fi.rpc_flag   THEN fi.aht_seconds ELSE 0 END) AS aht_rpc_secs,
+        COUNT(CASE WHEN fi.rpc_flag THEN 1 ELSE NULL END)           AS aht_rpc_n,
+        SUM(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE 0 END) AS aht_nrpc_secs,
+        COUNT(CASE WHEN NOT fi.rpc_flag THEN 1 ELSE NULL END)         AS aht_nrpc_n,
+        SUM(CASE WHEN fi.rpc_flag   THEN fi.acw_seconds ELSE 0 END) AS acw_rpc_secs,
+        COUNT(CASE WHEN fi.rpc_flag THEN 1 ELSE NULL END)           AS acw_rpc_n,
+        SUM(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE 0 END) AS acw_nrpc_secs,
+        COUNT(CASE WHEN NOT fi.rpc_flag THEN 1 ELSE NULL END)         AS acw_nrpc_n
     FROM fact_interactions fi
     JOIN dim_employees da ON fi.agent_id = da.agent_id
 
@@ -586,10 +607,14 @@ team_daily AS (
         dc.month_name,
         da.supervisor_id,
         da.team_name,
-        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_rpc,
-        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_nonrpc,
-        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_rpc,
-        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_nonrpc
+        SUM(CASE WHEN fi.rpc_flag   THEN fi.aht_seconds ELSE 0 END) AS aht_rpc_secs,
+        COUNT(CASE WHEN fi.rpc_flag THEN 1 ELSE NULL END)           AS aht_rpc_n,
+        SUM(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE 0 END) AS aht_nrpc_secs,
+        COUNT(CASE WHEN NOT fi.rpc_flag THEN 1 ELSE NULL END)         AS aht_nrpc_n,
+        SUM(CASE WHEN fi.rpc_flag   THEN fi.acw_seconds ELSE 0 END) AS acw_rpc_secs,
+        COUNT(CASE WHEN fi.rpc_flag THEN 1 ELSE NULL END)           AS acw_rpc_n,
+        SUM(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE 0 END) AS acw_nrpc_secs,
+        COUNT(CASE WHEN NOT fi.rpc_flag THEN 1 ELSE NULL END)         AS acw_nrpc_n
     FROM fact_interactions fi
     JOIN dim_employees da ON fi.agent_id = da.agent_id
 
@@ -604,27 +629,49 @@ monthly AS (
         da.agent_name,
         da.supervisor_id,
         da.team_name,
-        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_rpc,
-        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE NULL END), 2) AS avg_aht_nonrpc,
-        ROUND(AVG(CASE WHEN fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_rpc,
-        ROUND(AVG(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE NULL END), 2) AS avg_acw_nonrpc
+        SUM(CASE WHEN fi.rpc_flag   THEN fi.aht_seconds ELSE 0 END) AS aht_rpc_secs,
+        COUNT(CASE WHEN fi.rpc_flag THEN 1 ELSE NULL END)           AS aht_rpc_n,
+        SUM(CASE WHEN NOT fi.rpc_flag THEN fi.aht_seconds ELSE 0 END) AS aht_nrpc_secs,
+        COUNT(CASE WHEN NOT fi.rpc_flag THEN 1 ELSE NULL END)         AS aht_nrpc_n,
+        SUM(CASE WHEN fi.rpc_flag   THEN fi.acw_seconds ELSE 0 END) AS acw_rpc_secs,
+        COUNT(CASE WHEN fi.rpc_flag THEN 1 ELSE NULL END)           AS acw_rpc_n,
+        SUM(CASE WHEN NOT fi.rpc_flag THEN fi.acw_seconds ELSE 0 END) AS acw_nrpc_secs,
+        COUNT(CASE WHEN NOT fi.rpc_flag THEN 1 ELSE NULL END)         AS acw_nrpc_n
     FROM fact_interactions fi
     JOIN dim_employees da ON fi.agent_id = da.agent_id
 
     JOIN dim_calendar dc ON fi.interaction_date = dc.date
     GROUP BY dc.month_num, dc.month_name, fi.agent_id, da.agent_name, da.supervisor_id, da.team_name
 )
-SELECT 'agent' AS granularity, date, month_num, month_name, agent_id, agent_name, supervisor_id, team_name, avg_aht_rpc, avg_aht_nonrpc, avg_acw_rpc, avg_acw_nonrpc
+SELECT 'agent' AS granularity, date, month_num, month_name, agent_id, agent_name, supervisor_id, team_name,
+       ROUND(aht_rpc_secs::numeric / NULLIF(aht_rpc_n, 0), 2)   AS avg_aht_rpc,
+       ROUND(aht_nrpc_secs::numeric / NULLIF(aht_nrpc_n, 0), 2) AS avg_aht_nonrpc,
+       ROUND(acw_rpc_secs::numeric / NULLIF(acw_rpc_n, 0), 2)   AS avg_acw_rpc,
+       ROUND(acw_nrpc_secs::numeric / NULLIF(acw_nrpc_n, 0), 2) AS avg_acw_nonrpc,
+       aht_rpc_secs, aht_rpc_n, aht_nrpc_secs, aht_nrpc_n,
+       acw_rpc_secs, acw_rpc_n, acw_nrpc_secs, acw_nrpc_n
 FROM agent_daily
 
 UNION ALL
 
-SELECT 'team' AS granularity, date, month_num, month_name, NULL AS agent_id, NULL AS agent_name, supervisor_id, team_name, avg_aht_rpc, avg_aht_nonrpc, avg_acw_rpc, avg_acw_nonrpc
+SELECT 'team' AS granularity, date, month_num, month_name, NULL AS agent_id, NULL AS agent_name, supervisor_id, team_name,
+       ROUND(aht_rpc_secs::numeric / NULLIF(aht_rpc_n, 0), 2)   AS avg_aht_rpc,
+       ROUND(aht_nrpc_secs::numeric / NULLIF(aht_nrpc_n, 0), 2) AS avg_aht_nonrpc,
+       ROUND(acw_rpc_secs::numeric / NULLIF(acw_rpc_n, 0), 2)   AS avg_acw_rpc,
+       ROUND(acw_nrpc_secs::numeric / NULLIF(acw_nrpc_n, 0), 2) AS avg_acw_nonrpc,
+       aht_rpc_secs, aht_rpc_n, aht_nrpc_secs, aht_nrpc_n,
+       acw_rpc_secs, acw_rpc_n, acw_nrpc_secs, acw_nrpc_n
 FROM team_daily
 
 UNION ALL
 
-SELECT 'monthly' AS granularity, NULL AS date, month_num, month_name, agent_id, agent_name, supervisor_id, team_name, avg_aht_rpc, avg_aht_nonrpc, avg_acw_rpc, avg_acw_nonrpc
+SELECT 'monthly' AS granularity, NULL AS date, month_num, month_name, agent_id, agent_name, supervisor_id, team_name,
+       ROUND(aht_rpc_secs::numeric / NULLIF(aht_rpc_n, 0), 2)   AS avg_aht_rpc,
+       ROUND(aht_nrpc_secs::numeric / NULLIF(aht_nrpc_n, 0), 2) AS avg_aht_nonrpc,
+       ROUND(acw_rpc_secs::numeric / NULLIF(acw_rpc_n, 0), 2)   AS avg_acw_rpc,
+       ROUND(acw_nrpc_secs::numeric / NULLIF(acw_nrpc_n, 0), 2) AS avg_acw_nonrpc,
+       aht_rpc_secs, aht_rpc_n, aht_nrpc_secs, aht_nrpc_n,
+       acw_rpc_secs, acw_rpc_n, acw_nrpc_secs, acw_nrpc_n
 FROM monthly;
 
 -- ========================================================================
@@ -705,15 +752,26 @@ WITH agent_monthly AS (
         pm.kept_pct,
         pm.bucket_conversion,
         pm.capped_kp,
+        rm.payment_count,
         rm.cure_count,
         rm.cure_rate,
         rm.agent_cure_count,
         rm.self_cure_count,
         pr.utilization_pct,
+        pr.operational_hours,
+        pr.tht_hours,
         ht.avg_aht_rpc,
         ht.avg_aht_nonrpc,
         ht.avg_acw_rpc,
-        ht.avg_acw_nonrpc
+        ht.avg_acw_nonrpc,
+        ht.aht_rpc_secs,
+        ht.aht_rpc_n,
+        ht.aht_nrpc_secs,
+        ht.aht_nrpc_n,
+        ht.acw_rpc_secs,
+        ht.acw_rpc_n,
+        ht.acw_nrpc_secs,
+        ht.acw_nrpc_n
     FROM (SELECT * FROM v_contact_metrics WHERE granularity = 'monthly') cm
     LEFT JOIN (SELECT * FROM v_promise_metrics WHERE granularity = 'monthly') pm 
         ON cm.agent_id = pm.agent_id AND cm.month_num = pm.month_num
@@ -764,15 +822,16 @@ SELECT 'team' AS granularity,
         * SUM(ptp_count) / NULLIF(SUM(rpc_count), 0),
     2) AS avg_bucket_conversion,
     SUM(capped_kp) AS capped_kp,
+    -- C3: ratio-of-sums everywhere — never AVG of per-agent rates
     SUM(cure_count) AS cure_count,
-    ROUND(AVG(cure_rate), 2) AS avg_cure_rate,
+    ROUND(SUM(cure_count) * 100.0 / NULLIF(SUM(payment_count), 0), 2) AS avg_cure_rate,
     SUM(agent_cure_count) AS agent_cure_count,
     SUM(self_cure_count) AS self_cure_count,
-    ROUND(AVG(utilization_pct), 2) AS avg_utilization_pct,
-    ROUND(AVG(avg_aht_rpc), 2) AS avg_aht_rpc,
-    ROUND(AVG(avg_aht_nonrpc), 2) AS avg_aht_nonrpc,
-    ROUND(AVG(avg_acw_rpc), 2) AS avg_acw_rpc,
-    ROUND(AVG(avg_acw_nonrpc), 2) AS avg_acw_nonrpc
+    ROUND(SUM(tht_hours) / NULLIF(SUM(operational_hours), 0), 2) AS avg_utilization_pct,
+    ROUND(SUM(aht_rpc_secs)::numeric / NULLIF(SUM(aht_rpc_n), 0), 2) AS avg_aht_rpc,
+    ROUND(SUM(aht_nrpc_secs)::numeric / NULLIF(SUM(aht_nrpc_n), 0), 2) AS avg_aht_nonrpc,
+    ROUND(SUM(acw_rpc_secs)::numeric / NULLIF(SUM(acw_rpc_n), 0), 2) AS avg_acw_rpc,
+    ROUND(SUM(acw_nrpc_secs)::numeric / NULLIF(SUM(acw_nrpc_n), 0), 2) AS avg_acw_nonrpc
 FROM agent_monthly
 GROUP BY month_num, month_name, supervisor_id, team_name
 
@@ -797,14 +856,14 @@ SELECT 'portfolio' AS granularity,
     2) AS avg_bucket_conversion,
     SUM(capped_kp) AS capped_kp,
     SUM(cure_count) AS cure_count,
-    ROUND(AVG(cure_rate), 2) AS avg_cure_rate,
+    ROUND(SUM(cure_count) * 100.0 / NULLIF(SUM(payment_count), 0), 2) AS avg_cure_rate,
     SUM(agent_cure_count) AS agent_cure_count,
     SUM(self_cure_count) AS self_cure_count,
-    ROUND(AVG(utilization_pct), 2) AS avg_utilization_pct,
-    ROUND(AVG(avg_aht_rpc), 2) AS avg_aht_rpc,
-    ROUND(AVG(avg_aht_nonrpc), 2) AS avg_aht_nonrpc,
-    ROUND(AVG(avg_acw_rpc), 2) AS avg_acw_rpc,
-    ROUND(AVG(avg_acw_nonrpc), 2) AS avg_acw_nonrpc
+    ROUND(SUM(tht_hours) / NULLIF(SUM(operational_hours), 0), 2) AS avg_utilization_pct,
+    ROUND(SUM(aht_rpc_secs)::numeric / NULLIF(SUM(aht_rpc_n), 0), 2) AS avg_aht_rpc,
+    ROUND(SUM(aht_nrpc_secs)::numeric / NULLIF(SUM(aht_nrpc_n), 0), 2) AS avg_aht_nonrpc,
+    ROUND(SUM(acw_rpc_secs)::numeric / NULLIF(SUM(acw_rpc_n), 0), 2) AS avg_acw_rpc,
+    ROUND(SUM(acw_nrpc_secs)::numeric / NULLIF(SUM(acw_nrpc_n), 0), 2) AS avg_acw_nonrpc
 FROM agent_monthly
 GROUP BY month_num, month_name;
 

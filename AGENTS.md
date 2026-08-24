@@ -36,6 +36,7 @@
 | `database/migrations/004_agents_scorecards.sql` | v_agent_scorecards (composite weighted: RPC 25%, KP 25%, Cure 20%, Util 15%, AHT 15%) |
 | `database/migrations/005_indexes.sql` | 27 indexes |
 | `database/migrations/006_comments.sql` | 63 COMMENT ON |
+| `database/migrations/007_remove_post_writeoff_snapshots.sql` | One-time repair: charged-off accounts exit the EOM book (idempotent) |
 | `database/seeds/001_dim_products.sql` | 3 products (Tarjeta, Prestamo, Hipoteca) |
 | `database/seeds/002_dim_calendar.sql` | 365 calendar rows (full year 2025) |
 | `etl/data_to_pg.py` | CSV → PostgreSQL (idempotent, incremental, transactional) |
@@ -65,7 +66,7 @@
 ### PBIX Files
 | File | Status |
 |---|---|
-| `dashboards/pbix/collections_dashboard_v3.pbix` | Working dashboard (gitignored) |
+| `dashboards/pbix/collections_dashboard_v3.pbix` | Working dashboard (gitignored). v1.1: 25 tables (11 base + 6 measure + 2 calc `Dim_Targets`/`Color Reference` + 5 hidden date + 1 CG), 132 measures + 18-item CG, 0 measure errors. No RLS yet. |
 
 ### Dashboards Support
 | File | Purpose |
@@ -109,6 +110,8 @@
 - Fact_Payments: `ptp_id` has no FK constraint (avoids fact-to-fact chain)
 - Weekend bug FIXED: interactions Mon-Fri only, payments allowed on weekends
 - 76 fast tests + 2 slow = 78 total passing (0 failures) — includes 4 Phase 6 invariant tests + 3 migration-matrix regression tests
+- **P1 audit hotfix (Aug 2026)**: v_agent_scorecards restored (migrate.sh now asserts 13 views post-run); written-off accounts exit the EOM book (generator skip + migration 007, −1,574 zombie rows); team/portfolio rollups are ratio-of-sums (util=ΣTHT/Σop-hrs, cure=Σcures/Σpayments, AHT/ACW from Σsecs/Σn — no AVG-of-rates); self-cure payments record true dpd_at_payment. Generator-spawning tests gated to next regeneration (P3)
+- migrate.sh runs with ON_ERROR_STOP + set -e and FAILS if view count ≠ 13 (prevents silent drift like the scorecard outage)
 - Config calibrated May 2026 — 11 param changes + 2 new params (see CONTEXT.md Session Notes)
 - SQL view fixes: cure count uses COUNT(DISTINCT account_id), BB Conversion uses kept_pct * ptp_pct / 100
 - Monthly drift: ±8% per-agent rate drift each month (RPC% swings 38–67%)

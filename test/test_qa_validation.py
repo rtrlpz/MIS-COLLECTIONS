@@ -209,9 +209,18 @@ class TestKPIViewOutput:
         ('v_data_freshness', []),
     ])
     def test_percentage_columns_in_range(self, cursor, view_name, pct_columns):
-        for col in pct_columns:
-            cursor.execute(f"SELECT COUNT(*) FROM {view_name} WHERE {col} < 0 OR {col} > 100")
-            invalid_count = cursor.fetchone()[0]
+        if not pct_columns:
+            return
+        # One pass over the view instead of one query per column — stacked
+        # views like v_monthly_summary cost ~80s per scan, so N queries meant
+        # N full materializations for identical information.
+        filters = ", ".join(
+            f"COUNT(*) FILTER (WHERE {col} < 0 OR {col} > 100) AS bad_{i}"
+            for i, col in enumerate(pct_columns)
+        )
+        cursor.execute(f"SELECT {filters} FROM {view_name}")
+        row = cursor.fetchone()
+        for col, invalid_count in zip(pct_columns, row):
             assert invalid_count == 0, f"{view_name}.{col} has {invalid_count} values outside [0,100]"
 
 

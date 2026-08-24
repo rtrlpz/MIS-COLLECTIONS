@@ -619,6 +619,7 @@ for sim_date in DATE_RANGE:
 
             sc_balance_before = state["balance"]
             sc_arrears_before = state["arrears"]
+            sc_dpd_before     = state["dpd"]   # I6: record DPD at cure, not 0
             applied           = state["arrears"]
             state["arrears"]  = 0.0
             state["balance"]  = round(max(0.0, state["balance"] - applied), 2)
@@ -638,7 +639,7 @@ for sim_date in DATE_RANGE:
                 "payment_method":     random.choices(PAY_METHODS, weights=PAY_WEIGHTS)[0],
                 "is_cured":           True,
                 "cure_flag":          "Self_Cure",
-                "dpd_at_payment":     0,
+                "dpd_at_payment":     sc_dpd_before,
                 "balance_before":     round(sc_balance_before, 2),
                 "balance_after":      round(state["balance"], 2),
                 "arrears_before":     round(sc_arrears_before, 2),
@@ -890,6 +891,12 @@ for sim_date in DATE_RANGE:
     # ── 3H. END-OF-MONTH SNAPSHOT ─────────────────────────────────────────
     if eom_today:
         for acct_id, state in account_state.items():
+            # C2: charged-off accounts exit the book — no further snapshots.
+            # Their final row is the month-end of the write-off itself (emitted
+            # below BEFORE the write-off event mutates state); after that they
+            # must stop polluting 90+ stock and roll-rate denominators.
+            if state["status"] == "WrittenOff":
+                continue
             dpd = state["dpd"]
             if dpd == 0:
                 bucket = "Current"
