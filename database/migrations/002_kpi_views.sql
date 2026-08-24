@@ -928,17 +928,21 @@ WITH ranked_snapshots AS (
         LEAD(snapshot_date) OVER (PARTITION BY account_id ORDER BY snapshot_date) AS next_date
     FROM fact_eom_snapshot
 ),
+-- I2: severity order comes from dim_delinquency_bucket.sort_order —
+-- no per-consumer CASE maps to keep in sync with the CHECK constraint.
 bucket_ranks AS (
     SELECT
-        account_id,
-        snapshot_date,
-        dpd_bucket,
-        next_bucket,
-        next_date,
-        balance,
-        CASE dpd_bucket WHEN 'Current' THEN 0 WHEN '1-30' THEN 1 WHEN '31-60' THEN 2 WHEN '61-90' THEN 3 WHEN '90+' THEN 4 ELSE 5 END AS from_rank,
-        CASE next_bucket WHEN 'Current' THEN 0 WHEN '1-30' THEN 1 WHEN '31-60' THEN 2 WHEN '61-90' THEN 3 WHEN '90+' THEN 4 ELSE 5 END AS to_rank
-    FROM ranked_snapshots
+        rs.account_id,
+        rs.snapshot_date,
+        rs.dpd_bucket,
+        rs.next_bucket,
+        rs.next_date,
+        rs.balance,
+        fb.sort_order AS from_rank,
+        tb.sort_order AS to_rank
+    FROM ranked_snapshots rs
+    JOIN dim_delinquency_bucket fb ON fb.bucket_label = rs.dpd_bucket
+    LEFT JOIN dim_delinquency_bucket tb ON tb.bucket_label = rs.next_bucket
 )
 SELECT
     snapshot_date AS from_month,
@@ -1012,3 +1016,79 @@ SELECT
     NULL AS experience_tier
 FROM dim_employees e
 WHERE e.employee_type = 'Supervisor';
+
+-- ========================================================================
+-- 13. v_promise_timeline
+-- Purpose: I3 role-played promise dates + lightweight lifecycle milestones.
+-- One row per promise with the three business dates aliased to calendar
+-- roles (made / due / grace-end) and first-payment resolution facts joined
+-- from fact_payments via the ptp_id degenerate link.
+-- Physical FKs from promised_date/grace_until_date to dim_calendar are
+-- deferred until the calendar dimension extends past Dec 2025 (P3) — late-
+-- December promises spill into January and would violate the constraint.
+-- ========================================================================
+CREATE OR REPLACE VIEW v_promise_timeline AS
+SELECT
+    fpl.ptp_id,
+    fpl.account_id,
+    fpl.agent_id,
+    da.team_name,
+    fpl.status,
+    fpl.promised_amount,
+    -- role: promise MADE date
+    fpl.ptp_date AS made_date,
+    dc_made.month_name AS made_month_name,
+    -- role: payment DUE date (what was promised)
+    fpl.promised_date AS due_date,
+    dc_due.month_name AS due_month_name,
+    (fpl.promised_date - fpl.ptp_date)::int AS promised_lead_days,
+    -- role: GRACE END date (last chance to keep)
+    fpl.grace_until_date,
+    (fpl.grace_until_date - fpl.promised_date)::int AS grace_days,
+    -- lifecycle milestones resolved from payments
+    pay.first_payment_date,
+    (pay.first_payment_date - fpl.ptp_date)::int AS days_to_first_payment,
+    ROUND(pay.paid_amount, 2) AS paid_amount,
+    CASE
+        WHEN pay.first_payment_date IS NULL THEN NULL
+        WHEN pay.first_payment_date <= fpl.grace_until_date THEN 'on_time'
+        ELSE 'late'
+    END AS first_payment_timing
+FROM fact_ptp_log fpl
+JOIN dim_employees da ON fpl.agent_id = da.agent_id
+LEFT JOIN dim_calendar dc_made ON fpl.ptp_date = dc_made.date
+LEFT JOIN dim_calendar dc_due ON fpl.promised_date = dc_due.date
+LEFT JOIN (
+    SELECT ptp_id,
+           MIN(payment_date) AS first_payment_date,
+           SUM(amount_paid)  AS paid_amount
+    FROM fact_payments
+    WHERE ptp_id IS NOT NULL
+    GROUP BY ptp_id
+) pay ON pay.ptp_id = fpl.ptp_id;
+
+-- ========================================================================
+-- 14. v_monthend_portfolio
+-- Purpose: N3 — make the SEMI-ADDITIVE-safe aggregation the default API for
+-- portfolio state. Balance/arrears may be summed across accounts WITHIN one
+-- month-end row below, never across rows (dates). Consumers wanting "the
+-- book as of now" filter MAX(snapshot_month); they never re-sum snapshots.
+-- ========================================================================
+CREATE OR REPLACE VIEW v_monthend_portfolio AS
+SELECT
+    s.snapshot_date,
+    s.snapshot_month,
+    COUNT(*)                                                   AS accounts_in_book,
+    COUNT(*) FILTER (WHERE s.status = 'Mora')                  AS mora_accounts,
+    ROUND(COUNT(*) FILTER (WHERE s.status = 'Mora') * 100.0
+          / NULLIF(COUNT(*), 0), 2)                            AS mora_pct,
+    SUM(s.balance)                                             AS total_balance,
+    SUM(s.arrears)                                             AS total_arrears,
+    COUNT(*) FILTER (WHERE s.dpd_bucket = 'Current')           AS bucket_current,
+    COUNT(*) FILTER (WHERE s.dpd_bucket = '1-30')              AS bucket_1_30,
+    COUNT(*) FILTER (WHERE s.dpd_bucket = '31-60')             AS bucket_31_60,
+    COUNT(*) FILTER (WHERE s.dpd_bucket = '61-90')             AS bucket_61_90,
+    COUNT(*) FILTER (WHERE s.dpd_bucket = '90+')               AS bucket_90_plus
+FROM fact_eom_snapshot s
+GROUP BY s.snapshot_date, s.snapshot_month
+ORDER BY s.snapshot_date;

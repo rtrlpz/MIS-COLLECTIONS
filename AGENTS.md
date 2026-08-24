@@ -31,14 +31,16 @@
 | `data_sources/schema/dictionary.md` | Column-level docs |
 | `database/docker-compose.yml` | Postgres 15 + pgAdmin |
 | `database/migrations/001_create_tables.sql` | DDL: 11 tables (star schema) |
-| `database/migrations/002_kpi_views.sql` | 12 KPI views (contact, promise, recovery, productivity, handle time, daily_mis, monthly, dpd_migration, weekly_agent, etl, freshness, rls_supervisor_map) |
+| `database/migrations/002_kpi_views.sql` | 14 KPI views (contact, promise, recovery, productivity, handle time, daily_mis, monthly, dpd_migration, weekly_agent, etl, freshness, rls_supervisor_map, promise_timeline, monthend_portfolio) |
 | `database/migrations/003_constraints.sql` | 15 CHECK constraints |
 | `database/migrations/004_agents_scorecards.sql` | v_agent_scorecards (composite weighted: RPC 25%, KP 25%, Cure 20%, Util 15%, AHT 15%) |
 | `database/migrations/005_indexes.sql` | 27 indexes |
 | `database/migrations/006_comments.sql` | 63 COMMENT ON |
 | `database/migrations/007_remove_post_writeoff_snapshots.sql` | One-time repair: charged-off accounts exit the EOM book (idempotent) |
+| `database/migrations/008_dim_delinquency_bucket.sql` | Apply bucket dimension to existing DBs (create+seed+backfill+FK, idempotent) |
 | `database/seeds/001_dim_products.sql` | 3 products (Tarjeta, Prestamo, Hipoteca) |
 | `database/seeds/002_dim_calendar.sql` | 365 calendar rows (full year 2025) |
+| `database/seeds/003_dim_delinquency_bucket.sql` | 5 ordered delinquency buckets (Current→90+) |
 | `etl/data_to_pg.py` | CSV → PostgreSQL (idempotent, incremental, transactional) |
 
 ### Analysis Layer (17 SQL files in `analysis/`)
@@ -89,7 +91,7 @@
 | `docs/TROUBLESHOOTING.md` | Docker/ETL error resolution |
 | `docs/CHANGELOG.md` | Version history (0.1.0 → 1.0.0) |
 | `docs/CONTEXT.md` | Full project context |
-| `docs/KPI_VIEWS.md` | All 13 KPI views documented |
+| `docs/KPI_VIEWS.md` | All 15 KPI views documented |
 | `docs/kpi_definitions.md` | 319-line KPI reference with formulas |
 | `docs/data_dictionary.md` | Full column-level dictionary |
 | `docs/executive_summary.md` | 1-page leadership summary |
@@ -104,13 +106,13 @@
 
 ## Key Facts
 - DB: localhost:5433, user=[REDACTED], password=[REDACTED], db=MSI_CollectionsDB
-- Star schema: 5 dim tables (Employees/Clients/Products/Accounts/Calendar), 6 fact tables (Interactions/PTP/Payments/AgentTime/EOMSnapshot/Writeoffs), 13 KPI views (12 in 002_kpi_views.sql incl. v_rls_supervisor_map, + v_agent_scorecards in 004)
+- Star schema: 5 dim tables (Employees/Clients/Products/Accounts/Calendar), 6 fact tables (Interactions/PTP/Payments/AgentTime/EOMSnapshot/Writeoffs), 6 dim tables (incl. dim_delinquency_bucket, I2), 15 KPI views (14 in 002 incl. v_promise_timeline/v_monthend_portfolio, + v_agent_scorecards in 004)
 - Dim_Employees: unified table (8 supervisors + 80 agents), self-ref FK, denormalized team/region/skills
 - Dim_Accounts: includes denormalized `product_type` (avoids snowflake join to Dim_Products)
 - Fact_Payments: `ptp_id` has no FK constraint (avoids fact-to-fact chain)
 - Weekend bug FIXED: interactions Mon-Fri only, payments allowed on weekends
 - 76 fast tests + 2 slow = 78 total passing (0 failures) — includes 4 Phase 6 invariant tests + 3 migration-matrix regression tests
-- **P1 audit hotfix (Aug 2026)**: v_agent_scorecards restored (migrate.sh now asserts 13 views post-run); written-off accounts exit the EOM book (generator skip + migration 007, −1,574 zombie rows); team/portfolio rollups are ratio-of-sums (util=ΣTHT/Σop-hrs, cure=Σcures/Σpayments, AHT/ACW from Σsecs/Σn — no AVG-of-rates); self-cure payments record true dpd_at_payment. Generator-spawning tests gated to next regeneration (P3)
+- **P1 audit hotfix (Aug 2026)**: v_agent_scorecards restored (migrate.sh now asserts view count post-run — 15 as of P2); written-off accounts exit the EOM book (generator skip + migration 007, −1,574 zombie rows); team/portfolio rollups are ratio-of-sums (util=ΣTHT/Σop-hrs, cure=Σcures/Σpayments, AHT/ACW from Σsecs/Σn — no AVG-of-rates); self-cure payments record true dpd_at_payment. Generator-spawning tests gated to next regeneration (P3)
 - migrate.sh runs with ON_ERROR_STOP + set -e and FAILS if view count ≠ 13 (prevents silent drift like the scorecard outage)
 - Config calibrated May 2026 — 11 param changes + 2 new params (see CONTEXT.md Session Notes)
 - SQL view fixes: cure count uses COUNT(DISTINCT account_id), BB Conversion uses kept_pct * ptp_pct / 100

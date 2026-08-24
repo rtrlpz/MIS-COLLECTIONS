@@ -191,6 +191,8 @@ class TestKPIViewOutput:
         ('v_monthly_summary', ['avg_rpc_pct', 'avg_ptp_pct', 'avg_kept_pct', 'avg_cure_rate', 'avg_utilization_pct']),
         ('v_etl_load_summary', []),
         ('v_data_freshness', []),
+        ('v_promise_timeline', []),
+        ('v_monthend_portfolio', ['mora_pct']),
     ])
     def test_view_returns_rows(self, cursor, view_name, pct_columns):
         cursor.execute(f"SELECT COUNT(*) FROM {view_name}")
@@ -207,6 +209,8 @@ class TestKPIViewOutput:
         ('v_monthly_summary', ['avg_rpc_pct', 'avg_ptp_pct', 'avg_kept_pct', 'avg_cure_rate', 'avg_utilization_pct']),
         ('v_etl_load_summary', []),
         ('v_data_freshness', []),
+        ('v_promise_timeline', []),
+        ('v_monthend_portfolio', ['mora_pct']),
     ])
     def test_percentage_columns_in_range(self, cursor, view_name, pct_columns):
         if not pct_columns:

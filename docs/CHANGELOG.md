@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.3.0] — 2026-08-24
+
+### P2 — Kimball Dimensional Upgrades (audit items I2/I3/N2/N3)
+
+**I2 — Delinquency buckets are now a real ordered dimension**
+- New `dim_delinquency_bucket` (bucket_key, label, sort_order, days_from/to) seeded with the 5 canonical buckets
+- `fact_eom_snapshot.bucket_key` added + backfilled from labels (**184,210 rows, 0 NULLs**) with validated FK
+- `v_dpd_migration_matrix` rewritten: severity ranking joins `sort_order` instead of inline CASE maps — output verified **byte-identical** to pre-change distribution (Same 146,380 / Deteriorated 13,128 / Improved 6,797 / Cured 2,423)
+- Fresh builds: table+column in `001`; existing DBs: idempotent migration `008`; seed in `seeds/003_dim_delinquency_bucket.sql`
+
+**I3 (view layer) — Role-played promise dates + lifecycle milestones**
+- New `v_promise_timeline`: one row per promise exposing made/due/grace-end dates as aliased calendar roles (`dc_made`/`dc_due`), promised lead days, grace days, first-payment date, days-to-pay, on-time flag
+- Physical FKs from `promised_date`/`grace_until_date` to calendar **deferred to P3**: late-December promises spill into Jan 2026, outside the current calendar range — extending `Dim_Calendar.csv` + generator CAL_RANGE + conftest counts belongs with regeneration
+- Sanity: timeline rows = 58,811 (= PTP count); `on_time`=37,835 exactly equals Kept promises
+
+**N3 — Semi-additive-safe portfolio API**
+- New `v_monthend_portfolio`: per-month-end rollup (accounts in book, Mora %, Σbalance, Σarrears, per-bucket counts) making the safe aggregation the default; Dec shows 15,279 accounts / 7.28% Mora / 222 in 90+
+
+**N2 — Grain declarations**
+- Every table in `001_create_tables.sql` now carries an explicit GRAIN comment (one row = …), including the semi-additive warning on the snapshot fact
+
+### Tests & ops
+- View-count assertion raised to **15**; both new views registered in `TestKPIViewOutput`
+- Targeted QA re-run: **60 passed, 0 failures** (structure, integrity, ranges, matrix regressions)
+
 ## [1.2.1] — 2026-08-24
 
 ### P1 Audit Hotfix — Correctness (Kimball audit, Critical items)

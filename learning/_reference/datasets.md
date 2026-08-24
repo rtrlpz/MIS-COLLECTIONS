@@ -13,7 +13,7 @@ This is the **shared data map** for the entire `learning/` environment. Every to
 
 | Entry point | What it holds | Used by |
 |---|---|---|
-| **PostgreSQL** `MSI_CollectionsDB` (localhost:5433) | 11 tables (star schema), ~1.8M rows, 13 KPI views | SQL (all levels), Notebooks (medium+), Power BI (import) |
+| **PostgreSQL** `MSI_CollectionsDB` (localhost:5433) | 12 tables (star schema incl. dim_delinquency_bucket), ~1.8M rows, 15 KPI views | SQL (all levels), Notebooks (medium+), Power BI (import) |
 | **Raw CSVs** `data_sources/raw/` | Same data, file-per-month layout, pre-DB | Python (all levels), Notebooks (basic), Excel (all levels) |
 
 The CSVs and the DB are the **same content**. The ETL (`etl/data_to_pg.py`) loads CSVs → DB. This is by design: SQL exercises run on the DB; Python exercises read the CSVs. Identical answers = proof you understood both paths.
@@ -82,6 +82,8 @@ These are the project's **reference implementations**. When your SQL/Python repr
 | `v_etl_load_summary` | what was loaded when (data ops) |
 | `v_data_freshness` | how recent the data is (data ops) |
 | `v_rls_supervisor_map` | supervisor↔agent mapping (row-level security in PBIX) |
+| `v_promise_timeline` | promise lifecycle: made/due/grace dates, first payment, on-time flag |
+| `v_monthend_portfolio` | month-end portfolio state (accounts, Mora %, balances, bucket counts) |
 | `v_agent_scorecards` | composite weighted score (RPC 25% / KP 25% / Cure 20% / Util 15% / AHT 15%) |
 
 ---

@@ -29,6 +29,9 @@ echo "  [OK] 001_dim_products.sql"
 cat database/seeds/002_dim_calendar.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
 echo "  [OK] 002_dim_calendar.sql"
 
+cat database/seeds/003_dim_delinquency_bucket.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
+echo "  [OK] 003_dim_delinquency_bucket.sql"
+
 cat database/migrations/003_constraints.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
 echo "  [OK] 003_constraints.sql"
 
@@ -47,8 +50,11 @@ echo "  [OK] 006_comments.sql"
 cat database/migrations/007_remove_post_writeoff_snapshots.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
 echo "  [OK] 007_remove_post_writeoff_snapshots.sql"
 
+cat database/migrations/008_dim_delinquency_bucket.sql | docker exec -i postgres_collections psql -v ON_ERROR_STOP=1 -U rtrlpz -d MSI_CollectionsDB >/dev/null 2>&1
+echo "  [OK] 008_dim_delinquency_bucket.sql"
+
 # ── Post-migration assertion: all expected views must exist ─────────────────
-EXPECTED_VIEWS=13
+EXPECTED_VIEWS=15
 ACTUAL_VIEWS=$(docker exec postgres_collections psql -U rtrlpz -d MSI_CollectionsDB -t -A -c \
   "SELECT COUNT(*) FROM pg_views WHERE schemaname='public' AND viewname LIKE 'v\\_%';" | tr -d '[:space:]')
 if [ "$ACTUAL_VIEWS" != "$EXPECTED_VIEWS" ]; then

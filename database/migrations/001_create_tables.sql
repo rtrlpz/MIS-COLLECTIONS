@@ -16,11 +16,13 @@ DROP TABLE IF EXISTS dim_calendar CASCADE;
 -- =========================================================================
 -- 2. DIMENSION TABLES (Shared)
 -- =========================================================================
+-- N2: every table declares its grain (Kimball practice — one row = ...).
 
 -- Merged supervisor + employee table (self-referencing hierarchy)
 -- Supervisors: agent_id = SUP-01..SUP-08, employee_type = 'Supervisor'
 -- Agents:      agent_id = EID-001..EID-080, employee_type = 'Agent'
 -- agents.supervisor_id → supervisors.agent_id (self-ref FK)
+-- GRAIN: one row per employee (agent or supervisor), Type-1 by design
 CREATE TABLE dim_employees (
     agent_id VARCHAR(15) PRIMARY KEY,
     agent_name VARCHAR(100) NOT NULL,
@@ -39,6 +41,7 @@ CREATE TABLE dim_employees (
     CONSTRAINT chk_employee_type CHECK (employee_type IN ('Agent', 'Supervisor'))
 );
 
+-- GRAIN: one row per client
 CREATE TABLE dim_clients (
     client_id VARCHAR(15) PRIMARY KEY,
     full_name VARCHAR(100) NOT NULL,
@@ -48,6 +51,7 @@ CREATE TABLE dim_clients (
     risk_score DECIMAL(5,2)
 );
 
+-- GRAIN: one row per product
 CREATE TABLE dim_products (
     product_id VARCHAR(15) PRIMARY KEY,
     product_name VARCHAR(100) NOT NULL,
@@ -57,6 +61,17 @@ CREATE TABLE dim_products (
     min_payment_rule VARCHAR(100)
 );
 
+-- I2 (Kimball): delinquency buckets are an ordered dimension, not free text.
+-- sort_order encodes severity so consumers join instead of re-deriving CASE maps.
+CREATE TABLE dim_delinquency_bucket (
+    bucket_key SMALLINT PRIMARY KEY,
+    bucket_label VARCHAR(20) NOT NULL UNIQUE,
+    sort_order SMALLINT NOT NULL,
+    days_from INT,
+    days_to INT
+);
+
+-- GRAIN: one row per calendar day (dimension built from nothing — gives month/quarter/payday attributes raw dates lack)
 CREATE TABLE dim_calendar (
     date DATE PRIMARY KEY,
     year INT,
@@ -72,6 +87,7 @@ CREATE TABLE dim_calendar (
     payday_factor DECIMAL(5,2)
 );
 
+-- GRAIN: one row per account (product_type denormalized to avoid snowflake join)
 CREATE TABLE dim_accounts (
     account_id VARCHAR(15) PRIMARY KEY,
     client_id VARCHAR(15) NOT NULL,
@@ -91,6 +107,7 @@ CREATE TABLE dim_accounts (
 -- 3. FACT TABLES (Transactional)
 -- =========================================================================
 
+-- GRAIN: one row per agent-account contact episode per day (dial attempts folded into counts)
 CREATE TABLE fact_interactions (
     interaction_id VARCHAR(15) PRIMARY KEY,
     interaction_date DATE NOT NULL,
@@ -111,6 +128,7 @@ CREATE TABLE fact_interactions (
     CONSTRAINT fk_int_date FOREIGN KEY (interaction_date) REFERENCES dim_calendar(date)
 );
 
+-- GRAIN: one row per promise-to-pay event; status mutated in place Pending→Kept/Broken
 CREATE TABLE fact_ptp_log (
     ptp_id VARCHAR(15) PRIMARY KEY,
     ptp_date DATE NOT NULL,
@@ -127,6 +145,7 @@ CREATE TABLE fact_ptp_log (
     CONSTRAINT fk_ptp_date FOREIGN KEY (ptp_date) REFERENCES dim_calendar(date)
 );
 
+-- GRAIN: one row per payment event; self-cures carry NULL agent_id/ptp_id
 CREATE TABLE fact_payments (
     payment_id VARCHAR(15) PRIMARY KEY,
     payment_date DATE NOT NULL,
@@ -151,6 +170,7 @@ CREATE TABLE fact_payments (
     CONSTRAINT fk_pay_agents FOREIGN KEY (agent_id) REFERENCES dim_employees(agent_id)
 );
 
+-- GRAIN: one row per agent-day (daily periodic snapshot of workforce time)
 CREATE TABLE fact_agent_time_log (
     log_id VARCHAR(15) PRIMARY KEY,
     log_date DATE NOT NULL,
@@ -168,6 +188,7 @@ CREATE TABLE fact_agent_time_log (
     CONSTRAINT fk_time_date FOREIGN KEY (log_date) REFERENCES dim_calendar(date)
 );
 
+-- GRAIN: one row per account per month-end (monthly periodic snapshot — the collections backbone). Balances are SEMI-ADDITIVE: sum across accounts within a month-end only, never across dates
 CREATE TABLE fact_eom_snapshot (
     snapshot_date DATE NOT NULL,
     snapshot_month VARCHAR(20),
@@ -177,6 +198,7 @@ CREATE TABLE fact_eom_snapshot (
     arrears DECIMAL(12, 2),
     dpd INT,
     dpd_bucket VARCHAR(20),
+    bucket_key SMALLINT REFERENCES dim_delinquency_bucket(bucket_key),
     min_payment DECIMAL(12,2),
     -- Composite primary key to ensure one record per account per month
     PRIMARY KEY (snapshot_date, account_id),
@@ -188,6 +210,7 @@ CREATE TABLE fact_eom_snapshot (
 -- 4. NEW TABLE — fact_writeoffs (G6)
 -- =========================================================================
 
+-- GRAIN: one row per write-off event; account exits the active book at this point
 CREATE TABLE fact_writeoffs (
     writeoff_id VARCHAR(15) PRIMARY KEY,
     writeoff_date DATE NOT NULL,
