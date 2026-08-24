@@ -211,15 +211,22 @@ Create **7 mini gauge visuals** in a horizontal row, each one showing a goal vs 
 
 ## 2.8 DAX Measures Used (Dashboard 1)
 
+> **Live model mapping (v3):** Table names below reflect the actual `collections_dashboard_v3.pbix` model. Legacy v2 tables `_Executive`, `_Promise & Conversion`, `_Recovery & Collection` were renamed/merged in v3.
+
 | Table | Measures |
 |---|---|
-| `_Executive` | `[Portfolio Health Score]`, `[Monthly Recovery Rate]`, `[Portfolio At-Risk Balance]` |
-| `_Portfolio Health` | `[Portfolio Total Arrears]`, `[Mora Rate]`, `[Arrears to Balance]`, `[Accounts DPD *]` |
-| `_Promise & Conversion` | `[Promise Rate]`, `[KP Rate]` |
-| `_Recovery & Collection` | `[Cures per THT Hr]`, `[Total Cures]`, `[Cured Amount]` |
+| `_Composites & Strategy` | `[Portfolio Health Score]`, `[Portfolio At-Risk Balance]`, `[Net Recovery]` |
+| `_Portfolio Health` | `[Portfolio Total Arrears]`, `[Mora Rate]`, `[Arrears to Balance]`, `[Accounts DPD *]`, `[Roll Rate *]` |
+| `_Promise & Recovery` | `[Promise Rate]`, `[KP Rate]`, `[Cures per THT Hr]`, `[Total Cures]`, `[Cured Amount]`, `[Collection Efficiency]` |
 | `_Outreach & Activity` | `[Avg Utilization %]` |
 | `_Goals & Targets` | `[Goal PTP%]`, `[Goal KP%]`, `[Goal ACW RPC (sec)]`, `[Goal ACW Non-RPC (sec)]`, `[Goal Capped KP per RPC Arrears]`, `[Goal Cures per THT Hr]`, `[Goal Utilization]`, `[PTP% Gap]`, `[KP% Gap]`, `[ACW RPC Gap]`, `[ACW Non-RPC Gap]`, `[Capped KP Gap]`, `[Cures/THT Gap]`, `[Util Gap]`, `[PTP% Status]`, `[KP% Status]`, `[ACW RPC Status]`, `[ACW Non-RPC Status]`, `[Capped KP Status]`, `[Cures/THT Status]`, `[Util Status]` |
-| `_Time Intelligence` | All MoM measures for the 7 key metrics |
+| `Dim_Targets` (calc) | Goal config — 7 metrics, thresholds, direction, sort order |
+| `Color Reference` (calc) | RAG hex — Green `#00B050`, Amber `#FFC000`, Red `#FF0000` |
+| `_Time Intelligence` (CG) | 18 items — apply as slicer to event-date base measures only |
+
+**Notes:**
+- `Monthly Recovery Rate` (legacy `_Executive`) does **not** exist in v3. Use `[Net Recovery]` or `[Collection Efficiency]` for the headline recovery card.
+- `_Time Intelligence` CG is safe for **event-date** measures (Recovery, PTP%, KP% via `fact_payments`/`fact_ptp_log`/`fact_interactions`). Do **not** apply it to EOM-snapshot measures (`Portfolio Total Arrears`, Mora Rate) — those pin `snapshot_date = MAX(...)` internally.
 
 ---
 
