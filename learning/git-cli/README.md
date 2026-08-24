@@ -1,40 +1,40 @@
-# git-cli Module — README
+# git-cli Module — never lose work again
 
 ```
-learning/
-├── _reference/            ← READ FIRST: datasets.md, kpi_glossary.md, data_dictionary.md
-├── git-cli/               ← YOU ARE HERE (single level)
-│   ├── README.md
-│   ├── tasks.md
-│   ├── results.md
-│   └── work/
-├── sql/  python/  notebooks/  excel/  powerbi/
-└── README.md             ← MASTER GUIDE
+You are here: learning/git-cli/   (single level, ~30 min)
+Master guide: learning/README.md
 ```
 
-## Why git is in a data portfolio
+Every file you create in this lab is an asset: scripts, workbooks, dashboards. Analysts who don't version-control lose days to `report_final_v2_FINAL(3).xlsx` chaos — and can't answer *"what changed since last week?"* Git answers both problems: **history** (what changed, when, why) and **recovery** (undo mistakes without panic).
 
-Every file you've created is an *asset*: your `work/` scripts, the MIS workbook, the dashboard. Analysts who don't version control lose weeks to "final_v2_FINAL.xlsx" chaos. This is the smallest module on purpose — **git is a craft, not a career** — but it's the craft that keeps the rest of the track from evaporating.
+This is deliberately the smallest module. Git is a craft that protects everything else you learn here.
 
-## Run it inside THIS repo
+## At work, you use git when…
 
-The whole `learning/` tree lives inside `MIS-COLLECTIONS`, which is already a git repo. That means:
-- your `tasks.md` / `results.md` are **tracked** (they're documentation),
-- your `work/` attempts are **git-ignored** (by design — they're personal practice scratch).
+- You touched a working script, it broke, and you need yesterday's version back.
+- Someone asks *"what exactly changed in the report logic last month?"*
+- You want to try a risky change without endangering the working copy.
+- A teammate needs your fix and you need to send exactly that, nothing else.
 
-So for practice you'll occasionally stage something you'll *revert* — that's the point: git practice is safe because everything here is disposable.
+## Practice where you already are
 
-## The project's git laws (you're also learning this repo's rules)
+This whole lab lives inside a real git repository (`MIS-COLLECTIONS`). That's convenient:
 
-1. **Never commit `.env`, credentials, or secrets** (tracked-in-ignore).
-2. **Never edit generated CSVs** (`data_sources/raw/`).
-3. **`work/` folders + `.ipynb_checkpoints/` are ignored** — keep them that way.
-4. Commit messages: concise, imperative, matching this repo's existing style (read `git log --oneline` to absorb it).
+- The guides (`tasks.md`, `results.md`, READMEs) are **tracked** files — real history.
+- Your `work/` attempts are **git-ignored** by design — personal scratch, never committed.
+- For practice you'll stage and revert things that are safe to lose. Everything here is disposable; breaking things is how the lesson lands.
+
+## This repo's git rules (learn them by using them)
+
+1. **Never commit `.env`, passwords or secrets.**
+2. **Never edit generated data** (`data_sources/raw/`).
+3. Keep `work/` folders and `.ipynb_checkpoints/` ignored.
+4. Commit messages: short, imperative, matching the repo's existing style (`git log --oneline` shows plenty of examples).
+
+## Why the terminal, not a GUI
+
+GitHub Desktop / VS Code buttons are fine for daily commits — but they hide the model underneath, and the model is what saves you when things go wrong. One terminal window, ~30 minutes of focused practice.
 
 ## What you'll be able to do afterward
 
-Walk into any repo — yours or a team's — and read its history like a newspaper, stage and commit deliberately, branch a report without fear, and *recover* when you've deleted something you shouldn't have.
-
-## Take colorful shortcuts
-
-A GUI (GitHub Desktop, VS Code source control) is *fine* — but this module trains the **CLI** first: the GUI hides the model, and the model is what saves you. One terminal window, ~30 minutes of practice.
+Read any repo's history like a newspaper, stage and commit deliberately, branch off for experiments, and recover deleted work calmly. The tasks walk through exactly those situations.

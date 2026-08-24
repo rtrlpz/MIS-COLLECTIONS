@@ -1,66 +1,56 @@
-# Python Track — README
+# Python Track — pandas, the analyst's automation tool
 
 ```
-learning/
-├── _reference/            ← READ FIRST: datasets.md, kpi_glossary.md, data_dictionary.md
-├── git-cli/
-├── sql/                   ← done first (the launch pad)
-├── python/                ← YOU ARE HERE
-│   ├── README.md
-│   ├── basic/    tasks.md + results.md + work/
-│   ├── medium/   tasks.md + results.md + work/
-│   └── advanced/ tasks.md + results.md + work/
-├── notebooks/  excel/  powerbi/
-└── README.md             ← MASTER GUIDE
+You are here: learning/python/   (basic → medium → advanced)
+Master guide: learning/README.md
+Prerequisite: sql/basic (so you already know the data)
 ```
 
-## Why Python after SQL
+SQL tells you *what* the data says. Python (pandas) is what you use when the work goes beyond one query: **data arrives split into 12 monthly files and someone wants one annual view**, the same cleanup repeats every week and should be automated, or a question needs reshaping that SQL does awkwardly. In real analyst job ads, this is the "Python/pandas" requirement.
 
-You know *what* the data says (SQL). Python is where you ask the data things SQL wasn't made for: file recombining, machine-shaped exploration, custom transformations, and — at the end — building the exact numbers a dashboard will show.
+## At work, you reach for Python when…
 
-**The one rule that makes this track work:** the CSVs in `data_sources/raw/` and the PostgreSQL database hold the **same data**. You already verified answers in SQL. Now you'll reach the same answers through pandas. When your Python number matches your earlier SQL number, you've *confirmed the pipeline*, not just practiced syntax.
+- Data lands as a pile of monthly files and the request is about *the whole year*.
+- You catch yourself doing the same copy-paste-clean routine for the third time — time to script it.
+- A stakeholder who doesn't know SQL needs a reusable number: *"give me a file/metric I can rerun."*
+- You're preparing clean input for an Excel report or a Power BI model.
+
+## The rule that makes this track click
+
+The CSVs in `data_sources/raw/` hold **exactly the same data** as the database you queried in SQL. So every number you compute here has a known correct answer — the one you already proved in SQL.
+
+> When your pandas number matches your earlier SQL number, you didn't just practice syntax — you verified the pipeline end to end. When they differ, you found something worth understanding.
 
 ## Setup
 
-1. Activate the conda env: `conda activate mis-collections` (Python + pandas already present).
-2. Confirm the imports below work.
-3. You'll be reading `data_sources/raw/` — **read-only**. Never write into it; save work under `learning/python/<level>/work/`.
+1. `conda activate mis-collections` (pandas and numpy are already installed).
+2. Confirm these imports run:
+   ```python
+   import pandas as pd
+   import numpy as np
+   ```
+3. Read from `data_sources/raw/` freely — but it's **read-only**. Save your scripts and outputs under `learning/python/<level>/work/`.
 
-```python
-import pandas as pd
-import numpy as np
-```
+## What each level covers
 
-## How this track differs from SQL
-
-| SQL mindset | Python mindset |
-|---|---|
-| One query answers one question | One script answers a question AND reshapes output |
-| Joins    expressed in `JOIN … ON` | Merges expressed in `pd.merge(...)` |
-| Aggregation expressed in `GROUP BY` | Aggregation expressed in `groupby(...)` |
-| Date logic in SQL functions | Date logic in `pd.to_datetime`, `dt.*`, `resample` |
-
-Rule of thumb: **if the answer needs to be *reused* or *combined*, Python wins. If it needs to be *audited against a view*, SQL wins.** You'll flex both.
-
-## Principles
-
-- **Never mutate the raw CSVs** — copy what you need into `work/`.
-- **Recombine the month folders** — the whole trick of this track is that data arrives split by month, exactly like a real warehouse partition. Your first step is *re-assembling* it.
-- **Prefer `pd.merge(..., how=...)` to SQL-style confessional comments** — state the `how` out loud; it is the join semantics.
-- Attempt → commit to your numbers → **cross-check against the SQL numbers you already got** → then read `results.md`.
-
-## The three levels
-
-| Level | What you'll master | Checks |
+| Level | You master | Typical request |
 |---|---|---|
-| `basic/` | Read CSVs, recombine the 12 month folders, filter/group/aggregate, first rate columns. | 4 tasks |
-| `medium/` | Merges, datetime/resampling, bucketing, group transforms (rank within group), pivot/crosstab. | 5 tasks |
-| `advanced/` | Rebuild the project's KPI logic purely in pandas, the promise chain, the migration matrix, and working at ~1.36M rows with fixed dtypes. | 4 tasks |
+| `basic/` | Read CSVs, recombine the 12 month folders, filter/group/aggregate, first rate columns | *"Give me January's totals — from files, not the DB."* |
+| `medium/` | Merges, datetime handling and resampling, bucketing, rank-within-group, pivots | *"Rank agents within each team by KP%; flag the bottom three."* |
+| `advanced/` | Rebuild the project's KPI logic purely in pandas at ~1.36M-row scale | *"Prove the SQL numbers using only files."* |
 
-## Golden rule
+## How the files work
 
-Attempt everything in `work/`. Keep "wrong" files — the diff between your attempt and the guidance *is* the lesson.
+Each level folder has:
 
-## What you'll be able to do afterward
+- `tasks.md` — assignments written as supervisor requests
+- `results.md` — reasoning guidance; open **only after** attempting
+- `work/` — your scripts and outputs; git-ignored scratchpad
 
-Turn "RPC% by team for January, only Tarjeta accounts, sorted by worst first" into a **reusable pandas function** — one you could hand to a colleague who doesn't write SQL at all.
+Routine: read task → attempt in `work/` → cross-check against your SQL numbers → then compare with `results.md`.
+
+## Move up when…
+
+- **basic → medium:** you can load and combine two months of files without looking anything up.
+- **medium → advanced:** merges and date handling feel like tools, not obstacles.
+- **done:** you can turn *"RPC% by team for January, Tarjeta only, worst first"* into a reusable function — and defend every denominator in it.

@@ -1,49 +1,52 @@
-# Power BI Track — README
+# Power BI Track — the living dashboard
 
 ```
-learning/
-├── _reference/            ← READ FIRST: datasets.md, kpi_glossary.md, data_dictionary.md
-├── git-cli/
-├── sql/  python/  notebooks/  excel/   ← done first (the launch pads + the report crafters)
-├── powerbi/               ← YOU ARE HERE
-│   ├── README.md
-│   ├── basic/    tasks.md + results.md + work/
-│   ├── medium/   tasks.md + results.md + work/
-│   └── advanced/ tasks.md + results.md + work/
-└── README.md             ← MASTER GUIDE
+You are here: learning/powerbi/   (basic → medium → advanced)
+Master guide: learning/README.md
+Prerequisites: sql/basic (the model mirrors the database you already know)
 ```
 
-## Why Power BI last
+SQL proves numbers, Python reshapes them, notebooks explain them, Excel ships them. **Power BI makes them live**: filters, drill-down, automatic refresh, and row-level security so each supervisor sees only their own teams. This project has a real dashboard build to reference (9 pages, a 252-measure DAX library, time-intelligence calculation group, RLS by supervisor) — this track walks you up to that level.
 
-SQL proved the numbers, Python reshaped them, notebooks explained them, Excel shipped them as documents. Power BI is where the same numbers become **a living dashboard**: filters, drill-through, row-level security, and a measure language (DAX) that runs *inside* the star schema you already understand.
+## At work, you reach for Power BI when…
 
-This project has a real Phase 9 to reference: a 9-page dashboard, a documented 252-measure DAX library (`dashboards/dax/collections_dax_v2.csv`), a Calculation Group for time intelligence, and RLS by supervisor. The track trains you to build up to that stack — and to poke it.
+- Leadership wants numbers they can slice themselves — by month, team, product — without asking you each time.
+- The same report goes to many managers, but **each should only see their own data** (row-level security).
+- A number must stay current without anyone re-running anything.
+- Someone asks *"can I see that broken down by…?"* and the honest answer becomes *"yes, click here."*
 
-## The project's Power BI laws (carry them into the track)
+## The project's three habits you inherit
 
-1. **DAX measures live in CSV, not PBIX-first** — the CSV (`collections_dax_v2.csv`) is the source of truth; importing into the PBIX is a copy action. You'll author measures *in the CSV's spirit*: named, documented, reviewable.
-2. **Import mode**, star schema — the model mirrors the `Dim_*` / `Fact_*` names and the 12 KPI views you can already reproduce.
-3. **The Calculation Group** (`_Time Intelligence`) replaces dozens of legacy measures — you'll meet this pattern at advanced.
-4. **RLS by supervisor** for the real deployment — same `rls_supervisor_map` idea.
+1. **Measures live in a CSV first** (`dashboards/dax/collections_dax_v2.csv`), then get imported into the .pbix. Measures are reviewed like code — named, documented, consistent. You'll write yours in the same spirit.
+2. **Star schema import mode** — the model uses the same `Dim_*` / `Fact_*` tables you queried in SQL. Knowing the database *is* knowing the model.
+3. **A number on a visual is a claim.** Every dashboard number was already proven elsewhere; if a visual disagrees with your SQL/Python/Excel number, you investigate — you don't decorate around it.
 
 ## Setup
 
-1. **Power BI Desktop** (Windows only — you're on Windows). Free download.
-2. Data source choice per task: connect Import-mode to the DB (`MSI_CollectionsDB`) **or** import the raw CSVs (reassembled = your `work/` parquet/CSV). Say which and why per task.
-3. Save work files as `learning/powerbi/<level>/work/attempt_*.pbix` + take *screenshots* of each page into `work/` (a `.pbix` is binary and not git-diffable).
+1. **Power BI Desktop** (free, Windows — you're covered).
+2. Connect Import-mode to `MSI_CollectionsDB`, or load the reassembled CSVs — tasks tell you which and ask you to justify.
+3. `.pbix` files are binary (git can't show differences): save as `learning/powerbi/<level>/work/attempt_*.pbix` plus a **screenshot of each page** into the same folder.
 
-## The three levels
+## What each level covers
 
-| Level | What you'll master | Checks |
+| Level | You master | Typical deliverable |
 |---|---|---|
-| `basic/` | Model the star schema, build the first measures (simple rates), first visuals, formatting basics on ONE page. | 4 tasks |
-| `medium/` | DAX fundamentals — measure vs column, filter context, CALCULATE, time intelligence — plus visual interactions and slicers on a 2-3 page report. | 5 tasks |
-| `advanced/` | The project-level stack: measure library conventions, a mini Calculation Group, RLS, and the cross-track audit (PBIX visual == your SQL/Python/Excel numbers). | 4 tasks |
+| `basic/` | Model the star schema; first simple measures; one clean formatted page | A one-page report answering "how many / how much" with slicers |
+| `medium/` | DAX fundamentals: measure vs calculated column, filter context, CALCULATE, time intelligence; visual interactions | A 2–3 page report where clicking one chart filters everything else |
+| `advanced/` | Measure-library conventions, calculation groups, RLS by supervisor, cross-checking visuals vs proven numbers | The project-style stack — and an audit proving it's right |
 
-## Golden rule
+## How the files work
 
-Attempt → commit → **read the visual, not just the number** (a dashboard is a claim; a percentage that renders wrong is a liar on a slide) → then read `results.md`.
+Each level folder has:
 
-## The cross-track law that never changes
+- `tasks.md` — assignments written as supervisor requests
+- `results.md` — reasoning guidance; open **only after** attempting
+- `work/` — your `.pbix` files + screenshots; git-ignored scratchpad
 
-Every number you put on a dashboard was *already proven* in SQL/Python/Excel. Power BI's job is to make it **live and filterable** — never to silently re-derive with different definitions. Any visual that disagrees with your proven numbers is a finding to explain, not a mystery to compose a legend around.
+Routine: read task → attempt in `work/` → **read the visual, not just the number** (a percentage that renders wrong lies convincingly) → then compare with `results.md`.
+
+## Move up when…
+
+- **basic → medium:** relationships, formatting and simple measures stop requiring tutorials.
+- **medium → advanced:** you can predict what a measure returns under a slicer before pressing enter.
+- **done:** you can build a filtered, secured, self-consistent dashboard — and trace any visual back to a SQL query that agrees with it.

@@ -1,64 +1,49 @@
-# SQL Track — README
+# SQL Track — query the database like it's your job
 
 ```
-learning/
-├── _reference/            ← READ FIRST: datasets.md, kpi_glossary.md, data_dictionary.md
-├── git-cli/
-├── sql/                   ← YOU ARE HERE
-│   ├── README.md
-│   ├── basic/    tasks.md + results.md + work/
-│   ├── medium/   tasks.md + results.md + work/
-│   └── advanced/ tasks.md + results.md + work/
-├── python/
-├── notebooks/
-├── excel/
-├── powerbi/
-└── README.md             ← MASTER GUIDE (learning path)
+You are here: learning/sql/   (basic → medium → advanced)
+Master guide: learning/README.md
 ```
 
-## Why SQL is the *first* track
+SQL is how you ask a database questions. In this project, all 1.8M rows of collections data live in PostgreSQL, and **every other track depends on this one**: Python re-checks what SQL proves, Excel and Power BI display it. If you can express a KPI in SQL, you genuinely understand the data.
 
-**SQL is the language of the data itself.** Every other tool in this environment — Python, notebooks, Excel, Power BI — either *re-exports* what SQL produces or *reproduces* what SQL does. If you can express a KPI in SQL, you genuinely understand the data model: joins, grains, and rates stop being magic and become logic you control.
+## At work, you reach for SQL when…
 
-The moment of mastery is when a supervisor asks a question and you can answer it in ONE query faster than anyone in Excel.
+- The morning meeting needs yesterday's contact and payment counts — and you have 20 minutes.
+- A manager asks *"which teams improved this month and which slipped?"* — one grouped query answers it.
+- Someone doubts a dashboard number and you need to prove it from the raw tables.
+- Month-end: delinquency buckets, top exposures, how accounts moved between risk levels.
 
-## What this track is (and isn't)
+That is exactly what the tasks rehearse.
 
-- **Is:** realistic business questions against a live PostgreSQL database (~1.8M rows), answered with real SQL, verified against the project's own `v_` KPI views.
-- **Is not:** a syntax encyclopedia. We cover the ~30 working parts of SQL that analysts use daily — you'll pick up exotic clauses from the project's own `002_kpi_views.sql` when you read them in advanced.
+## What each level covers
 
-## Prerequisites
-
-1. Docker Postgres running with data loaded (see `_reference/datasets.md` §5).
-2. A SQL client. Any of:
-   - **DBeaver** (recommended — free, connects fast, has a SQL editor with result grid)
-   - **pgAdmin 4** (ships with your docker-compose)
-   - **psql** (CLI, fastest once known; it's also what the pipeline uses)
-3. Read `_reference/datasets.md` and `_reference/kpi_glossary.md` (10 min).
-
-## The three levels
-
-| Level | What you'll master | Checks |
+| Level | You master | The kind of question you can answer |
 |---|---|---|
-| `basic/` | Read a star schema, filter, sort, aggregate, group. Answer "how many / how much" questions per slice. | 4 tasks |
-| `medium/` | Join facts to dims, CASE bucketing, date logic, CTEs, window functions, deduplication. Answer "why did X change" questions. | 5 tasks |
-| `advanced/` | Rebuild the project's own KPI views from raw tables, DPD migration logic, composite scorecards. Answer "is this true" questions and *verify against the real views*. | 4 tasks |
+| `basic/` | Look around a schema; filter, count, sort, group | *"How many? How much? Who are the biggest?"* |
+| `medium/` | Join facts to dimensions, bucket with CASE, date logic, CTEs, window functions | *"Why did it change? Break it down by X."* |
+| `advanced/` | Rebuild this project's own KPI views (`v_*`) from raw tables and audit differences | *"Is this number true? Prove it."* |
 
-## The golden rule (per level)
+## Setup (one-time)
 
-1. Attempt every task in `work/`.
-2. Keep your `.sql` files even when they're "wrong" — the wrong-then-fixed path is where learning happens.
-3. Only then open `results.md`. Use it to *compare*, not to copy.
+1. Database running with data loaded — recipe in `_reference/datasets.md` §5.
+2. Any SQL client:
+   - **DBeaver** (recommended — free, visual, fast to start)
+   - **pgAdmin 4** (already ships with the project's docker-compose)
+   - **psql** (terminal, fastest once you know it)
 
-## Conventions used in answers
+## How the files work
 
-- `results.md` is **guidance-only**: it teaches the reasoning path, steps-with-why, and verification strategy — it deliberately shows **no full runnable query** and **no computed numbers**. The learning happens when *your* query gets compared to the guidance, not copied from an answer key.
-- Short syntax fragments (never full solutions) appear only where the *syntax* is the lesson — e.g. `WHERE` vs `HAVING`, or `::numeric` for division.
-- When a task should reproduce a project view (e.g. `v_daily_mis`), the guidance points you to *compare* your query's output against that view — "does my number match yours" is the real-world validation skill. The comparison is the lesson; the number is not printed.
+Each level folder has:
 
-## What you'll be able to do afterward
+- `tasks.md` — the assignments, written as supervisor requests
+- `results.md` — reasoning guidance per task; open **only after** attempting
+- `work/` — your attempt files (`attempt_1.sql`, …); git-ignored scratchpad
 
-Produce, in one file, the answer to questions like:
-> "RPC% by team for January, only Tarjeta accounts, sorted by worst first, with the previous month's RPC% beside it."
+Routine: read task → write attempt in `work/` → compare with `results.md` → note what you'd change in your file.
 
-That is the SQL capability a collections department pays for. Let's start.
+## Move up when…
+
+- **basic → medium:** you can write "count by group for a month, sorted" from memory, no notes.
+- **medium → advanced:** joins and date filters feel routine rather than scary.
+- **done:** you can rebuild a `v_*` view from raw tables and explain any single-number difference between yours and theirs — that skill *is* the job interview.

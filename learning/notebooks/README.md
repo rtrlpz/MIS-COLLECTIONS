@@ -1,50 +1,55 @@
-# Notebooks Track — README
+# Notebooks Track — explain your work so others trust it
 
 ```
-learning/
-├── _reference/            ← READ FIRST: datasets.md, kpi_glossary.md, data_dictionary.md
-├── git-cli/
-├── sql/  python/          ← done first (the launch pads)
-├── notebooks/             ← YOU ARE HERE
-│   ├── README.md
-│   ├── basic/    tasks.md + results.md + work/
-│   ├── medium/   tasks.md + results.md + work/
-│   └── advanced/ tasks.md + results.md + work/
-├── excel/  powerbi/
-└── README.md             ← MASTER GUIDE
+You are here: learning/notebooks/   (basic → medium → advanced)
+Master guide: learning/README.md
+Prerequisites: sql/basic + python/basic
 ```
 
-## Why notebooks after SQL and Python
+A query answers a question; a script produces a number. A **notebook** is where you show a *reader* how the number was made — code, results, charts and explanations in one document, top to bottom. At work, this is how analysts document methodology, hand over projects, and win arguments: not *"trust me"*, but *"run it yourself, here's every step."*
 
-You can query (SQL) and you can program (pandas). A notebook is where those two **meet a reader**: cell-by-cell documentation of *how* a number was made. In a production shop this is how an EDA becomes a *explainable* artifact — sibling of the KPI views you've been re-deriving.
+## At work, you reach for a notebook when…
 
-Notebooks mix both tools on purpose:
-- **basic** reads the same CSVs Python reads (no server needed).
-- **medium+** can reach the live database, so you can hold a notebook computation against a `v_` view in the same artifact.
-
-## Why this track is useful at all (say it out loud)
-
-> "A notebook is the only artifact in this stack that shows *how* — not just *what*." — commit this to memory.
+- Someone asks *"how exactly is this KPI calculated?"* and a one-liner won't settle it.
+- You need to share an analysis with commentary so a colleague can rerun it next month.
+- An audit or review wants to see your working — assumptions, checks and all.
+- You're exploring a new dataset and want your thinking to be saved as you go.
 
 ## Setup
 
 1. `conda activate mis-collections`
-2. `jupyter lab` in the repo root (or VS Code `.ipynb` editor, equivalent).
-3. `.ipynb_checkpoints/` is git-ignored project-wide — save notebooks under `learning/notebooks/<level>/work/`.
+2. Launch with `jupyter lab` in the repo root (or use VS Code's notebook editor — equivalent).
+3. Save notebooks under `learning/notebooks/<level>/work/` (git-ignored scratchpad).
 
-## The three levels
+- **basic** reads the same CSVs Python reads (no database needed).
+- **medium+** can also query the live database — handy for putting your calculation and the project's official view side by side in one artifact.
 
-| Level | What you'll master | Checks |
+## The one law of notebooks
+
+Cells run in whatever order *you* ran them — which means a notebook can quietly depend on steps executed out of order (or on variables deleted hours ago). The fix is one habit:
+
+> Before sharing or finishing: **Restart Kernel → Run All**. If it doesn't run cleanly from the top, it isn't done.
+
+## What each level covers
+
+| Level | You master | Typical deliverable |
 |---|---|---|
-| `basic/` | Notebook hygiene — cells, markdown, run-order discipline, and a first chart. | 4 tasks |
-| `medium/` | Mixing SQL and pandas in one artifact; storytelling charts; datetime viz. | 5 tasks |
-| `advanced/` | A reproducible EDA that **verifies itself** against the project views — the deliverable notebook. | 4 tasks |
+| `basic/` | Notebook hygiene: cells, markdown text, run-order discipline, a first chart | A tidy mini-analysis anyone could rerun |
+| `medium/` | Mixing SQL and pandas in one notebook; clear charts; date-based visuals | *"Here's the trend, here's why, here's the proof"* |
+| `advanced/` | A self-verifying EDA that checks its own numbers against the project views | The kind of artifact that survives an audit |
 
-## Running-order discipline (the #1 notebook law)
+## How the files work
 
-- A notebook has no hidden state; cells execute in **any order you choose**. That's the power and the trap.
-- Rule: after writing the whole notebook, **Restart Kernel & Run All** as the last act. If it fails, your notebook was written by accident, not by design.
+Each level folder has:
 
-## Golden rule
+- `tasks.md` — assignments written as supervisor requests
+- `results.md` — reasoning guidance; open **only after** attempting
+- `work/` — your notebooks; git-ignored scratchpad
 
-Same as always: attempt → commit → then read `results.md`. Where a task mirrors a SQL/Python task, its *number* is already proven — the notebook's job is to present, not re-derive from scratch.
+Routine: read task → attempt in `work/` → Restart & Run All → then compare with `results.md`. Where a task repeats a SQL/Python task, the *number* is already proven — your job is the explanation, not re-derivation.
+
+## Move up when…
+
+- **basic → medium:** your notebook runs top-to-bottom on a fresh kernel, first try.
+- **medium → advanced:** your charts make the point before you finish the sentence.
+- **done:** you can hand a colleague a notebook that explains, computes and verifies a KPI without you in the room.
