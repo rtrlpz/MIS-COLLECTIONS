@@ -37,8 +37,42 @@ CREATE TABLE dim_employees (
     contact_skill DECIMAL(5,3),
     negotiation_skill DECIMAL(5,3),
     efficiency_skill DECIMAL(5,3),
+    -- I4: SCD Type-2 validity on the current-state row; historical segments
+    -- live in dim_employee_history (keeps 1-row-per-agent fact joins intact)
+    valid_from DATE,
+    valid_to   DATE,
+    is_current BOOLEAN,
     CONSTRAINT fk_employees_self_ref FOREIGN KEY (supervisor_id) REFERENCES dim_employees(agent_id),
     CONSTRAINT chk_employee_type CHECK (employee_type IN ('Agent', 'Supervisor'))
+);
+
+-- I4: SCD Type-2 history of volatile org attributes (team/supervisor moves).
+-- One row per attribute version; base dim carries only the is_current state.
+CREATE TABLE dim_employee_history (
+    hist_id VARCHAR(15) PRIMARY KEY,
+    agent_id VARCHAR(15) NOT NULL,
+    employee_type VARCHAR(20),
+    supervisor_id VARCHAR(15),
+    team_name VARCHAR(50),
+    region VARCHAR(50),
+    experience_tier VARCHAR(10),
+    cost_per_hour DECIMAL(6,2),
+    valid_from DATE NOT NULL,
+    valid_to   DATE NOT NULL,
+    is_current BOOLEAN,
+    CONSTRAINT fk_emp_hist_employee FOREIGN KEY (agent_id) REFERENCES dim_employees(agent_id)
+);
+
+-- I5: treatment arms (champion-challenger). Accounts are assigned one stable
+-- arm; the arm drives channel mix and contact-efficacy multipliers.
+CREATE TABLE dim_strategy (
+    strategy_id VARCHAR(15) PRIMARY KEY,
+    strategy_name VARCHAR(50) NOT NULL,
+    description TEXT,
+    pct_accounts DECIMAL(5,3),
+    channel_mix TEXT,
+    connection_mult DECIMAL(5,3),
+    rpc_mult DECIMAL(5,3)
 );
 
 -- GRAIN: one row per client
@@ -119,13 +153,15 @@ CREATE TABLE fact_interactions (
     rpc_flag BOOLEAN,
     call_outcome VARCHAR(50),
     channel VARCHAR(20),
+    strategy_id VARCHAR(15),
     aht_seconds INT,
     acw_seconds INT,
     rpc_arrears DECIMAL(12,2),
     dpd_at_contact INT,
     CONSTRAINT fk_int_agents FOREIGN KEY (agent_id) REFERENCES dim_employees(agent_id),
     CONSTRAINT fk_int_accounts FOREIGN KEY (account_id) REFERENCES dim_accounts(account_id),
-    CONSTRAINT fk_int_date FOREIGN KEY (interaction_date) REFERENCES dim_calendar(date)
+    CONSTRAINT fk_int_date FOREIGN KEY (interaction_date) REFERENCES dim_calendar(date),
+    CONSTRAINT fk_int_strategy FOREIGN KEY (strategy_id) REFERENCES dim_strategy(strategy_id)
 );
 
 -- GRAIN: one row per promise-to-pay event; status mutated in place Pending→Kept/Broken

@@ -15,7 +15,11 @@ CFG = {
 
     # Portfolio dynamics
     "mora_rate":                0.25,
-    "mora_replenishment_rate":  0.0018,   # daily: Activo -> Mora
+    # I7 (P3): raised 0.0018 → 0.0042. At 0.0018/day replenishment could not
+    # offset cure outflow, so Mora stock decayed monotonically (16.6% → 7.2%
+    # across the year) instead of reaching a realistic steady state.
+    # ~0.0042/day × seasonal multipliers targets a stable ~12-15% Mora book.
+    "mora_replenishment_rate":  0.0042,   # daily: Activo -> Mora
     "self_cure_base_rate":      0.020,    # daily: spontaneous full-arrears payment
     "self_cure_payday_boost":   2.5,      # 60% of self-cures cluster on payday weeks
     "monthly_drift_std":        0.08,     # ±8% monthly rate drift per agent
@@ -163,12 +167,46 @@ INCOME_BRACKET_CFG = {
 }
 
 # --- G5: Dialer Channel Mix ---
-# Calls need channel classification (Dialer/FICO/SMS/Manual),
-# with Dialer being the primary channel. Enables Dialer Performance page.
+# DEPRECATED as the direct source of interaction channels: I5 (P3) replaces the
+# global mix with per-strategy channel arms (see STRATEGY_CFG) so treatment
+# effects are traceable (champion-challenger). Kept for reference/fallback.
 CHANNEL_CFG = {
     "channels": ["Dialer", "Manual", "FICO", "SMS"],
     "weights": [0.65, 0.15, 0.10, 0.10],  # 65% dialer, 15% manual, 10% each other
     "outbound_only": True,          # All interactions are outbound (no inbound queue data)
+}
+
+# --- I5: Treatment/Strategy arms (champion-challenger) ---
+# Each account is assigned ONE stable strategy at simulation start. The arm
+# determines the account's channel mix AND its contact efficacy multipliers,
+# making strategy→outcome attribution possible (Dialer/Strategy pages).
+STRATEGY_CFG = {
+    "strategies": [
+        {
+            "strategy_id": "STG-01", "name": "Champion_Dialer",
+            "description": "Incumbent outbound dialer practice (champion arm)",
+            "pct_accounts": 0.60,
+            "channel_mix": {"Dialer": 0.75, "Manual": 0.25},
+            "connection_mult": 1.00,   # baseline reachability
+            "rpc_mult":       1.00,   # baseline right-party rate
+        },
+        {
+            "strategy_id": "STG-02", "name": "Challenger_SMS_First",
+            "description": "SMS-led pre-contact nudge before dialing (cheaper, weaker connect)",
+            "pct_accounts": 0.25,
+            "channel_mix": {"SMS": 0.55, "Dialer": 0.35, "Manual": 0.10},
+            "connection_mult": 0.88,   # harder to convert SMS touches into connects
+            "rpc_mult":       0.97,
+        },
+        {
+            "strategy_id": "STG-03", "name": "Challenger_FICO_Priority",
+            "description": "Score-based prioritized dialing on high-propensity accounts",
+            "pct_accounts": 0.15,
+            "channel_mix": {"FICO": 0.45, "Dialer": 0.45, "Manual": 0.10},
+            "connection_mult": 1.06,
+            "rpc_mult":       1.12,   # better-targeted conversations
+        },
+    ],
 }
 
 # --- G6: Write-off Events ---

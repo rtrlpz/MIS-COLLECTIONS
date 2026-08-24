@@ -33,7 +33,9 @@ DB_CONFIG = {
 TABLES = [
     'dim_employees', 'dim_clients', 'dim_products',
     'dim_calendar', 'dim_accounts', 'fact_interactions', 'fact_ptp_log',
-    'fact_payments', 'fact_agent_time_log', 'fact_eom_snapshot', 'fact_writeoffs'
+    'fact_payments', 'fact_agent_time_log', 'fact_eom_snapshot', 'fact_writeoffs',
+    # P2/P3 additions
+    'dim_delinquency_bucket', 'dim_strategy', 'dim_employee_history'
 ]
 
 PK_MAPPING = {
@@ -48,6 +50,10 @@ PK_MAPPING = {
     'fact_agent_time_log': ['log_id'],
     'fact_eom_snapshot': ['snapshot_date', 'account_id'],  # composite PK
     'fact_writeoffs': ['writeoff_id'],
+    # P2/P3 additions
+    'dim_delinquency_bucket': ['bucket_key'],
+    'dim_strategy': ['strategy_id'],
+    'dim_employee_history': ['hist_id'],
 }
 
 FK_RELATIONSHIPS = [
@@ -56,6 +62,7 @@ FK_RELATIONSHIPS = [
     ('fact_interactions', 'agent_id', 'dim_employees', 'agent_id'),
     ('fact_interactions', 'account_id', 'dim_accounts', 'account_id'),
     ('fact_interactions', 'interaction_date', 'dim_calendar', 'date'),
+    ('fact_interactions', 'strategy_id', 'dim_strategy', 'strategy_id'),          # I5 (P3)
     ('fact_ptp_log', 'agent_id', 'dim_employees', 'agent_id'),
     ('fact_ptp_log', 'account_id', 'dim_accounts', 'account_id'),
     ('fact_ptp_log', 'ptp_date', 'dim_calendar', 'date'),
@@ -66,8 +73,10 @@ FK_RELATIONSHIPS = [
     ('fact_agent_time_log', 'log_date', 'dim_calendar', 'date'),
     ('fact_eom_snapshot', 'account_id', 'dim_accounts', 'account_id'),
     ('fact_eom_snapshot', 'snapshot_date', 'dim_calendar', 'date'),
+    ('fact_eom_snapshot', 'bucket_key', 'dim_delinquency_bucket', 'bucket_key'),  # I2 (P2)
     ('fact_writeoffs', 'account_id', 'dim_accounts', 'account_id'),
     ('fact_writeoffs', 'writeoff_date', 'dim_calendar', 'date'),
+    ('dim_employee_history', 'agent_id', 'dim_employees', 'agent_id'),            # I4 (P3)
 ]
 
 # KPI Views and their percentage columns

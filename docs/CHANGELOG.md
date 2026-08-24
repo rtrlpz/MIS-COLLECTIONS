@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.4.0] — 2026-08-24
+
+### P3 — Realism Engine Upgrades (audit I4/I5/I7/I8) — CODE COMPLETE, REGEN PENDING
+
+> **All changes below are implemented but NOT yet materialized**: current CSVs
+> and loaded data predate this phase except where a migration backfills labels.
+> Full regeneration + reload + complete test gate (incl. generator suites)
+> is the explicit next step.
+
+**I7 — Delinquency equilibrium**
+- `mora_replenishment_rate` 0.0018 → **0.0042/day**: old value couldn't offset cure outflow (Mora decayed 16.6%→7.2% monotonically); new rate × seasonal multipliers targets a stable ~12–15% book
+
+**I8 — G7 seasonality actually wired** (was dead config)
+- Daily workload scales by `seasonal_volume[m]`; Mora replenishment scales by `seasonal_mora[m]`
+
+**I5 — Treatment/strategy dimension (champion-challenger)**
+- New `dim_strategy`: STG-01 Champion_Dialer 60% · STG-02 Challenger_SMS_First 25% (conn ×0.88) · STG-03 Challenger_FICO_Priority 15% (conn ×1.06, rpc ×1.12)
+- Accounts get ONE stable arm; arm drives channel mix **and** efficacy multipliers — fixes cosmetic channels AND enables strategy→outcome attribution
+- `fact_interactions.strategy_id` added; **live DB backfilled deterministically** (hash of account_id, exact 60.0/24.9/15.1 split verified). RPC-by-arm flat (~36%) in today's data — expected: multipliers bite only at regen
+
+**I4 — SCD Type 2 for employee org attributes**
+- `dim_employees` gains valid_from/valid_to/is_current (current-state rows; keeps all fact joins intact)
+- New `dim_employee_history` versioning team/supervisor segments; generator emits **6 mid-year team transfers on Jul 1**
+- Live DB baseline-populated (88 current segments)
+
+**I3 completion path — Calendar extended**
+- Generator CAL_RANGE now END+90d; SQL seed extended Jan–Mar 2026 (+90 rows, live DB verified 486 through 2026-03-31) — unblocks physical promised/grace-date FKs at regeneration
+
+### Tests & ops
+- conftest registers `dim_delinquency_bucket`, `dim_strategy`, `dim_employee_history` + their FKs (incl. snapshot→bucket from P2, previously unregistered)
+- Structural QA re-run: **37 passed, 0 failures** (tables/PKs/FKs/view outputs)
+- migrate.sh wires seeds/004 + migration 009; assertion remains 15 views
+
 ## [1.3.0] — 2026-08-24
 
 ### P2 — Kimball Dimensional Upgrades (audit items I2/I3/N2/N3)

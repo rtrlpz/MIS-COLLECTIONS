@@ -74,14 +74,14 @@ try:
         CFG, PRODUCT_CFG, CONTACT_NON_RPC, NON_CONTACT, PAY_METHODS, PAY_WEIGHTS,
         VINTAGE_CFG, AGENT_HIRE_CFG, CREDIT_LIMIT_CFG, INCOME_BRACKET_CFG,
         CHANNEL_CFG, WRITEOFF_CFG, DATA_EXPANSION_CFG, SUPERVISOR_HIRE_CFG,
-        AGENT_COST_CFG,
+        AGENT_COST_CFG, STRATEGY_CFG,
     )
 except ImportError:
     from config import (
         CFG, PRODUCT_CFG, CONTACT_NON_RPC, NON_CONTACT, PAY_METHODS, PAY_WEIGHTS,
         VINTAGE_CFG, AGENT_HIRE_CFG, CREDIT_LIMIT_CFG, INCOME_BRACKET_CFG,
         CHANNEL_CFG, WRITEOFF_CFG, DATA_EXPANSION_CFG, SUPERVISOR_HIRE_CFG,
-        AGENT_COST_CFG,
+        AGENT_COST_CFG, STRATEGY_CFG,
     )
 
 BASE_PATH  = Path(__file__).resolve().parent
@@ -159,7 +159,10 @@ DATE_RANGE = [START + timedelta(days=i) for i in range((END - START).days + 1)]
 _month   = START.month - 1 if START.month > 1 else 12
 _year    = START.year if START.month > 1 else START.year - 1
 CAL_START = date(_year, _month, 1)
-CAL_RANGE = [CAL_START + timedelta(days=i) for i in range((END - CAL_START).days + 1)]
+# I3: extend 90d past END so promised_date/grace_until_date spilling into the
+# next year remain covered by dim_calendar (FK-ready at P3 regeneration).
+CAL_END   = END + timedelta(days=90)
+CAL_RANGE = [CAL_START + timedelta(days=i) for i in range((CAL_END - CAL_START).days + 1)]
 
 
 def fmt_id(prefix, n, w):
@@ -353,6 +356,86 @@ for idx in dim_employees.index:
         dim_employees.at[idx, "team_name"] = sup_lookup[sid]["team_name"]
         dim_employees.at[idx, "region"]    = sup_lookup[sid]["region"]
 
+# ── I4: SCD Type-2 validity columns + mid-year team transfers ───────────────
+# Base dim_employees stays 1-row-per-agent (current state) so every existing
+# fact join keeps working; the volatile org attributes (team/supervisor) are
+# versioned in dim_employee_history with valid_from/valid_to segments.
+# A handful of agents transfer teams on Jul 1 to make the mechanics visible.
+dim_employees["valid_from"] = dim_employees["hire_date"]
+dim_employees["valid_to"]   = "9999-12-31"
+dim_employees["is_current"] = True
+
+TRANSFER_DATE     = date(START.year, 7, 1)
+TRANSFER_PREV_DAY = TRANSFER_DATE - timedelta(days=1)
+_supervisor_ids   = dim_employees.loc[dim_employees["employee_type"] == "Supervisor", "agent_id"].tolist()
+_transfer_map     = {}
+for _eid in random.sample(agent_ids, k=min(6, len(agent_ids))):
+    _old_sid = agent_profile[_eid]["supervisor_id"]
+    _new_sid = random.choice([s for s in _supervisor_ids if s != _old_sid])
+    _transfer_map[_eid] = (_old_sid, _new_sid)
+
+emp_history_rows = []
+_hist_ctr = 0
+for _idx in dim_employees.index:
+    _eid  = dim_employees.at[_idx, "agent_id"]
+    _etype = dim_employees.at[_idx, "employee_type"]
+    if _eid in _transfer_map:
+        _old_sid, _new_sid = _transfer_map[_eid]
+        # segment 1: hire → day before transfer (original team)
+        _hist_ctr += 1
+        emp_history_rows.append({
+            "hist_id": fmt_id("EMH", _hist_ctr, 4),
+            "agent_id": _eid,
+            "employee_type": _etype,
+            "supervisor_id": _old_sid,
+            "team_name": sup_lookup[_old_sid]["team_name"],
+            "region": sup_lookup[_old_sid]["region"],
+            "experience_tier": dim_employees.at[_idx, "experience_tier"],
+            "cost_per_hour": dim_employees.at[_idx, "cost_per_hour"],
+            "valid_from": dim_employees.at[_idx, "hire_date"],
+            "valid_to": str(TRANSFER_PREV_DAY),
+            "is_current": False,
+        })
+        # segment 2: transfer → open (new team; base dim updated below)
+        _hist_ctr += 1
+        emp_history_rows.append({
+            "hist_id": fmt_id("EMH", _hist_ctr, 4),
+            "agent_id": _eid,
+            "employee_type": _etype,
+            "supervisor_id": _new_sid,
+            "team_name": sup_lookup[_new_sid]["team_name"],
+            "region": sup_lookup[_new_sid]["region"],
+            "experience_tier": dim_employees.at[_idx, "experience_tier"],
+            "cost_per_hour": dim_employees.at[_idx, "cost_per_hour"],
+            "valid_from": str(TRANSFER_DATE),
+            "valid_to": "9999-12-31",
+            "is_current": True,
+        })
+        # point-in-time correctness: base row + profile reflect CURRENT team
+        dim_employees.at[_idx, "supervisor_id"] = _new_sid
+        dim_employees.at[_idx, "team_name"]     = sup_lookup[_new_sid]["team_name"]
+        dim_employees.at[_idx, "region"]        = sup_lookup[_new_sid]["region"]
+        agent_profile[_eid]["supervisor_id"]    = _new_sid
+    else:
+        _hist_ctr += 1
+        emp_history_rows.append({
+            "hist_id": fmt_id("EMH", _hist_ctr, 4),
+            "agent_id": _eid,
+            "employee_type": _etype,
+            "supervisor_id": dim_employees.at[_idx, "supervisor_id"],
+            "team_name": dim_employees.at[_idx, "team_name"],
+            "region": dim_employees.at[_idx, "region"],
+            "experience_tier": dim_employees.at[_idx, "experience_tier"],
+            "cost_per_hour": dim_employees.at[_idx, "cost_per_hour"],
+            "valid_from": dim_employees.at[_idx, "hire_date"],
+            "valid_to": "9999-12-31",
+            "is_current": True,
+        })
+
+dim_employee_history = pd.DataFrame(emp_history_rows)
+logger.info("  SCD2: %d history segments (%d agents transfer teams on %s)",
+            len(dim_employee_history), len(_transfer_map), TRANSFER_DATE)
+
 # ── Dim_Products ─────────────────────────────────────────────────────────────
 dim_products = pd.DataFrame([{
     "product_id":          fmt_id("PRD", cfg["id"], 2),
@@ -459,6 +542,32 @@ for client_id in client_ids:
         acct_ctr += 1
 
 ever_mora = {a for a, s in account_state.items() if s["status"] == "Mora"}
+
+# ── I5: stable per-account treatment assignment (champion-challenger) ──────
+# One strategy arm per account for the whole simulation: the arm drives the
+# channel mix AND contact-efficacy multipliers, so strategy→outcome
+# attribution is traceable on the Dialer/Strategy dashboards.
+_account_strategy = {}
+for _acct in account_state:
+    _r = random.random()
+    _cum = 0.0
+    for _s in STRATEGY_CFG["strategies"]:
+        _cum += _s["pct_accounts"]
+        if _r < _cum:
+            _account_strategy[_acct] = _s
+            break
+    else:
+        _account_strategy[_acct] = STRATEGY_CFG["strategies"][0]
+
+dim_strategy = pd.DataFrame([{
+    "strategy_id":     s["strategy_id"],
+    "strategy_name":   s["name"],
+    "description":     s["description"],
+    "pct_accounts":    s["pct_accounts"],
+    "channel_mix":     ", ".join(f"{k} {int(v*100)}%" for k, v in s["channel_mix"].items()),
+    "connection_mult": s["connection_mult"],
+    "rpc_mult":        s["rpc_mult"],
+} for s in STRATEGY_CFG["strategies"]])
 
 dim_accounts = pd.DataFrame(account_rows)
 all_acct_ids = list(account_state.keys())
@@ -691,7 +800,10 @@ for sim_date in DATE_RANGE:
             lm = random.randint(0, 59)
             oh = lh + int(CFG["schedule_hours"])  # Hora de salida (Logout)
 
-            n_total = random.randint(*CFG["accts_per_agent_day"])
+            # I8: G7 seasonal volume now actually modulates daily workload
+            # (was dead config before P3 — monthly variation was pure weekday noise)
+            n_total = int(round(random.randint(*CFG["accts_per_agent_day"])
+                                * DATA_EXPANSION_CFG["seasonal_volume"][sim_date.month]))
             n_mora = int(n_total * CFG["mora_contact_pct"])
             n_other = n_total - n_mora
 
@@ -705,6 +817,7 @@ for sim_date in DATE_RANGE:
             for acct_id in contacts:
                 state = account_state[acct_id]
                 p_type = state["product_type"]
+                arm    = _account_strategy[acct_id]   # I5: treatment arm
                 n_att = random.randint(*CFG["attempts_per_acct"])
                 rpc_boost = PRODUCT_CFG[p_type]["rpc_boost"]
                 evasion = 0.70 if state["dpd"] > 90 else 1.0
@@ -715,9 +828,9 @@ for sim_date in DATE_RANGE:
                 call_outcome = None
 
                 for _ in range(n_att):
-                    if random.random() < prof["connection_rate"] * dr * reentry_penalty:
+                    if random.random() < prof["connection_rate"] * dr * reentry_penalty * arm["connection_mult"]:
                         connected = True
-                        adj_rpc = clamp(prof["rpc_rate"] * dr * rpc_boost * evasion, 0.05, 0.92)
+                        adj_rpc = clamp(prof["rpc_rate"] * dr * rpc_boost * evasion * arm["rpc_mult"], 0.05, 0.92)
 
                         if random.random() < adj_rpc:
                             rpc_flag = True
@@ -750,10 +863,12 @@ for sim_date in DATE_RANGE:
 
                 int_ctr += 1
 
-                # G5: Assign interaction channel
+                # I5: channel comes from the account's strategy arm, not a
+                # global mix — this is what makes champion-challenger
+                # comparisons meaningful (each arm owns its channel economics).
                 channel = random.choices(
-                    CHANNEL_CFG["channels"],
-                    weights=CHANNEL_CFG["weights"]
+                    list(arm["channel_mix"].keys()),
+                    weights=list(arm["channel_mix"].values())
                 )[0]
 
                 # La hora de la interacción ahora siempre ocurre dentro del turno real de este agente
@@ -769,7 +884,8 @@ for sim_date in DATE_RANGE:
                     "calls_connected": int(connected),
                     "rpc_flag": str(rpc_flag).lower(),
                     "call_outcome": call_outcome,
-                    "channel": channel,                    # G5
+                    "channel": channel,                    # G5/I5
+                    "strategy_id": arm["strategy_id"],     # I5
                     "aht_seconds": aht,
                     "acw_seconds": acw,
                     "rpc_arrears": round(state["arrears"], 2) if rpc_flag else 0.0,
@@ -867,7 +983,10 @@ for sim_date in DATE_RANGE:
             })
 
     # ── 3G. MORA AGING & REPLENISHMENT ────────────────────────────────────
-    replenish_p = CFG["mora_replenishment_rate"] * p_factor
+    # I8: seasonal_mora multiplier now applied (G7 config was dead before P3)
+    replenish_p = (CFG["mora_replenishment_rate"]
+                   * p_factor
+                   * DATA_EXPANSION_CFG["seasonal_mora"][sim_date.month])
     for acct_id, state in account_state.items():
         if state["status"] == "Activo" and state["balance"] > 0:
             if random.random() < replenish_p:
@@ -1028,6 +1147,7 @@ date_cols = [
     "dob", "open_date", "interaction_date", "payment_date",
     "ptp_date", "promised_date", "grace_until_date", "snapshot_date",
     "log_date", "date", "hire_date", "writeoff_date",
+    "valid_from", "valid_to",
 ]
 
 def format_for_export(df):
@@ -1056,11 +1176,13 @@ os.makedirs(shared_dir, exist_ok=True)
 
 # Dimension tables → shared/ (reference data, one copy)
 dims = {
-    "Dim_Employees":   dim_employees,
-    "Dim_Clients":     dim_clients,
-    "Dim_Products":    dim_products,
-    "Dim_Accounts":    dim_accounts,
-    "Dim_Calendar":    dim_calendar,
+    "Dim_Employees":         dim_employees,
+    "Dim_Employee_History":  dim_employee_history,   # I4: SCD Type-2 segments
+    "Dim_Strategy":          dim_strategy,           # I5: treatment arms
+    "Dim_Clients":           dim_clients,
+    "Dim_Products":          dim_products,
+    "Dim_Accounts":          dim_accounts,
+    "Dim_Calendar":          dim_calendar,
 }
 
 for name, df in dims.items():
