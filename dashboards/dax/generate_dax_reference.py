@@ -17,7 +17,9 @@ TABLE_INFO = {
     "_Portfolio Health": "EOM snapshot, DPD buckets, arrears, roll rates, migration, skip-path analysis.",
     "_Goals & Targets": "Goal values, gaps, RAG status, color hex for 7 key KPI metrics.",
     "_Composites & Strategy": "Composite scores, agent metrics, dialer performance, financial efficiency, vintage analysis, credit risk.",
-    "_Time Intelligence": "Calculation Group — MoM, WoW, DoD, YoY, OTC, YTD, Rolling 3M (18 items). Apply as slicer to any base measure.",
+    # "_Time Intelligence" retired from the CSV (v3.2): the 118 legacy measures
+    # live in dashboards/dax/legacy/time_intelligence_legacy.csv. The CG section
+    # below is generated from calculation_group_ti.json.
 }
 
 CG_JSON_PATH = os.path.join(os.path.dirname(__file__), "calculation_group_ti.json")
@@ -94,42 +96,7 @@ def generate_md():
             lines.append(f"*{desc}*")
             lines.append("")
 
-        # Special handling for Time Intelligence: legacy measures + CG reference
-        if table_name == "_Time Intelligence":
-            lines.append("> **Note:** These 118 legacy measures are preserved for backward compatibility.")
-            lines.append("> They are **replaced** by the `_Time Intelligence` Calculation Group (18 items).")
-            lines.append("> Once the CG is verified, delete these individual measures from the model.")
-            lines.append("")
-            lines.append("### Legacy Measures (118)")
-            lines.append("")
-            for m in measures:
-                lines.append(f"**{m['name']}**")
-                lines.append("")
-                lines.append("```dax")
-                lines.append(m["expression"])
-                lines.append("```")
-                lines.append("")
-            lines.append("---")
-            lines.append("")
-            lines.append("### Calculation Group (18 items)")
-            lines.append("")
-            lines.append("Apply `_Time Intelligence[Calculation Item]` as a slicer/filter to any base measure.")
-            lines.append("")
-            cg_items = load_cg_items()
-            for item in cg_items:
-                name = item.get("name", "?")
-                expr = item.get("expression", "")
-                fmt = item.get("formatString", "inherit")
-                ordinal = item.get("ordinal", 0)
-                lines.append(f"**{ordinal}. {name}** — Format: `{fmt}`")
-                lines.append("")
-                lines.append("```dax")
-                lines.append(expr)
-                lines.append("```")
-                lines.append("")
-
-        # Special handling for Goals & Targets: split calculated tables vs measures
-        elif table_name == "_Goals & Targets":
+        if table_name == "_Goals & Targets":
             calc_tables = [m for m in measures if m["expression"].startswith("DATATABLE")]
             goal_measures = [m for m in measures if not m["expression"].startswith("DATATABLE")]
 
@@ -167,6 +134,29 @@ def generate_md():
 
         lines.append("---")
         lines.append("")
+
+    # Standalone Calculation Group section (TI retired from CSV in v3.2)
+    cg_items = load_cg_items()
+    lines.append(f"## _Time Intelligence — Calculation Group ({len(cg_items)} items)")
+    lines.append("")
+    lines.append("*Replaces all per-metric TI measures. Apply `_Time Intelligence[Calculation Item]` "
+                 "as a slicer/filter to any base measure. Predecessor: the 118 legacy TI measures "
+                 "live in `dashboards/dax/legacy/time_intelligence_legacy.csv` (retired v3.2).*")
+    lines.append("")
+    for item in cg_items:
+        name = item.get("name", "?")
+        expr = item.get("expression", "")
+        fmt = item.get("formatString", "inherit")
+        ordinal = item.get("ordinal", 0)
+        lines.append(f"**{ordinal}. {name}** — Format: `{fmt}`")
+        lines.append("")
+        lines.append("```dax")
+        lines.append(expr)
+        lines.append("```")
+        lines.append("")
+
+    lines.append("---")
+    lines.append("")
 
     # Write output
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)

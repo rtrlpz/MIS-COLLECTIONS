@@ -1,0 +1,119 @@
+Table,Measure Name,Expression
+_Time Intelligence,RPC Rate Prior Month,"CALCULATE([RPC Rate], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,RPC Rate MoM Change,[RPC Rate] - [RPC Rate Prior Month]
+_Time Intelligence,Promise Rate Prior Month,"CALCULATE([Promise Rate], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,KP Rate Prior Month,"CALCULATE([KP Rate], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,KP Rate MoM Change,[KP Rate] - [KP Rate Prior Month]
+_Time Intelligence,BB Conversion Prior Month,"CALCULATE([BB Conversion Rate], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,BB Conversion MoM Change,[BB Conversion Rate] - [BB Conversion Prior Month]
+_Time Intelligence,Total Cures Prior Month,"CALCULATE([Total Cures], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,Cures MoM Change,[Total Cures] - [Total Cures Prior Month]
+_Time Intelligence,Cured Amount Prior Month,"CALCULATE([Cured Amount], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,Cured Amount MoM %,"DIVIDE([Cured Amount] - [Cured Amount Prior Month], [Cured Amount Prior Month], 0)"
+_Time Intelligence,Mora Rate Prior Month,"CALCULATE([Mora Rate], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,Mora Rate MoM Change,[Mora Rate] - [Mora Rate Prior Month]
+_Time Intelligence,Cured Amount YTD,"CALCULATE([Cured Amount], DATESYTD('Dim_Calendar'[date]))"
+_Time Intelligence,KP Rate YTD,"CALCULATE([KP Rate], DATESYTD('Dim_Calendar'[date]))"
+_Time Intelligence,Total Cures YTD,"CALCULATE([Total Cures], DATESYTD('Dim_Calendar'[date]))"
+_Time Intelligence,Promise Rate MoM Change,[Promise Rate] - [Promise Rate Prior Month]
+_Time Intelligence,Capped KP per RPC Arrears Prior Month,"CALCULATE([Capped KP per RPC Arrears], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,Capped KP per RPC Arrears MoM Change,[Capped KP per RPC Arrears] - [Capped KP per RPC Arrears Prior Month]
+_Time Intelligence,Avg ACW RPC (sec) Prior Month,"CALCULATE([Avg ACW RPC (sec)], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,Avg ACW RPC (sec) MoM Change,[Avg ACW RPC (sec)] - [Avg ACW RPC (sec) Prior Month]
+_Time Intelligence,Avg ACW Non-RPC (sec) Prior Month,"CALCULATE([Avg ACW Non-RPC (sec)], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,Avg ACW Non-RPC (sec) MoM Change,[Avg ACW Non-RPC (sec)] - [Avg ACW Non-RPC (sec) Prior Month]
+_Time Intelligence,Cures per THT Hr Prior Month,"CALCULATE([Cures per THT Hr], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,Cures per THT Hr MoM Change,[Cures per THT Hr] - [Cures per THT Hr Prior Month]
+_Time Intelligence,Avg Utilization % Prior Month,"CALCULATE([Avg Utilization %], DATEADD('Dim_Calendar'[date], -1, MONTH))"
+_Time Intelligence,Avg Utilization % MoM Change,[Avg Utilization %] - [Avg Utilization % Prior Month]
+_Time Intelligence,Promise Rate MoM %,"VAR _Prior = [Promise Rate Prior Month] RETURN DIVIDE([Promise Rate] - _Prior, _Prior, 0)"
+_Time Intelligence,KP Rate MoM %,"VAR _Prior = [KP Rate Prior Month] RETURN DIVIDE([KP Rate] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg ACW RPC MoM %,"VAR _Prior = [Avg ACW RPC (sec) Prior Month] RETURN DIVIDE([Avg ACW RPC (sec)] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg ACW Non-RPC MoM %,"VAR _Prior = [Avg ACW Non-RPC (sec) Prior Month] RETURN DIVIDE([Avg ACW Non-RPC (sec)] - _Prior, _Prior, 0)"
+_Time Intelligence,Capped KP per RPC Arrears MoM %,"VAR _Prior = [Capped KP per RPC Arrears Prior Month] RETURN DIVIDE([Capped KP per RPC Arrears] - _Prior, _Prior, 0)"
+_Time Intelligence,Cures per THT Hr MoM %,"VAR _Prior = [Cures per THT Hr Prior Month] RETURN DIVIDE([Cures per THT Hr] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg Utilization % MoM %,"VAR _Prior = [Avg Utilization % Prior Month] RETURN DIVIDE([Avg Utilization %] - _Prior, _Prior, 0)"
+_Time Intelligence,Promise Rate Prior Week,"VAR _CurrentISOWeek = SELECTEDVALUE('Dim_Calendar'[iso_week]) VAR _PriorISOWeek = _CurrentISOWeek - 1 VAR _PriorDates = CALCULATETABLE(VALUES('Dim_Calendar'[date]), 'Dim_Calendar'[iso_week] = _PriorISOWeek) RETURN CALCULATE([Promise Rate], _PriorDates)"
+_Time Intelligence,Promise Rate WoW Change,[Promise Rate] - [Promise Rate Prior Week]
+_Time Intelligence,Promise Rate WoW %,"VAR _Prior = [Promise Rate Prior Week] RETURN DIVIDE([Promise Rate] - _Prior, _Prior, 0)"
+_Time Intelligence,KP Rate Prior Week,"VAR _CurrentISOWeek = SELECTEDVALUE('Dim_Calendar'[iso_week]) VAR _PriorISOWeek = _CurrentISOWeek - 1 VAR _PriorDates = CALCULATETABLE(VALUES('Dim_Calendar'[date]), 'Dim_Calendar'[iso_week] = _PriorISOWeek) RETURN CALCULATE([KP Rate], _PriorDates)"
+_Time Intelligence,KP Rate WoW Change,[KP Rate] - [KP Rate Prior Week]
+_Time Intelligence,KP Rate WoW %,"VAR _Prior = [KP Rate Prior Week] RETURN DIVIDE([KP Rate] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg ACW RPC (sec) Prior Week,"VAR _CurrentISOWeek = SELECTEDVALUE('Dim_Calendar'[iso_week]) VAR _PriorISOWeek = _CurrentISOWeek - 1 VAR _PriorDates = CALCULATETABLE(VALUES('Dim_Calendar'[date]), 'Dim_Calendar'[iso_week] = _PriorISOWeek) RETURN CALCULATE([Avg ACW RPC (sec)], _PriorDates)"
+_Time Intelligence,Avg ACW RPC (sec) WoW Change,[Avg ACW RPC (sec)] - [Avg ACW RPC (sec) Prior Week]
+_Time Intelligence,Avg ACW RPC (sec) WoW %,"VAR _Prior = [Avg ACW RPC (sec) Prior Week] RETURN DIVIDE([Avg ACW RPC (sec)] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg ACW Non-RPC (sec) Prior Week,"VAR _CurrentISOWeek = SELECTEDVALUE('Dim_Calendar'[iso_week]) VAR _PriorISOWeek = _CurrentISOWeek - 1 VAR _PriorDates = CALCULATETABLE(VALUES('Dim_Calendar'[date]), 'Dim_Calendar'[iso_week] = _PriorISOWeek) RETURN CALCULATE([Avg ACW Non-RPC (sec)], _PriorDates)"
+_Time Intelligence,Avg ACW Non-RPC (sec) WoW Change,[Avg ACW Non-RPC (sec)] - [Avg ACW Non-RPC (sec) Prior Week]
+_Time Intelligence,Avg ACW Non-RPC (sec) WoW %,"VAR _Prior = [Avg ACW Non-RPC (sec) Prior Week] RETURN DIVIDE([Avg ACW Non-RPC (sec)] - _Prior, _Prior, 0)"
+_Time Intelligence,Capped KP per RPC Arrears Prior Week,"VAR _CurrentISOWeek = SELECTEDVALUE('Dim_Calendar'[iso_week]) VAR _PriorISOWeek = _CurrentISOWeek - 1 VAR _PriorDates = CALCULATETABLE(VALUES('Dim_Calendar'[date]), 'Dim_Calendar'[iso_week] = _PriorISOWeek) RETURN CALCULATE([Capped KP per RPC Arrears], _PriorDates)"
+_Time Intelligence,Capped KP per RPC Arrears WoW Change,[Capped KP per RPC Arrears] - [Capped KP per RPC Arrears Prior Week]
+_Time Intelligence,Capped KP per RPC Arrears WoW %,"VAR _Prior = [Capped KP per RPC Arrears Prior Week] RETURN DIVIDE([Capped KP per RPC Arrears] - _Prior, _Prior, 0)"
+_Time Intelligence,Cures per THT Hr Prior Week,"VAR _CurrentISOWeek = SELECTEDVALUE('Dim_Calendar'[iso_week]) VAR _PriorISOWeek = _CurrentISOWeek - 1 VAR _PriorDates = CALCULATETABLE(VALUES('Dim_Calendar'[date]), 'Dim_Calendar'[iso_week] = _PriorISOWeek) RETURN CALCULATE([Cures per THT Hr], _PriorDates)"
+_Time Intelligence,Cures per THT Hr WoW Change,[Cures per THT Hr] - [Cures per THT Hr Prior Week]
+_Time Intelligence,Cures per THT Hr WoW %,"VAR _Prior = [Cures per THT Hr Prior Week] RETURN DIVIDE([Cures per THT Hr] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg Utilization % Prior Week,"VAR _CurrentISOWeek = SELECTEDVALUE('Dim_Calendar'[iso_week]) VAR _PriorISOWeek = _CurrentISOWeek - 1 VAR _PriorDates = CALCULATETABLE(VALUES('Dim_Calendar'[date]), 'Dim_Calendar'[iso_week] = _PriorISOWeek) RETURN CALCULATE([Avg Utilization %], _PriorDates)"
+_Time Intelligence,Avg Utilization % WoW Change,[Avg Utilization %] - [Avg Utilization % Prior Week]
+_Time Intelligence,Avg Utilization % WoW %,"VAR _Prior = [Avg Utilization % Prior Week] RETURN DIVIDE([Avg Utilization %] - _Prior, _Prior, 0)"
+_Time Intelligence,Promise Rate Prior Day,"CALCULATE([Promise Rate], DATEADD('Dim_Calendar'[date], -1, DAY))"
+_Time Intelligence,Promise Rate DoD Change,[Promise Rate] - [Promise Rate Prior Day]
+_Time Intelligence,Promise Rate DoD %,"VAR _Prior = [Promise Rate Prior Day] RETURN DIVIDE([Promise Rate] - _Prior, _Prior, 0)"
+_Time Intelligence,KP Rate Prior Day,"CALCULATE([KP Rate], DATEADD('Dim_Calendar'[date], -1, DAY))"
+_Time Intelligence,KP Rate DoD Change,[KP Rate] - [KP Rate Prior Day]
+_Time Intelligence,KP Rate DoD %,"VAR _Prior = [KP Rate Prior Day] RETURN DIVIDE([KP Rate] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg ACW RPC (sec) Prior Day,"CALCULATE([Avg ACW RPC (sec)], DATEADD('Dim_Calendar'[date], -1, DAY))"
+_Time Intelligence,Avg ACW RPC (sec) DoD Change,[Avg ACW RPC (sec)] - [Avg ACW RPC (sec) Prior Day]
+_Time Intelligence,Avg ACW RPC (sec) DoD %,"VAR _Prior = [Avg ACW RPC (sec) Prior Day] RETURN DIVIDE([Avg ACW RPC (sec)] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg ACW Non-RPC (sec) Prior Day,"CALCULATE([Avg ACW Non-RPC (sec)], DATEADD('Dim_Calendar'[date], -1, DAY))"
+_Time Intelligence,Avg ACW Non-RPC (sec) DoD Change,[Avg ACW Non-RPC (sec)] - [Avg ACW Non-RPC (sec) Prior Day]
+_Time Intelligence,Avg ACW Non-RPC (sec) DoD %,"VAR _Prior = [Avg ACW Non-RPC (sec) Prior Day] RETURN DIVIDE([Avg ACW Non-RPC (sec)] - _Prior, _Prior, 0)"
+_Time Intelligence,Capped KP per RPC Arrears Prior Day,"CALCULATE([Capped KP per RPC Arrears], DATEADD('Dim_Calendar'[date], -1, DAY))"
+_Time Intelligence,Capped KP per RPC Arrears DoD Change,[Capped KP per RPC Arrears] - [Capped KP per RPC Arrears Prior Day]
+_Time Intelligence,Capped KP per RPC Arrears DoD %,"VAR _Prior = [Capped KP per RPC Arrears Prior Day] RETURN DIVIDE([Capped KP per RPC Arrears] - _Prior, _Prior, 0)"
+_Time Intelligence,Cures per THT Hr Prior Day,"CALCULATE([Cures per THT Hr], DATEADD('Dim_Calendar'[date], -1, DAY))"
+_Time Intelligence,Cures per THT Hr DoD Change,[Cures per THT Hr] - [Cures per THT Hr Prior Day]
+_Time Intelligence,Cures per THT Hr DoD %,"VAR _Prior = [Cures per THT Hr Prior Day] RETURN DIVIDE([Cures per THT Hr] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg Utilization % Prior Day,"CALCULATE([Avg Utilization %], DATEADD('Dim_Calendar'[date], -1, DAY))"
+_Time Intelligence,Avg Utilization % DoD Change,[Avg Utilization %] - [Avg Utilization % Prior Day]
+_Time Intelligence,Avg Utilization % DoD %,"VAR _Prior = [Avg Utilization % Prior Day] RETURN DIVIDE([Avg Utilization %] - _Prior, _Prior, 0)"
+_Time Intelligence,Promise Rate Prior Year,"CALCULATE([Promise Rate], SAMEPERIODLASTYEAR('Dim_Calendar'[date]))"
+_Time Intelligence,Promise Rate YoY Change,[Promise Rate] - [Promise Rate Prior Year]
+_Time Intelligence,Promise Rate YoY %,"VAR _Prior = [Promise Rate Prior Year] RETURN DIVIDE([Promise Rate] - _Prior, _Prior, 0)"
+_Time Intelligence,KP Rate Prior Year,"CALCULATE([KP Rate], SAMEPERIODLASTYEAR('Dim_Calendar'[date]))"
+_Time Intelligence,KP Rate YoY Change,[KP Rate] - [KP Rate Prior Year]
+_Time Intelligence,KP Rate YoY %,"VAR _Prior = [KP Rate Prior Year] RETURN DIVIDE([KP Rate] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg ACW RPC (sec) Prior Year,"CALCULATE([Avg ACW RPC (sec)], SAMEPERIODLASTYEAR('Dim_Calendar'[date]))"
+_Time Intelligence,Avg ACW RPC (sec) YoY Change,[Avg ACW RPC (sec)] - [Avg ACW RPC (sec) Prior Year]
+_Time Intelligence,Avg ACW RPC (sec) YoY %,"VAR _Prior = [Avg ACW RPC (sec) Prior Year] RETURN DIVIDE([Avg ACW RPC (sec)] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg ACW Non-RPC (sec) Prior Year,"CALCULATE([Avg ACW Non-RPC (sec)], SAMEPERIODLASTYEAR('Dim_Calendar'[date]))"
+_Time Intelligence,Avg ACW Non-RPC (sec) YoY Change,[Avg ACW Non-RPC (sec)] - [Avg ACW Non-RPC (sec) Prior Year]
+_Time Intelligence,Avg ACW Non-RPC (sec) YoY %,"VAR _Prior = [Avg ACW Non-RPC (sec) Prior Year] RETURN DIVIDE([Avg ACW Non-RPC (sec)] - _Prior, _Prior, 0)"
+_Time Intelligence,Capped KP per RPC Arrears Prior Year,"CALCULATE([Capped KP per RPC Arrears], SAMEPERIODLASTYEAR('Dim_Calendar'[date]))"
+_Time Intelligence,Capped KP per RPC Arrears YoY Change,[Capped KP per RPC Arrears] - [Capped KP per RPC Arrears Prior Year]
+_Time Intelligence,Capped KP per RPC Arrears YoY %,"VAR _Prior = [Capped KP per RPC Arrears Prior Year] RETURN DIVIDE([Capped KP per RPC Arrears] - _Prior, _Prior, 0)"
+_Time Intelligence,Cures per THT Hr Prior Year,"CALCULATE([Cures per THT Hr], SAMEPERIODLASTYEAR('Dim_Calendar'[date]))"
+_Time Intelligence,Cures per THT Hr YoY Change,[Cures per THT Hr] - [Cures per THT Hr Prior Year]
+_Time Intelligence,Cures per THT Hr YoY %,"VAR _Prior = [Cures per THT Hr Prior Year] RETURN DIVIDE([Cures per THT Hr] - _Prior, _Prior, 0)"
+_Time Intelligence,Avg Utilization % Prior Year,"CALCULATE([Avg Utilization %], SAMEPERIODLASTYEAR('Dim_Calendar'[date]))"
+_Time Intelligence,Avg Utilization % YoY Change,[Avg Utilization %] - [Avg Utilization % Prior Year]
+_Time Intelligence,Avg Utilization % YoY %,"VAR _Prior = [Avg Utilization % Prior Year] RETURN DIVIDE([Avg Utilization %] - _Prior, _Prior, 0)"
+_Time Intelligence,Promise Rate Overall,"CALCULATE([Promise Rate], ALL('Dim_Calendar'))"
+_Time Intelligence,Promise Rate OTC Change,[Promise Rate] - [Promise Rate Overall]
+_Time Intelligence,Promise Rate OTC %,"VAR _Overall = [Promise Rate Overall] RETURN DIVIDE([Promise Rate] - _Overall, _Overall, 0)"
+_Time Intelligence,KP Rate Overall,"CALCULATE([KP Rate], ALL('Dim_Calendar'))"
+_Time Intelligence,KP Rate OTC Change,[KP Rate] - [KP Rate Overall]
+_Time Intelligence,KP Rate OTC %,"VAR _Overall = [KP Rate Overall] RETURN DIVIDE([KP Rate] - _Overall, _Overall, 0)"
+_Time Intelligence,Avg ACW RPC (sec) Overall,"CALCULATE([Avg ACW RPC (sec)], ALL('Dim_Calendar'))"
+_Time Intelligence,Avg ACW RPC (sec) OTC Change,[Avg ACW RPC (sec)] - [Avg ACW RPC (sec) Overall]
+_Time Intelligence,Avg ACW RPC (sec) OTC %,"VAR _Overall = [Avg ACW RPC (sec) Overall] RETURN DIVIDE([Avg ACW RPC (sec)] - _Overall, _Overall, 0)"
+_Time Intelligence,Avg ACW Non-RPC (sec) Overall,"CALCULATE([Avg ACW Non-RPC (sec)], ALL('Dim_Calendar'))"
+_Time Intelligence,Avg ACW Non-RPC (sec) OTC Change,[Avg ACW Non-RPC (sec)] - [Avg ACW Non-RPC (sec) Overall]
+_Time Intelligence,Avg ACW Non-RPC (sec) OTC %,"VAR _Overall = [Avg ACW Non-RPC (sec) Overall] RETURN DIVIDE([Avg ACW Non-RPC (sec)] - _Overall, _Overall, 0)"
+_Time Intelligence,Capped KP per RPC Arrears Overall,"CALCULATE([Capped KP per RPC Arrears], ALL('Dim_Calendar'))"
+_Time Intelligence,Capped KP per RPC Arrears OTC Change,[Capped KP per RPC Arrears] - [Capped KP per RPC Arrears Overall]
+_Time Intelligence,Capped KP per RPC Arrears OTC %,"VAR _Overall = [Capped KP per RPC Arrears Overall] RETURN DIVIDE([Capped KP per RPC Arrears] - _Overall, _Overall, 0)"
+_Time Intelligence,Cures per THT Hr Overall,"CALCULATE([Cures per THT Hr], ALL('Dim_Calendar'))"
+_Time Intelligence,Cures per THT Hr OTC Change,[Cures per THT Hr] - [Cures per THT Hr Overall]
+_Time Intelligence,Cures per THT Hr OTC %,"VAR _Overall = [Cures per THT Hr Overall] RETURN DIVIDE([Cures per THT Hr] - _Overall, _Overall, 0)"
+_Time Intelligence,Avg Utilization % Overall,"CALCULATE([Avg Utilization %], ALL('Dim_Calendar'))"
+_Time Intelligence,Avg Utilization % OTC Change,[Avg Utilization %] - [Avg Utilization % Overall]
+_Time Intelligence,Avg Utilization % OTC %,"VAR _Overall = [Avg Utilization % Overall] RETURN DIVIDE([Avg Utilization %] - _Overall, _Overall, 0)"

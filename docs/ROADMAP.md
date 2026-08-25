@@ -19,7 +19,7 @@
 | **7** | Automation | ✅ 100% | None |
 | **8** | Documentation | 🟡 ~85% | DAX v3 docs + PLAN_DASHBOARDS + CHANGELOG 1.6.0 done; execution_guide/reference_guide partially historical |
 | **8.5** | Generator + Schema Enhancements | ✅ 100% | G1-G9 complete, 12-month data loaded, P1-P4 audit fixes regenerated (Aug 2026) |
-| **9** | BI / Reporting (9 dashboards) | 🔵 Ready to Build | 252 DAX measures + CG ready, dashboard build pending |
+| **9** | BI / Reporting (9 dashboards) | 🔵 Ready to Build | 148 active DAX measures + TI calc group ready, dashboard build pending |
 
 ---
 
@@ -259,7 +259,7 @@
 ### Build Plan Complete
 - [x] `docs/dashboards/mis_collections_build_plan.md` — 5-phase build plan
 - [x] Architecture defined: single .pbix, 9 pages, 3 Excel sheets
-- [x] **DAX v3.0 complete**: **252 measures** (6 measure tables) + `_Time Intelligence` calculation group (18 items) — `dashboards/dax/collections_dax_v2.csv` (source of truth)
+- [x] **DAX v3.2 complete**: **148 active measures** (5 measure tables) + `_Time Intelligence` calculation group (18 items) — `dashboards/dax/collections_dax_v2.csv` (source of truth); 118 legacy TI measures retired to `dashboards/dax/legacy/time_intelligence_legacy.csv`
 - [x] `dashboards/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
 - [x] `docs/dashboards/dax_measures_dictionary_v2.md` — v2.2 documentation (legacy)
 - [x] `docs/dashboards/dax_measures_all.md` — Complete DAX reference (all measures as code blocks)
@@ -286,13 +286,13 @@
 ### DAX Coverage Summary
 | Category | Count | Status |
 |----------|-------|--------|
-| In CSV (252) | 252 | ✅ Complete (+ `_Time Intelligence` CG replaces 118 legacy TI measures) |
+| In CSV (148) | 148 | ✅ Complete (+ `_Time Intelligence` CG is the single TI mechanism; 118 legacy TI retired to `dashboards/dax/legacy/`) |
 | Requires schema changes | 4 | ❌ Deferred (campaign, occupancy, login/logout) |
 | Visual-only gaps | 3 | ⚠️ Layout, not DAX (Risk Heat Map, Arrears Waterfall, Vintage Distribution) |
 
 ### Build — Pending
 - [ ] Import data model into Power BI (star schema, 15 base tables + etl_load_log; PBIX v3 predates P3/P4 schema — fresh import required)
-- [ ] Import 252 DAX measures from `collections_dax_v2.csv`, then run `create_calc_group.cs` for the CG
+- [ ] Import 148 DAX measures from `collections_dax_v2.csv`, then run `create_calc_group.cs` for the CG
 - [ ] Create 2 calculated tables: Dim_Targets, Color Reference
 - [ ] Build all 9 dashboard pages (follow `dashboard_blueprint.md`)
 - [ ] Add RLS by supervisor_id on dim_employees

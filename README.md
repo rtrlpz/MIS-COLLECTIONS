@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791)
 ![Tests](https://img.shields.io/badge/tests-84%20passing-brightgreen)
-![DAX](https://img.shields.io/badge/DAX-252%20measures%20%2B%20CG-orange)
+![DAX](https://img.shields.io/badge/DAX-148%20measures%20%2B%20TI%20CG-orange)
 ![Status](https://img.shields.io/badge/status-90%25%20complete-yellow)
 ![Phase](https://img.shields.io/badge/phase-8%20(docs)-blueviolet)
 
@@ -93,7 +93,7 @@ flowchart LR
         A[17 Analysis Queries<br/>agent / team / portfolio]
     end
     subgraph BI
-        DAX[dashboards/dax/<br/>252 DAX measures + CG]
+        DAX[dashboards/dax/<br/>148 DAX measures + TI calc group]
         PBI[dashboards/<br/>9 PBIX pages]
         EXCEL[reports/<br/>MIS Excel generator]
     end

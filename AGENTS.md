@@ -56,11 +56,12 @@
 ### DAX Layer
 | File | Content |
 |---|---|---|
-| `dashboards/dax/collections_dax_v2.csv` | **252 measures** (6 tables). Source of truth. Import into PBIX. |
+| `dashboards/dax/collections_dax_v2.csv` | **148 active measures** (5 measure tables; 118 legacy TI retired to `legacy/`). Source of truth. |
+| `dashboards/dax/legacy/time_intelligence_legacy.csv` | Retired v3.2: the 118 per-metric TI measures (superseded by the Calculation Group). Keep for reference; do not import. |
 | `dashboards/dax/calculation_group_ti.json` | **_Time Intelligence** Calculation Group (18 items). Replaces 118 legacy TI measures. |
 | `dashboards/dax/dax_targets_and_comparisons.md` | Goals & Targets patterns (31 measures documented) |
 | `dashboards/dax/generate_dax_reference.py` | Script to regenerate dax_measures_all.md from CSV |
-| `docs/dashboards/dax_measures_all.md` | Complete DAX reference (all 252 + 18 CG items as code blocks) |
+| `docs/dashboards/dax_measures_all.md` | Complete DAX reference (all 148 + 18 CG items as code blocks) |
 | `docs/dashboards/legacy/dax_measures_dictionary.md` | Legacy v1 docs |
 | `docs/dashboards/dashboard_blueprint.md` | **Page-by-page wireframe** (9 dashboards, 1920x1080 canvas, visual specs, field wells, DAX refs) |
 | `docs/dashboards/dashboard_blueprint.pdf` | **PDF export** of blueprint (printable) |
@@ -146,12 +147,12 @@ If asked about a task/skill material at `learning/`, follow these contracts (see
 - **Ignored:** `learning/**/work/*` (keeps `.gitkeep`), `**/.ipynb_checkpoints/`; all `.md` tracked
 - **Refactor (Aug 2026):** 7-phase rewrite per REFACTOR_PLAN.md (~95 JD-aligned tasks); phases land track-by-track with one commit each
 
-## DAX v3.1 (266 measures across 6 measure tables + 1 CG)
+## DAX v3.2 (148 active measures across 5 measure tables + 1 CG; 118 legacy TI retired)
 - **Base (148)**: `_Outreach & Activity` (22), `_Promise & Recovery` (30), `_Portfolio Health` (34), `_Goals & Targets` (31)
 - **Composites (31)**: `_Composites & Strategy` — scores, tiers, efficiency, credit risk, vintage + P3 strategy-arm attribution
 - **v3.1 corrections (Aug 2026)**: Agent Quality Score realigned to v_agent_scorecards weights (RPC25/KP25/Cure20/Util15/AHT15, AHT inverted vs 300s); Portfolio Health Score → renamed Portfolio Goal Achievement Index (goal-relative normalization vs Dim_Targets — old version had dead cure weight from /3 scaling); Coaching Alert now DATEADD(-7,DAY) (iso_week−1 broke on year boundary); Dialer Abandon Rate → Dialer Non-RPC Share % (old name measured connected-non-RPC, not abandonment); Cure Rate by Vintage denominator no longer ALL(Dim_Calendar)
 - **v3.1 additions (Aug 2026, P3/P4 coverage)**: Cure Rate % base (parity with v_recovery_metrics); Strategy Arm Interactions/Mix %/Connect+RPC Lift vs Champion %; Recovered Amount/Recovery Events/Recovery Rate %/Net Write-off Position/Recoverable Outstanding (parity v_writeoff_recovery); Roll Rate Worsened/Improved % + Worst Active Bucket via Dim_Delinquency_Bucket severity (replaces hardcoded dpd_bucket labels); Portfolio Cure Rate % (mirrors v_monthend_portfolio: is_cured payments ÷ prior month-end Mora stock)
-- **Time Intelligence (118 legacy + 1 CG)**: `_Time Intelligence` table (118 measures for backward compatibility) + `_Time Intelligence` Calculation Group (18 items — replaces all 118)
+- **Time Intelligence**: legacy 118 TI measures RETIRED to `dashboards/dax/legacy/time_intelligence_legacy.csv` (v3.2); the `_Time Intelligence` Calculation Group (18 items) is the single TI mechanism — apply as slicer
 - **Deduplicated**: 6 exact duplicates removed (Agent RPC per Hour, Agent KP Rate, Dialer Connection Rate, Mora Balance Rate, Agent-Assisted Cure Rate, Monthly Recovery Rate)
 - **Expression fixes**: 47 triple-quote expressions cleaned, AHT/ACW column reference bug fixed, Income Segment VALUES→SELECTEDVALUE
 - **Goal targets**: PTP% 80%, KP% 80%, ACW RPC 120s, ACW Non-RPC 25s, Capped KP/RPC Arrears 37%, Cures/THT 2.4, Utilization 90%
@@ -165,8 +166,8 @@ If asked about a task/skill material at `learning/`, follow these contracts (see
 - **Calculation Group**: `_Time Intelligence` CG defined in `calculation_group_ti.json` — apply as slicer to any base measure. Creates via `create_calc_group.cs` in Tabular Editor.
 
 ## Next Phase
-- Phase 9: Build Power BI dashboard (fresh PBIX, 9 pages, import mode, star schema, 252 DAX measures + CG, RLS by supervisor) — **Blueprint ready**
-  - Import order: `_Outreach & Activity` → `_Promise & Recovery` → `_Portfolio Health` → `_Goals & Targets` → `_Composites & Strategy` → `_Time Intelligence` (legacy, then delete after CG verified)
+- Phase 9: Build Power BI dashboard (fresh PBIX, 9 pages, import mode, star schema, 148 DAX measures + TI calc group, RLS by supervisor) — **Blueprint ready**
+  - Import order: `_Outreach & Activity` → `_Promise & Recovery` → `_Portfolio Health` → `_Goals & Targets` → `_Composites & Strategy`; TI comes from `create_calc_group.cs` (legacy per-metric TI measures are retired — do NOT import them)
   - Run `create_calc_group.cs` in Tabular Editor after importing all measures
 - Phase 10: Excel MIS report generator (openpyxl at `reports/generate_daily_mis.py`) — needs real MIS report layout study first
 - Phase 11: Publish, user guide, handoff

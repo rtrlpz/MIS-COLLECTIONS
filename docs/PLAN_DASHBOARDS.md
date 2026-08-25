@@ -3,7 +3,9 @@
 **Fecha:** 2026-07-21 (última actualización)
 **Objetivo:** Preparar generator, schema y DAX para 9 dashboards de collections
 **Consolidación:** Executive Collections + Executive Scorecard fusionados en uno solo
-**Status:** Generator ✅ | Schema ✅ | DAX ✅ (256 measures) | Dashboard Build → PENDING
+**Status:** Generator ✅ | Schema ✅ | DAX ✅ (now 148 active measures + TI calc group; see `dax_measures_all.md`) | Dashboard Build → PENDING
+
+> *Counts below reflect the original v2.2 build plan (256 incl. per-metric time intelligence). Time intelligence has since moved to a calculation group and 118 legacy TI measures were retired — see `dashboards/dax/legacy/`.*
 
 ---
 

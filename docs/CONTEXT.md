@@ -35,7 +35,7 @@ MIS-COLLECTIONS/
 │
 ├── dashboards/                    # VISUALIZATION LAYER
 │   ├── dax/                   # DAX SOURCE OF TRUTH (CSV + docs)
-│   │   ├── collections_dax_v2.csv           # 252 measures (6 measure tables, source of truth)
+│   │   ├── collections_dax_v2.csv           # 148 active measures (5 measure tables, source of truth; 118 legacy TI in dashboards/dax/legacy/)
 │   │   ├── calculation_group_ti.json        # _Time Intelligence Calculation Group (18 items)
 │   │   ├── dax_targets_and_comparisons.md   # Goals & Targets patterns (31 measures documented)
 │   │   └── generate_dax_reference.py        # Script to regenerate dax_measures_all.md from CSV
@@ -88,7 +88,7 @@ MIS-COLLECTIONS/
 │   │   ├── dashboard_blueprint.md/.pdf   # Page-by-page wireframes (1920x1080)
 │   │   ├── execution_guide.md            # 2,499-line enterprise build guide
 │   │   ├── mis_collections_build_plan.md # 5-phase Power BI build plan
-│   │   ├── dax_measures_all.md           # Complete DAX reference (all 252 + CG items)
+│   │   ├── dax_measures_all.md           # Complete DAX reference (all 148 + 18 CG items)
 │   │   ├── dax_measures_dictionary_v2.md # v2.2 full DAX dictionary (legacy)
 │   │   ├── reference_guide.html          # 1,555-line DAX reference
 │   │   └── legacy/                       # v1 backups
@@ -289,7 +289,7 @@ All 17 SQL files verified with valid content — none empty.
 - **Schema**: +9 columns across 5 tables, +1 table (fact_writeoffs), +3 views, +8 constraints, +6 indexes
 - **Data**: 12 months generated (Jan-Dec 2025), 1.8M rows loaded into PostgreSQL
 - **Tests**: Updated conftest.py (TABLES, PK_MAPPING, FK_RELATIONSHIPS, GENERATOR_ROW_COUNTS), re-entry threshold 5-25%
-- **DAX**: 258 measures across 13 tables (CSV source of truth) — *superseded by v3.0: 252 measures in 6 measure tables + `_Time Intelligence` calculation group (18 items)*
+- **DAX**: 258 measures across 13 tables (CSV source of truth) — *superseded by v3.0→v3.2: 148 active measures in 5 measure tables + `_Time Intelligence` calculation group (18 items); 118 legacy TI retired*
 - **Docs**: dax_measures_all.md (complete DAX reference), dax_measures_dictionary_v2.md v2.2, docs/ROADMAP.md updated
 
 #### P1–P4 Audit Fixes + Regeneration (Aug 2026) — COMPLETE
@@ -315,7 +315,7 @@ All 17 SQL files verified with valid content — none empty.
   7. Financial Recovery — Recovery vs cost, Write-offs, Cost-to-collect, Net recovery (**95% DAX ready**)
   8. Vintage Analysis — DPD by account age, Vintage curves, Cure by vintage month (**85% DAX ready**)
   9. Roll Rate Analysis — Migration matrix, Skip/deteriorate rates, Stuck 90+ (**90% DAX ready**)
-- Import mode, star schema, **252 DAX measures** (6 measure tables) + `_Time Intelligence` calculation group (18 items) + 2 calculated tables
+- Import mode, star schema, **148 DAX measures** (5 measure tables) + `_Time Intelligence` calculation group (18 items) + 2 calculated tables
 - RLS by supervisor_id on Dim_Employees
 - **Blueprint ready**: `docs/dashboards/dashboard_blueprint.md` — page-by-page wireframes (1920x1080), visual specs, field wells, formatting
 - **Blueprint PDF**: `docs/dashboards/dashboard_blueprint.pdf` — printable PDF export
@@ -352,7 +352,7 @@ All 17 SQL files verified with valid content — none empty.
 - `docs/dashboards/mis_collections_build_plan.md` — 5-phase build plan for Phase C/D/E
 - `docs/dashboards/reference_guide.html` — 1,555-line DAX + dashboard blueprint
 - `dashboards/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
-- `dashboards/dax/collections_dax_v2.csv` — 252 measures (source of truth, 6 measure tables + CG)
+- `dashboards/dax/collections_dax_v2.csv` — 148 measures (source of truth, 5 measure tables + CG)
 - `docs/dashboards/dax_measures_dictionary_v2.md` — v2.2 full documentation (formulas, formats, deps)
 - `docs/dashboards/dax_measures_all.md` — Complete DAX reference (all 258 as code blocks)
 - `docs/kpi_definitions.md` — Business formulas and benchmarks for all KPIs
@@ -394,11 +394,11 @@ All 17 SQL files verified with valid content — none empty.
 - **Pipeline command**: `./run_pipeline.bat` (from project root in CMD) — ~157s end-to-end (12 months)
 - **Run tests (fast)**: `python -m pytest test/ -v -m "not slow"` — 81 tests
 - **Run tests (full gate)**: `python -m pytest test/ -v` — 84 tests (adds canonical 12-mo baseline, seed reproducibility, ETL idempotency)
-- **DAX base CSV**: `dashboards/dax/collections_dax_v2.csv` (252 measures, source of truth)
-- **DAX full reference**: `docs/dashboards/dax_measures_all.md` (all 252 + CG items as code blocks)
+- **DAX base CSV**: `dashboards/dax/collections_dax_v2.csv` (148 active measures, source of truth)
+- **DAX full reference**: `docs/dashboards/dax_measures_all.md` (all 148 + 18 CG items as code blocks)
 - **DAX dictionary**: `docs/dashboards/dax_measures_dictionary_v2.md` (v2.2, legacy)
 - **DAX targets module**: `dashboards/dax/dax_targets_and_comparisons.md`
 - **Execution guide**: `docs/dashboards/execution_guide.md`
 - **Build plan**: `docs/dashboards/mis_collections_build_plan.md`
 - **Dashboard plan**: `docs/PLAN_DASHBOARDS.md` (9 dashboards, DAX coverage analysis)
-- **Total DAX**: 252 measures (6 measure tables) + `_Time Intelligence` calculation group (18 items replaces the 118 legacy TI measures)
+- **Total DAX**: 148 active measures (5 measure tables) + `_Time Intelligence` calculation group (18 items); 118 legacy TI retired to `dashboards/dax/legacy/time_intelligence_legacy.csv`
