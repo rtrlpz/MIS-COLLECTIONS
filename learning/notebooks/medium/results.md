@@ -1,102 +1,131 @@
-# Notebooks — Medium — Results (Guidance)
+# Notebooks Medium — Results (worked solutions)
 
+Cells given in order; markdown cells marked `>`. Run All after building.
+
+---
+
+## Task 1 — Standard first section
+
+```python
+# ── Standard loader (copy into every analysis notebook) ──────────────
+from pathlib import Path
+import pandas as pd
+
+RAW = Path.cwd()
+while not (RAW / "data_sources").exists():     # walk up to project root
+    RAW = RAW.parent
+
+OPT = {"agent_id": "category", "account_id": "string", "channel": "category",
+       "strategy_id": "category", "rpc_flag": "bool"}
+
+def load_year(table, date_col, dtypes=None):
+    months = sorted(d for d in (RAW / "data_sources" / "raw").iterdir()
+                    if d.is_dir() and d.name != "shared")
+    return pd.concat([pd.read_csv(m / f"{table}.csv", dtype=dtypes,
+                                  parse_dates=[date_col]) for m in months],
+                     ignore_index=True)
 ```
-learning/
-├── _reference/            ← datasets.md, kpi_glossary.md, data_dictionary.md
-├── sql/  python/  excel/  powerbi/  git-cli/
-├── notebooks/
-│   ├── README.md
-│   └── medium/            ← YOU ARE HERE
-│       ├── tasks.md
-│       ├── results.md     ← current file
-│       └── work/
-└── README.md
+```python
+inter = load_year("Fact_Interactions", "interaction_date", OPT)
+print(f"{len(inter):,} rows | {inter.memory_usage(deep=True).sum()/1024**2:,.0f} MB deep")
+assert len(inter) == sum(len(pd.read_csv(m / "Fact_Interactions.csv"))
+                         for m in (RAW / "data_sources" / "raw").iterdir() if m.is_dir())
+```
+> *Reference: `_reference/datasets.md` lists ~1.34M for fact_interactions — write the actual number beside it.*
+
+**Why the root-walk:** notebooks live in nested folders; resolving the project root once makes every path stable regardless of where the .ipynb sits.
+
+---
+
+## Task 2 — Target line + amber markers
+
+```python
+import matplotlib.pyplot as plt
+
+TARGET = 45.0
+monthly = (inter.groupby(inter["interaction_date"].dt.to_period("M"))
+                .apply(lambda g: 100 * g["rpc_flag"].sum()
+                       / max(g["calls_connected"].sum(), 1), include_groups=False))
+
+fig, ax = plt.subplots(figsize=(9, 4))
+monthly.plot(ax=ax, marker="o", color="#262A76", label="RPC %")
+ax.axhline(TARGET, color="#FF0000", ls="--", lw=1, label=f"target {TARGET:.0f}%")
+under = monthly[monthly < TARGET]
+ax.scatter(under.index.astype(str), under.values, color="#FFC000", zorder=3,
+           label="below target")
+ax.set_title("Monthly RPC % vs target — 2025"); ax.set_ylabel("RPC %")
+ax.legend(); plt.tight_layout(); plt.show()
 ```
 
-**How to use this file:** attempt → commit → read one section. Guidance only — reasoning paths, steps-with-why, verification strategy, traps. No full code, no computed values.
+Takeaway cell names the under-target months explicitly and one plausible driver each.
 
 ---
 
-## Task 1 — SQL in a notebook
+## Task 3 — Reconciliation story (installments)
 
-**Thinking path:**
-- Credentials from `.env`: read the file, parse host/port/user/db/password, set the connection. Never hardcode — the "never commit creds" rule is a state of *habit*, and a helper cell that reads `.env` is the habit embodied.
-- A connection helper as one cell keeps it visible and idempotent (re-running shouldn't spawn 50 open cursors). Parameterized query: the month is a *variable* passed into the SQL (engine-side binds, or a well-scoped Python parametrization — avoid naive string-f-strings that break on quoting).
-- Round-trip through a DataFrame is the point: it lets the next cell reuse the result for charting or for the Task 2 audit-pair. A raw cursor → print grid answers one question; a DataFrame answers one question *and* leaves the result available.
+Narrative arc with real cells:
 
-**Verification strategy:**
-- Parameter change → rerun the query cell → chart shifts to the new month. If the query cell's text had the literal, you'd be *editing* the query (the anti-pattern).
-- Restart & Run All: the connection cell must not leak state (close/finish the connection cleanly so repeated runs don't exhaust).
+1. **md:** "Rule: a plan is Kept when cumulative payments ≥95% of promised within grace. Watch plan `<pick a multi-part ptp_id from Q2>`."
+2. **code:** filter that plan's rows from ptp + payments; display promised/grace/status.
+3. **code:** its payment rows chronologically with running cumulative column (`cumsum`) and a `% of promise` column.
+4. **md:** reading — part 1 alone = X% (<95) → stays Pending; part 2 crosses threshold → Kept.
+5. **code:** aggregate invariant across ALL kept plans:
 
-**Traps & worth knowing:**
-- Forget the password when source-ing `.env` → a broken connection cell. Guard with a friendly print.
-- In Jupyter, a cell that opens a connection and never closes leaves a lingering session; DB sessions are finite — read and close (or rely on the client's `with` context).
+```python
+totals = pay[pay["ptp_id"].notna()].groupby("ptp_id")["amount_paid"].sum()
+kept = ptp[ptp["status"] == "Kept"].merge(totals.rename("paid"), on="ptp_id", how="left")
+assert (kept["paid"].fillna(0) >= 0.95 * kept["promised_amount"]).all()
+```
 
----
+6. **md takeaway:** per-row checking is why finance doubted us; per-plan is the contract.
 
-## Task 2 — Two sources, one notebook
-
-**Thinking path:**
-- The audit-pair: same metric, two engines, in *adjacent cells*. The zero-divergence check is a merge-then-flag column (tolerance chosen consciously — tiny float noise is expected; a real mismatch is a *filter or dtype* gap).
-- Source choice honesty: DB = the pipelines' output; CSV = the generator's land. If they disagree, the blame chain is ETL (load skipped rows), generator (columns misnamed), or your own two code paths (one filters a channel). The notebook can only *flag*; the analyst explains.
-- Why flag-column over eyeball: two grids side by side hide a single differing row; a merged frame with a `diff > tol` boolean reveals exactly the offending team(s) in one cell.
-
-**Verification strategy:**
-- Zero flags printed = a clean ETL statement in one cell (that *is* the deliverable).
-- Re-run after changing tolerance to show the noise floor, then back to the honest tolerance.
-
-**Traps & worth knowing:**
-- The two paths can differ by *aggregation order* (rounding at different stages) — tolerance choice internalizes that, but state the tolerance's meaning in Markdown.
-- If the DB path returns a team the CSV path lacks (or vice versa), a straight merge hides the mismatch — do an *outer* merge and flag nulls on either side.
+**Verify yourself:** a colleague reads only your markdown cells — do they get it without running anything?
 
 ---
 
-## Task 3 — Trends that earn their charts
+## Task 4 — Heatmap channel × arm
 
-**Thinking path:**
-- RPC% (rate) and AHT (time) have different units and different ranges — a shared single axis is meaningless; a twin-axis figure can mislead by superscaling. The *honest* default is separate panes sharing an x (time) — unless the story is *comparative timing* (both metrics turn in the same month), where twin-axis has a narrow, defended place.
-- Monthly means flatten within-month shape — if you claim "the turn happened in March", bring the daily/weekly trace to prove the turn isn't a month-boundary artifact (basic Task 3's optical-illusion lesson, in a time series).
-- A "year boundary" or "policy month" vertical line is evidence of an *event*, not decoration.
+```python
+import seaborn as sns
+import numpy as np
 
-**Verification strategy:**
-- The two monthly series match your python-basic/medium numbers (already proven — presentation only).
-- Any marked "turn" in the story has a supporting sub-plot or data point; a story claim without evidence inside the same notebook fails its own pretense.
+arms = pd.read_csv(RAW / "data_sources/raw/shared/Dim_Strategy.csv".replace("data_sources/raw/shared/", "shared/")) \
+    if False else pd.read_csv(RAW / "data_sources" / "raw" / "shared" / "Dim_Strategy.csv")
 
-**Traps & worth knowing:**
-- Same chart, two axes, one barely visible line: the eye reads what's big. Separate panes render that unmistakeable.
-- A single anomalous month (holiday-heavy) will swing monthly AHT; note it rather than smooth it away.
+grid = (inter.merge(arms[["strategy_id", "strategy_name"]], on="strategy_id")
+             .pivot_table(index="strategy_name", columns="channel",
+                          values="interaction_id", aggfunc="count", fill_value=0))
+share = grid.div(grid.sum(axis=1), axis=0) * 100
+order = ["Champion_Dialer", "Challenger_SMS_First", "Challenger_FICO_Priority"]
+share = share.reindex(order)
 
----
+fig, ax = plt.subplots(figsize=(7, 3.5))
+sns.heatmap(share, annot=True, fmt=".1f", cmap="Blues", cbar_kws={"label": "% of arm"})
+ax.set_title("Channel mix within treatment arm"); ax.set_ylabel(""); ax.set_xlabel("")
+plt.tight_layout(); plt.show()
+```
 
-## Task 4 — Buckets that become a picture
-
-**Thinking path:**
-- Source: EOM snapshots for the latest three month-ends (DB or CSVs — pick; if CSV, you reassemble months which is its own lesson). Bucket via `pd.cut` with house labels (python medium Task 3 — reuse, don't re-derive).
-- Static profile: accounts + arrears per bucket — this is the *state* read.
-- Evolution: each bucket's *share* of accounts across three months. Share (not counts) because the portfolio size can drift month-to-month; raw counts would disguise a relative mix-shift. A 100% stacked bar shows mix-shift at a glance; a grouped line shows *directional* movement (bucket X climbing). Pick by what claim you're making — the claim defines the idiom.
-- The takeaway lands on *which bucket crawls* (e.g. accounts migrating from early to late in successive months) — that's the "crawl vs cure" reading managers care about.
-
-**Verification strategy:**
-- Shares sum to 100% per month-ends (or the mix is fully partitioned — margin identity).
-- The bucket whose share crawled is *traceable* to a month-pair where the migration matrix (sql/python advanced) would confirm the same direction — cross-track consistency.
-
-**Traps & worth knowing:**
-- If you show *arrears* shares instead of account shares, the story can flip (few big arrears) — label clearly which share you chart, and say why it's the right one for the claim.
-- NaNs in `pd.cut` (accounts outside defined edges) silently drop rows — keep an explicit "other" bucket so shares still partition.
+Takeaway: compare each row's dominant cell against `dim_strategy.channel_mix` intent — verdict per arm in prose.
 
 ---
 
-## Task 5 — The notebook that outlives you
+## Task 5 — Parameterize
 
-**Thinking path:**
-- Config cell at top: `MONTHS`, `SOURCE` — everything downstream *reads* these. Localizing month literals into one cell means a stranger changes one value, not five cells (and never risks editing a query string).
-- The early guard: if DB is the source and it's down, *loud early* — print a clear message and stop, rather than failing deep in cell 12 with a confusing traceback (or worse, silently falling back to CSV and producing a *different* number).
-- A db/csv fork also forces you to *keep both engines in sync*: identical final numbers across runs is the master verification. Two runs, one config-variable flip, identical story.
+First code cell (tagged `parameters` in notebook metadata — Jupyter: cell toolbar → Tag):
 
-**Verification strategy:**
-- Restart & Run All with `SOURCE='db'`; then again `SOURCE='csv'`; final numbers equal, both complete without manual steps. That's the reproducibility bar.
-- Kill the DB (or point at a wrong port) and confirm the guard fires with a readable message.
+```python
+MONTH = "2025-06"       # Period string
+TEAM  = None            # None = all teams
+```
 
-**Traps & worth knowing:**
-- "Cell 5 sets sourced + cell 7 overrides it" is the state-leak trap; only the config cell may set `SOURCE`.
-- A guard that stops execution must be *deliberate* — an exception that halts the kernel vs a clean `SystemExit` message differs in reviewer-friendliness; choose the readable one.
+Every downstream cell consumes only MONTH/TEAM:
+
+```python
+mask = inter["interaction_date"].dt.to_period("M").astype(str).eq(MONTH)
+if TEAM:
+    mask &= inter["agent_id"].isin(
+        emps.loc[emps["team_name"] == TEAM, "agent_id"])
+sliced = inter[mask]
+```
+
+Grep yourself: search the file for hardcoded `'2025-0` outside the parameters cell — zero hits required. Document at top: "Executed via papermill: parameters MONTH, TEAM" so future automation has its contract.

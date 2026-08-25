@@ -42,8 +42,8 @@ Cells run in whatever order *you* ran them — which means a notebook can quietl
 
 Each level folder has:
 
-- `tasks.md` — assignments written as supervisor requests
-- `results.md` — reasoning guidance; open **only after** attempting
+- `tasks.md` — your inbox: workplace requests with Done-When checklists (no code, no expected numbers)
+- `results.md` — full worked solutions (complete cell code); open **only after** attempting, then Run All yourself
 - `work/` — your notebooks; git-ignored scratchpad
 
 Routine: read task → attempt in `work/` → Restart & Run All → then compare with `results.md`. Where a task repeats a SQL/Python task, the *number* is already proven — your job is the explanation, not re-derivation.

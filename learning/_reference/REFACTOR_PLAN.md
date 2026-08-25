@@ -117,6 +117,6 @@ and keeps each commit self-contained/revertable.
 | 2 | `sql/` basic → medium → advanced | ✅ Done (Aug 2026; solutions QA-run against live DB) |
 | 3 | `powerbi/` all levels | ✅ Done (Aug 2026; 17 tasks incl. SVG cards, RLS, governance) |
 | 4 | `python/` all levels | ✅ Done (Aug 2026; solutions QA-run vs live CSVs+DB: row counts, team RPC% parity, 22-cell matrix match) |
-| 5 | `notebooks/` all levels | ⬜ Pending |
+| 5 | `notebooks/` all levels | ✅ Done (Aug 2026; 14 explanation-first tasks: KPI explainer, roll-rate heatmap, forecast narrative, reproducibility hardening) |
 | 6 | `excel/` all levels (incl. VBA) | ⬜ Pending |
 | 7 | `git-cli/` + kpi_glossary additions + consistency sweep | ⬜ Pending |

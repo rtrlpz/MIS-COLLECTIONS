@@ -1,84 +1,113 @@
-# Notebooks — Advanced — Results (Guidance)
+# Notebooks Advanced — Results (worked solutions)
 
+Cell-by-cell; markdown marked `>`. Restart & Run All twice before calling anything done.
+
+---
+
+## Task 1 — Cures per THT hour explainer
+
+Narrative skeleton (the code cells are small on purpose):
+
+1. **md:** "Definition: cured accounts ÷ total handle-time hours, at agent-month grain. Scorecards weight it 20%."
+2. **code:** load payments + agent_time_log for one chosen month.
+3. **md:** "Worked example — agent EID-042, June 12." Pick an agent-day; show their payments with `is_cured` flags and the day's `tht_hours`.
+4. **code:** running tally: distinct cured accounts that day ÷ tht hours → the day's rate. Comment each factor's SOURCE column explicitly.
+5. **code:** aggregate to agent-month:
+
+```python
+cures = (pay[pay["is_cured"]]
+         .groupby(["agent_id", pay["payment_date"].dt.to_period("M").astype(str)])
+         ["account_id"].nunique().rename("cured_accounts"))
+tht = (tl.groupby(["agent_id", tl["log_date"].dt.to_period("M").astype(str)])
+          ["tht_hours"].sum().rename("tht_hours"))
+rate = (cures / tht).dropna()
 ```
-learning/
-├── _reference/            ← datasets.md, kpi_glossary.md, data_dictionary.md
-├── sql/  python/  excel/  powerbi/  git-cli/
-├── notebooks/
-│   ├── README.md
-│   └── advanced/          ← YOU ARE HERE
-│       ├── tasks.md
-│       ├── results.md     ← current file
-│       └── work/
-└── README.md
+
+6. **code:** sanity vs official view: compare your agent-month rates against `v_recovery_metrics` cure_rate for a sample month (parity note in markdown).
+7. **md:** "Three mistakes: (1) counting payment ROWS not distinct accounts — double-counts re-cures; (2) dividing by scheduled hours instead of THT — punishes efficient agents; (3) averaging daily rates instead of ratio-of-sums — weights quiet days."
+
+**Verify yourself:** hand to a new hire; they should be able to rebuild it from definition alone.
+
+---
+
+## Task 2 — Roll-rate heatmap
+
+```python
+snap = load_year("Fact_EOM_Snapshot", "snapshot_date")
+s = snap.sort_values(["account_id", "snapshot_date"])
+s["prev"] = s.groupby("account_id")["dpd_bucket"].shift()
+
+order = ["Current", "1-30", "31-60", "61-90", "90+"]
+t = s[s["prev"].notna() & (s["snapshot_date"] >= "2025-07-01")
+      & (s["snapshot_date"] < "2026-01-01")]
+mat = pd.crosstab(t["prev"], t["dpd_bucket"]).reindex(index=order, columns=order)
+share = mat.div(mat.values.sum()) * 100
+
+fig, ax = plt.subplots(figsize=(6.5, 5))
+sns.heatmap(share, annot=True, fmt=".1f", cmap="Blues",
+            cbar_kws={"label": "% of all transitions"})
+ax.set_title("Bucket transitions H2 2025 (% of transitions)")
+ax.set_xlabel("to bucket"); ax.set_ylabel("from bucket")
+# Emphasize worsening (below severity diagonal):
+for i in range(5):
+    for j in range(5):
+        if i < j:
+            ax.add_patch(plt.Rectangle((j, i), 1, 1, fill=False, edgecolor="#FF0000", lw=1.4))
+plt.tight_layout(); plt.show()
 ```
 
-**How to use this file:** attempt → commit → read one section. Guidance only — reasoning paths, steps-with-why, verification strategy, traps. No full code, no computed values.
+Takeaway cell (board sentence): name the single largest worsened cell and whether H2 net-improved or deteriorated vs its reverse flow.
 
 ---
 
-## Task 1 — The self-verifying EDA
+## Task 3 — Forecast narrative
 
-**Thinking path:**
-- The checks section is the soul: for each headline number, recompute it *against the reference view* in-adjacent cells. A rate → compare to `v_contact_metrics`/`v_promise_metrics`; the profile → `v_dpd_migration_matrix` (or the dictionary's documented conventions). This is SQL-advanced's "compare against the views" lesson, in the artifact where it becomes shareable.
-- Tolerance: float `==` is fragile; a rates tolerance (a few percent) and a counts tolerance (exactness or one-part-per-thousand) are *different* tolerances — state them and their reasons in Markdown. The delta-print is the reviewer's evidence.
-- `FAIL` handling: a FAIL with a root-cause cell is an *audit finding*; a FAIL without one is a bug in your own notebook. The discipline is to never ship a silent FAIL.
+Cells:
 
-**Verification strategy:**
-- Cold Run All → every *should-pass* check prints PASS. That's the finish line.
-- The checks re-read the config cell (month/source) — flipping the config must not flip the verdict unless the analysis genuinely changed.
+1. **md:** purpose + audience (finance) + data vintage line.
+2. **code:** monthly Mora stock from snapshots (`status=='Mora'` counts by month-end).
+3. **code:** chart history line + `proj = stock.tail(3).mean()` as dashed marker at January position; shade ±10% band via `fill_between`.
 
-**Traps & worth knowing:**
-- Comparing a rate you subtracted in `float64` arithmetic vs a view computed in SQL can differ at the 6th decimal — that's *not* a finding, that's noise; your stated tolerance makes the difference visible-or-not *by design*.
-- A PASS with a *giant* tolerance is theater; shrink the tolerance until it's meaningful, then defend it.
+```python
+hist = stock[:-0] if False else stock            # full series
+fig, ax = plt.subplots(figsize=(8, 4))
+hist.plot(ax=ax, marker="o", color="#262A76", label="actual Mora stock")
+proj = float(hist.tail(3).mean())
+ax.scatter([next_month_label], [proj], color="#FFC000", zorder=3, label="naive projection")
+ax.fill_between([next_month_label], proj*0.9, proj*1.1, color="#FFC000", alpha=.25,
+                label="±10% band")
+ax.legend(); ax.set_title("Delinquency forecast — assumptions stated below")
+```
 
----
+4. **md assumptions table:** attempts/account=6 · collector productivity=3 attempts/hour · 176h/month · source comments.
+5. **code:** capacity arithmetic + sensitivity DataFrame (multipliers .5/1/2).
+6. **md caveat list:** seasonality ignored; December holidays; strategy changes reset history.
 
-## Task 2 — Director's export
-
-**Thinking path:**
-- The two-audience split is about the *grain of the message*: ops gets every number and the method to rebuild it (full tables + a reproducible config); the director gets the ≤12-line narrative (top rates, worst bucket, one trend, one risk). Decide the cut line in words: everything *decision-relevant* goes to the director; everything *reproducible* goes to ops.
-- Anti-drift principle: the export cells reference the *same computed frames* as the display cells. Re-typing a value into an export = a future drift bug that only a diff catches.
-- Written artifacts under `work/` (git-ignored) — CSV for ops, Markdown for the director — regenerated on every Run All, so the artifacts can never go stale relative to the analysis.
-
-**Verification strategy:**
-- After Run All: `pd.read_csv('work/...csv')` inside the notebook vs the in-memory frame — `.equals()` must be True.
-- The director summary's claims each trace to a cell/figure in the notebook (a claim with no anchor is a source for a meeting-ambush).
-
-**Traps & worth knowing:**
-- Reassembling the year twice (display cell + export cell) doubles memory and invites ordering drift — compute once, reuse.
-- A hand-edited `director_summary.md` between runs gets overwritten on the next Run All — that's *intended*: the artifact is generated, not authored.
+**Verify yourself:** every number in the markdown appears in exactly one code cell above it — no orphan claims.
 
 ---
 
-## Task 3 — The audit notebook
+## Task 4 — Reproducibility hardening
 
-**Thinking path:**
-- Audit = reproducibility + citation + verdict. Today's value (source + date stated), shipped value (view or prior export), an audit table (today | shipped | delta | explanation), then *root-cause* analysis for any delta bigger than tolerance.
-- Root-cause discipline: a hypothesis → a targeted mini-check (e.g. add the channel filter → does the delta close?) → a conclusion. This is the SQL advanced rule ("a divergence is a finding, prove it") made into a visible notebook section.
-- The verdict is the professional deliverable: "current number supersedes X because… / matches / requires a decision." Never end an audit mid-air.
+Header block template (first two cells):
 
-**Verification strategy:**
-- A third party (or you, six months later) can re-run the notebook cold and reach the same verdict — citability of *cells*, not memory, is what makes that true. Test the reads: hide a line, then re-read.
+```markdown
+# <Title>
+Data snapshot: generated 2025-XX-XX seed 42 (see data_sources/logs)
+Expected runtime: ~90s · Env: mis-collections (pandas X.Y.z pinned in requirements.txt)
+Outputs: figures only — no files written
+```
 
-**Traps & worth knowing:**
-- Comparing two defensible definitions ("connected" vs "attempted" denominator) — the audit table should *show* the definition stated per row, not per remember.
-- An audit that changes the source (DB today, CSV for shipped) subtly changes method; state the source line per figure.
+```python
+import numpy as np, pandas as pd, random
+SEED = 42
+random.seed(SEED); np.random.seed(SEED)
+```
 
----
+Hardening steps:
+1. Restart & Run All TWICE; diff outputs — must be identical (that's why seeds exist even where you think nothing is random).
+2. Kill any cell whose output depends on execution ORDER (move state into functions).
+3. Pin versions note: `pip freeze | grep pandas` recorded in header, not vibes.
+4. Save `work/reproducibility_checklist.md`: vintage line · seeds · runtime · restart-proof · no-order-dependence · outputs documented.
 
-## Task 4 — The finished costume
-
-**Thinking path:**
-- The reorder is the message-architecture: Title → TL;DR findings → analysis → verification → appendix. Findings *first* because a director reads the first screen; the appendix holds the config and methods a re-builder needs.
-- Dead-ends: a deliverable notebook shows the *path that worked*. Hiding is friendlier than deleting if a scratch cell taught a trap worth memorializing — otherwise delete. Say in a Markdown note which you chose and why (that's an analyst communicating taste).
-- Cell hygiene: no raw traceback dumps, no giant generic prints; every output is either a table, a chart, or a PASS/FAIL line.
-- Run-order proof: because cells *reference* computed frames rather than relying on physical position, reordering keeps Run All green — the cross-check that ordering-vs-reference is healthy (and that you didn't rely on accidental state).
-
-**Verification strategy:**
-- The director-read test: read top-to-bottom as the exec would — if any figure lacks a source anchor, re-anchor before finishing.
-- Cold Run All with zero manual steps; then read attempt_3/checks — all PASS. The deliverable is the whole notebook, not its filename.
-
-**Traps & worth knowing:**
-- "Restart & Run All" as the *last* edit: a notebook that passed at 3pm but fails cold at 3:01 has hidden state. The rule exists to catch exactly that.
-- Over-deletion: cutting a cell to make it pretty but losing the *reproducibility* of a number breaks the auditability you built in earlier tasks — keep the evidence, hide the noise.
+**Verify yourself:** give the hardened file + checklist to a colleague on another machine; success = they ran it without messaging you.

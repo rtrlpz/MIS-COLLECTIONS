@@ -1,112 +1,62 @@
-# Notebooks — Advanced — Tasks
+# Notebooks Advanced — Your Inbox (level 3 of 3)
 
 ```
-learning/
-├── _reference/            ← READ FIRST (datasets.md, kpi_glossary.md, data_dictionary.md)
-├── sql/  python/  excel/  powerbi/  git-cli/
-├── notebooks/
-│   ├── README.md
-│   └── advanced/          ← YOU ARE HERE
-│       ├── tasks.md       ← current file
-│       ├── results.md     ← guidance, peek AFTER attempting
-│       └── work/          ← your .ipynb files live here
-└── README.md
+You are here: learning/notebooks/advanced/
+Assumed:      medium/ complete — parameterized, target-lined, reconciled
+Solutions:    advanced/results.md — cell-by-cell; Run All is the contract
+Theme:        teaching artifacts and forecasts — the notebooks a senior ships
 ```
 
-**Up from notebooks medium:** SQL+CSV in one artifact, trends that earn their charts, config-driven reproducibility — all yours. Advanced is the *deliverable* notebook: one that builds its own evidence file, verifies itself against the house views, and reads like a report a director forwards.
+---
 
-**Setup:** notebooks/README.md + DB running. Save each as `learning/notebooks/advanced/work/attempt_*.ipynb`.
+## Task 1 — "How Cures per THT hour works" (the explainer)
+📥 **Inbox:** From MIS Manager · Mon 10:00 · "new-hire onboarding artifact"
 
-**Discipline:** attempt → commit → **Restart & Run All** → read `results.md`.
+> "Our composite scorecards include 'cures per THT hour' and new hires always mis-build it. Produce the canonical explainer notebook: define numerator and denominator from raw tables, walk ONE agent-day as a worked example, then the portfolio invariant, ending with the three mistakes people make."
 
-> **The advanced rule (house rule):** a number that differs from the reference view is a *finding*. A notebook is where findings get a *story*.
+**Done when:**
+- [ ] Worked example traced at row level with commentary
+- [ ] Aggregate check vs official recovery metrics view logic
+- [ ] 'Three mistakes' section names real traps (double counting, wrong denominator, averaging rates)
 
 ---
 
-## Task 1 — The self-verifying EDA
+## Task 2 — Roll-rate heatmap notebook
+📥 **Inbox:** From Credit Risk Director · Tue 2:00 · "board visual"
 
-The supervisor: *"Give me a one-artifact push-button EDA of the portfolio: tables, key rates, the delinquent profile — and at the end, a cell that checks my numbers against the views and prints PASS/FAIL."*
+> "Your SQL/python transition matrix as an annotated heatmap: severity-ordered axes, worsened cells visually distinct, one-year view with H2 highlighted. End with the risk sentence for the board pack."
 
-**What you'll practice:** building a *verification cell* — the habit that turns notebooks into auditable artifacts (the notebook twin of SQL advanced's "compare against the view").
-
-Steps:
-1. One notebook that reassembles the year (or sources DB), computes the core monthly rates you already proved (RPC%, PTP%, KP%, cure, utilization-adjacent), and shows the delinquency profile per bucket.
-2. Build a **checks section** at the end: for each number you computed, run the corresponding `v_` view query (or the reference from `_reference/`) right next to it, compare within a stated tolerance, and print `PASS`/`FAIL` + the delta.
-3. Every `FAIL` gets a Markdown "root cause" cell — a divergence explained is an audit; unexplained is a bug.
-4. Restart & Run All until every check that *should* pass does.
-
-**Guiding questions:**
-- Why is a printed `PASS` line stronger than a silently-equal number? What does the delta line add for a reviewer?
-- Tolerance: `==` on floats is fragile — what's your tolerance for a rate vs a count? Where do you set it and how do you justify it in Markdown?
-
-**Deliverable:** `work/attempt_1.ipynb` — push-button EDA + checks section (PASS/FAIL + deltas) + root-cause cells for any FAIL.
+**Done when:**
+- [ ] Matrix built via groupby-shift (no SQL)
+- [ ] Heatmap annotated; worsening emphasized by design
+- [ ] One-sentence board takeaway in markdown
 
 ---
 
-## Task 2 — The director's export: one notebook, two audiences
+## Task 3 — Delinquency forecast narrative
+📥 **Inbox:** From Site Director · Thu 4:00 · "budget notebook"
 
-The supervisor: *"Same analysis, two consumers: ops wants every number (they'll rebuild it), the director wants a one-page read. Export both from the same notebook."*
+> "Same projection as python advanced Task 3 but AS A STORY: stock series chart, projection overlay with shaded uncertainty band, assumptions table as markdown, sensitivity mini-table. This notebook goes to finance — every claim traceable to a cell."
 
-**What you'll practice:** the notebook as *producer* — writing derived tables and a condensed summary to files (`work/`), so one analysis feeds two documents without copy-paste drift.
-
-Steps:
-1. Extend attempt_1: label cells *Numbered* vs *Narrative* in Markdown (a convention a reader learns in one line).
-2. Export two artifacts from the *same* computed frames:
-   - `work/mis_ops_snapshot.csv` — the full per-team/per-bucket table (the "rebuild it" audience).
-   - `work/director_summary.md` — the ≤12-line narrative read: top 3 rates, worst bucket, one trend, one risk (write it as a Markdown file from the notebook, not by hand).
-3. Ensure the exported CSV's *numbers* equal the in-notebook frames (the export cell must reference the same variable, not recompute with a chance to drift).
-4. Restart & Run All, then diff the exported artifacts against the in-notebook displayed frames once more.
-
-**Guiding questions:**
-- Why must the export cells *reference the same variables* instead of re-typing values? (The one place drift sneaks in.)
-- What does "director summary" leave OUT that ops snapshot keeps — and how do you decide the cut line?
-
-**Deliverable:** `work/attempt_2.ipynb` — push-button EDA + two exported artifacts (`work/mis_ops_snapshot.csv`, `work/director_summary.md`) regenerated by Run All.
+**Done when:**
+- [ ] Chart shows history + naive forecast + stated caveat
+- [ ] Assumptions block readable without code
+- [ ] Sensitivity table computed in-notebook
 
 ---
 
-## Task 3 — The audit notebook: two analysts' views meet
+## Task 4 — Reproducibility hardening
+📥 **Inbox:** From Head of MIS · Fri 3:30 · "six months from now this must still run"
 
-The supervisor: *"A week ago I gave you a signed-off number. You rebuilt it today with care. Audit: your current number vs the shipped one, in a notebook a third party can re-run."*
+> "Harden your best notebook: pinned environment note, seeds everywhere randomness could appear, no hidden state between cells (Restart & Run All proof), and a header block stating data snapshot date + expected runtime. Deliver the hardened notebook + your personal reproducibility checklist."
 
-**What you'll practice:** the audit-as-notebook — versioned reasoning, sources cited, and a *reproducible* explanation of any delta (the professional form of the SQL advanced rule, brought to notebook form).
-
-Steps:
-1. Recompute today's team-level RPC% (DB and/or CSV — state source + date in Markdown).
-2. Pull the "shipped" figure — the reference view (`v_contact_metrics`) if it's the standing number, or your own prior exported `work/` CSV.
-3. Build an **audit table**: team × today's value × shipped value × delta × "explanation if any" (definition choice, filter window, channel policy).
-4. For any non-trivial delta, add one Root-cause cell (hypothesis → targeted mini-check → conclusion). End with a Markdown verdict: "current number supersedes / matches / requires decision".
-
-**Guiding questions:**
-- What makes an audit *trustable* by a third party — is it the conclusion, or the structure (citable cells, reproducible steps)? Say which and why.
-- If shipped and current disagree *and* both are defensible, what's the professional next step (a decision call in writing, not silence)?
-
-**Deliverable:** `work/attempt_3.ipynb` — audit table + root-cause cells + verdict paragraph.
+**Done when:**
+- [ ] Restart & Run All passes twice consecutively
+- [ ] Header documents data vintage + runtime + env
+- [ ] Checklist saved as `work/reproducibility_checklist.md`
 
 ---
 
-## Task 4 — The finished costume: a polished deliverable
+## Finish
 
-The supervisor: *"Everything you've built deserves a costume for the exec review. One notebook: title page, TOC, findings up top, self-check at the back — no raw debugging output anywhere."*
-
-**What you'll practice:** presentation engineering — rearrangement, cell *hiding* of scratch work, the pivot from "my notebook" to "their report".
-
-Steps:
-1. Reassemble your best analysis cells from attempts 1–3 into ONE notebook, but reorder: Title → TL;DR (3 bullet findings) → The analysis (tables+charts) → Verification (PASS/FAIL) → Appendix (methods, the config cell).
-2. Hide your scratch cells (the failed attempts, exploratory dead ends) — a deliverable notebook shows the *path that worked*: either delete the dead-ends or mark/hide them, and say which you chose and why in a Markdown note.
-3. Add a TOC using Markdown headers (auto-insert is fine if your client has it).
-4. Final act: **Restart & Run All**, and read it top-to-bottom as the director would — fix anything that breaks the read.
-
-**Guiding questions:**
-- Delete vs hide dead-end cells: what does *keeping* a dead-end add to a reader (humility/process) vs cost (reading noise)? When would you keep one deliberately?
-- If a PASS check appeared before its computation (reordering), would Run All still hold? What does that say about ordering vs *cell reference*?
-
-**Deliverable:** `work/attempt_4.ipynb` — the polished EDA+audit deliverable, READABLE top-to-bottom, all checks passing on a cold Run All.
-
----
-
-### Finish
-
-Attempt all four, then read `advanced/results.md`. Close attempt_4 with a one-paragraph "author's note": what you kept, what you cut, and why the numbers are safe to cite.
-
-**Graduate when:** you can produce a notebook a stranger runs cold, reads top-to-bottom, and comes away with the same findings you'd defend in a meeting.
+You now write notebooks that teach, persuade, and reproduce. The remaining track — [`../excel/`](../excel/) — ships these numbers to people who never open any of this.
