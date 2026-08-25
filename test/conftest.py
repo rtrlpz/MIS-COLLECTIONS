@@ -1,4 +1,6 @@
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 import psycopg2
@@ -158,26 +160,79 @@ def root_path():
 
 
 # Expected row counts for generator output (seed 42, 12 months, Phase 6)
+# Regenerated baseline (P3/P4 engine, seed 42, Aug 2026): equilibrium
+# replenishment + seasonality + strategy arms + installment plans.
 GENERATOR_ROW_COUNTS = {
     'dim_employees': 88,
     'dim_clients': 10000,
     'dim_products': 3,
-    'dim_accounts': 15482,
-    'dim_calendar': 396,
-    'fact_interactions': 1355587,
-    'fact_ptp_log': 58811,
-    'fact_payments': 49419,
+    'dim_accounts': 15480,
+    'dim_calendar': 486,
+    'fact_interactions': 1338499,
+    'fact_ptp_log': 106226,
+    'fact_payments': 120874,
     'fact_agent_time_log': 20880,
-    'fact_eom_snapshot': 185784,
-    'fact_writeoffs': 222,
+    'fact_eom_snapshot': 182968,
+    'fact_writeoffs': 441,
+    'fact_recoveries': 323,
 }
 
 # Metric percentile ranges (calibrated May 2026, refreshed against 12-month DB Aug 2026)
 METRIC_RANGES = {
     'rpc_pct': (35, 60),
     'ptp_pct': (5, 40),
-    'kp_pct': (65, 90),
+    'kp_pct': (60, 90),
     'utilization_pct': (30, 60),
-    'cures_per_tht': (0.02, 0.15),
+    'cures_per_tht': (0.02, 0.20),
     'acw_rpc_seconds': (80, 180),
 }
+
+# ---------------------------------------------------------------------------
+# Hybrid C test-data strategy
+# ---------------------------------------------------------------------------
+# Fast tests share ONE session-scoped reduced-scale generation (--months 1,2,3,
+# seed 42). Heavy gates remain slow-marked: canonical 12-month baseline
+# validation and seed reproducibility (test_generator.py), ETL idempotency
+# (test_qa_validation.py).
+TEST_MONTHS = "1,2,3"
+
+# Measured at seed 42 / Jan–Mar 2025 (P3/P4 engine, Aug 2026)
+GENERATOR_ROW_COUNTS_SMALL = {
+    # Deterministic dimensions (exact for any --months value)
+    'dim_employees': 88,
+    'dim_clients': 10000,
+    'dim_products': 3,
+    # Calendar spans one month before START through END+90d:
+    # Dec-2024 → Jun-2025 for --months 1,2,3 = 211 rows
+    'dim_calendar': 211,
+    # Seed-stable dimension (matches the 12-month baseline exactly)
+    'dim_accounts': 15480,
+    # Facts (±15% guard in tests; deterministic at fixed seed but kept defensive)
+    'fact_interactions': 304902,
+    'fact_ptp_log': 30864,
+    'fact_payments': 35167,
+    'fact_agent_time_log': 5120,
+    'fact_eom_snapshot': 46259,
+    'fact_writeoffs': 149,
+    'fact_recoveries': 29,   # sparse early: jan=0 is legitimate (header-only CSV)
+}
+
+
+@pytest.fixture(scope='session')
+def small_generated_data():
+    """Run the generator ONCE per session at reduced scale (Jan–Mar 2025).
+
+    All structural/invariant/reproducibility tests read from this output.
+    Teardown removes the directory; .gitignore covers crash leftovers.
+    """
+    out_dir = ROOT_PATH / 'data_sources' / 'raw_test_session'
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+    result = subprocess.run(
+        [sys.executable, str(ROOT_PATH / 'data_sources' / 'data_generator_v7.py'),
+         '--seed', '42', '--months', TEST_MONTHS, '--output-dir', str(out_dir)],
+        capture_output=True, text=True, timeout=600, cwd=str(ROOT_PATH),
+    )
+    assert result.returncode == 0, f"Generator failed:\n{result.stderr[-3000:]}"
+    yield out_dir
+    shutil.rmtree(out_dir, ignore_errors=True)

@@ -84,9 +84,8 @@
 | File | Content |
 |---|---|
 | `test/conftest.py` | Fixtures, METRIC_RANGES, GENERATOR_ROW_COUNTS, DB cursor |
-| `test/test_qa_validation.py` | 68 tests (66 fast + 2 slow): data integrity, KPI views, metric ranges, migration-matrix regression |
-| `test/test_generator.py` | 10 tests: generator output, row counts, reproducibility, 4 invariant tests |
-
+| `test/test_qa_validation.py` | 73 tests (72 fast + 1 slow): data integrity, KPI views, metric ranges (bounds from conftest), migration-matrix regression |
+| `test/test_generator.py` | 11 tests (9 fast + 2 slow): output, dual-fidelity row counts (3-mo fast / 12-mo canonical gate), reproducibility, 4 invariants (chronological month sort) |
 ### Key Docs
 | File | Content |
 |---|---|
@@ -114,24 +113,24 @@
 - Dim_Accounts: includes denormalized `product_type` (avoids snowflake join to Dim_Products)
 - Fact_Payments: `ptp_id` has no FK constraint (avoids fact-to-fact chain)
 - Weekend bug FIXED: interactions Mon-Fri only, payments allowed on weekends
-- 76 fast tests + 2 slow = 78 total passing (0 failures) — includes 4 Phase 6 invariant tests + 3 migration-matrix regression tests
-- **P1 audit hotfix (Aug 2026)**: v_agent_scorecards restored (migrate.sh now asserts view count post-run — 15 as of P2); written-off accounts exit the EOM book (generator skip + migration 007, −1,574 zombie rows); team/portfolio rollups are ratio-of-sums (util=ΣTHT/Σop-hrs, cure=Σcures/Σpayments, AHT/ACW from Σsecs/Σn — no AVG-of-rates); self-cure payments record true dpd_at_payment. Generator-spawning tests gated to next regeneration (P3)
-- **P3 code complete, regen pending (Aug 2026)**: replenishment 0.0042 (equilibrium), G7 seasonality wired, 3-arm champion-challenger strategies on interactions (live DB hash-labeled), SCD2 history table + Jul-1 transfers, calendar → Mar 2026. Full regeneration + reload + generator test gate = next step
-- **P4 code complete, regen pending (Aug 2026)**: portfolio_cure_rate vs prior Mora stock (I1), installment promise plans w/ cumulative resolution (N5), fact_recoveries + recovery-curve view (N4), Exited transitions live (=203) in matrix (W4). Targeted pytest runs MUST pair -k with -m "not slow" — name-only filters once matched the ETL idempotency test and reloaded old CSVs over repaired state
+- **84 tests passing (81 fast + 3 slow, 0 failures)** — Hybrid C suite: ONE shared 3-month session generation (`--months 1,2,3` seed 42) feeds all fast generator tests; slow gates = canonical 12-month baseline validation, seed reproducibility (one extra small run), ETL idempotency
+- **P1 audit hotfix (Aug 2026)**: v_agent_scorecards restored (migrate.sh now asserts view count post-run — 15 as of P2); written-off accounts exit the EOM book (generator skip + migration 007, −1,574 zombie rows); team/portfolio rollups are ratio-of-sums (util=ΣTHT/Σop-hrs, cure=Σcures/Σpayments, AHT/ACW from Σsecs/Σn — no AVG-of-rates); self-cure payments record true dpd_at_payment
+- **P3 regenerated & verified (Aug 25, 2026)**: replenishment 0.0042 equilibrium holds (re-entry band 10.4–14.3%), G7 seasonality wired, strategy split 58.9/26.2/14.9 with efficacy multipliers biting (RPC by arm 37.7/32.2/28.0 — no longer flat), SCD2 history + 6 Jul-1 transfers live, calendar → Mar 2026 (486 rows)
+- **P4 regenerated & verified (Aug 25, 2026)**: portfolio_cure_rate 56–76% vs prior Mora stock (view stores %), installment plans = 27.9% of kept promises multi-part, fact_recoveries live (323 rows, $39,949 recovered), Exited transitions = 413 in matrix. Targeted pytest runs MUST pair -k with -m "not slow" — name-only filters once matched the ETL idempotency test and reloaded old CSVs over repaired state
 - migrate.sh runs with ON_ERROR_STOP + set -e and FAILS if view count ≠ 13 (prevents silent drift like the scorecard outage)
 - Config calibrated May 2026 — 11 param changes + 2 new params (see CONTEXT.md Session Notes)
 - SQL view fixes: cure count uses COUNT(DISTINCT account_id), BB Conversion uses kept_pct * ptp_pct / 100
 - Monthly drift: ±8% per-agent rate drift each month (RPC% swings 38–67%)
-- Generator CSV row counts validated at ±5% tolerance (seed 42 baseline)
+- Generator CSV row counts validated at ±10% tolerance (seed 42 baseline, conftest single source of truth)
 - Pipeline runs in ~157s end-to-end (12 months data)
 - All 12 months (Jan-Dec 2025) loaded in PostgreSQL (1.8M rows)
 - `.env` at project root (was database/.env)
 - ETL at `etl/` (was database/etl/)
 - **Phase 5** — Progressive severity (cure_count decay), other_pool restricted to ever-Mora accounts, utilization capped at 0.95
-- **Phase 6** — 4 invariant tests: cure-flag completeness, PTP-payment consistency, grace-period integrity, re-entry rate bounds (10-25%)
+- **Phase 6** — 4 invariant tests: cure-flag completeness, PTP-payment consistency (per-plan, installment-aware), grace-period integrity, re-entry rate bounds (5-25%, chronological windows)
 - **Phase 8.5** — G1-G9 complete: open_date spread, experience tiers, credit limits, income brackets, channel mix, write-offs, 12-month data, hire dates, agent cost model
-- Dim_Calendar: 365 rows (full year 2025)
-- Generator seed 42 row counts (12mo): Interactions ~1.36M / PTP ~58K / Payments ~49K / Agent Time ~21K / EOM ~186K / Writeoffs ~222
+- Dim_Calendar: 486 rows (Dec 2024 → Mar 2026, FK-ready for promise/grace spill-over)
+- Generator seed 42 row counts (12mo): Interactions ~1.34M / PTP ~106K / Payments ~121K / Agent Time ~21K / EOM ~183K / Writeoffs ~441 / Recoveries ~323
 
 ## Learning Environment (`learning/`)
 If asked about a task/skill material at `learning/`, follow these contracts (see `learning/README.md`):

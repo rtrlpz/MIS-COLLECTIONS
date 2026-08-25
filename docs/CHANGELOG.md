@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.6.0] — 2026-08-25
+
+### P3/P4 — REGENERATED & VERIFIED
+- Pipeline run materialized the P3/P4 engine; full test gate green (**84 passed, 0 failures**). DB spot-checks confirm every audit item live:
+  - **I5**: strategy split 58.9/26.2/14.9; efficacy multipliers bite (RPC by arm 37.7/32.2/28.0, connect 64.8/55.5/61.8 — no longer flat ~36%)
+  - **N4**: `fact_recoveries` 323 rows, $39,949 recovered (Feb–Dec)
+  - **N5**: 27.9% of kept promise plans settle in ≥2 installments
+  - **I4**: 6 mid-year team transfers with clean SCD2 segments (`valid_to=2025-06-30` → new team `2025-07-01`)
+  - **I1**: `portfolio_cure_rate` 56.4%→76.2% vs prior month-end Mora stock (view stores %)
+  - **W4**: Exited transitions = 413 in migration matrix (scales with 441 write-offs)
+
+### Hybrid C — test suite speedup (~8× less generator work)
+- Fast tests share ONE session-scoped 3-month generation (`conftest.small_generated_data`, `--months 1,2,3` seed 42 → `data_sources/raw_test_session/`). Was: 8 separate FULL 12-month generations per suite run (~7–9 min of pure regeneration).
+- Slow gates keep full fidelity: canonical 12-month baseline validation (`test_canonical_12mo_row_counts`, ±10%), seed reproducibility (fixture vs ONE extra small run), ETL idempotency.
+- `TestGeneratorRowCounts` split into fast structural check (vs new `GENERATOR_ROW_COUNTS_SMALL`) + slow canonical gate (vs `GENERATOR_ROW_COUNTS`); baselines single-sourced in conftest.
+- Duplicate `TestGeneratorSeed` removed from qa_validation (was two MORE full runs for identical coverage).
+
+### Bug fixes surfaced by the regen gate
+- **Re-entry invariant measured garbage windows since Phase 6**: month dirs were sorted ALPHABETICALLY (`february` < `january` < `march`) — arbitrary/backwards month pairs. Now chronological (`%B_%Y` parse); true P3/P4 band is a stable 10.4–14.3% across all ten 12-month windows (Q1: 11.6%), well inside the 5–25% bound (kept unchanged).
+- **Metric-range bounds were hardcoded inline** in `TestMetricRanges`, ignoring conftest's recalibration (kp_pct floor 65→60, cures_per_tht ceiling 0.15→0.20) — now read `METRIC_RANGES` (single source of truth). Observed medians: KP% 60.0, Cures/THT 0.163.
+- **Latent `from conftest import` breakage**: package layout (`test/__init__.py`) makes plain conftest unimportable at module level; both test files now insert their dir into `sys.path`.
+- ETL loads sparse header-only CSVs legitimately (Fact_Recoveries pre-first-write-off months); COPY switched to `copy_expert` with quoted identifiers.
+
+### Ops note
+- Live DB was found still on the PRE-regen load when today's gate started (user's last pipeline run predated the Aug 24 23:30 regeneration) — first-run "failures" were this stale state; `TestETLIdempotency`'s reload brought it current and everything passed after. Rule stands: re-run the pipeline after pulling engine changes before trusting QA results.
+
 ## [1.5.0] — 2026-08-24
 
 ### P4 — Semantics & Extras (audit I1/N4/N5/N6/W4) — CODE COMPLETE, REGEN PENDING

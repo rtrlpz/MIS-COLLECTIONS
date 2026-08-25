@@ -39,6 +39,7 @@ database/data/
 # Ignore generated logs + raw data (never edit generated CSVs)
 data_sources/logs/
 data_sources/raw/
+data_sources/raw_test*/
 etl/logs
 etl/errors/
 

@@ -18,13 +18,13 @@ python data_sources/data_generator_v7.py
 ```
 
 Output CSVs are written to `data_sources/raw/`:
-- `shared/` — 5 dimension tables (accounts, calendar, clients, employees, products)
-- `YYYY_month/` — 6 fact tables per month (interactions, ptp, payments, agent_time, eom_snapshot, writeoffs)
+- `shared/` — 5 dimension tables (accounts, calendar, clients, employees, products) + P3 dims (employee_history, strategy)
+- `YYYY_month/` — 7 fact tables per month (interactions, ptp, payments, agent_time, eom_snapshot, writeoffs, recoveries)
 
 ## Key Facts
 
 - **12 months** (Jan-Dec 2025) with seasonal patterns
-- **~1.36M interactions**, ~58K PTPs, ~49K payments, ~21K agent time, ~186K EOM snapshots, ~222 writeoffs
+- **~1.34M interactions**, ~106K PTPs, ~121K payments, ~21K agent time, ~183K EOM snapshots, ~441 writeoffs, ~323 recoveries
 - Weekday-only interactions (bug fixed), payments allowed on weekends
 - ±8% monthly performance drift per agent for realistic variance
 - See `config.py` for all calibration knobs

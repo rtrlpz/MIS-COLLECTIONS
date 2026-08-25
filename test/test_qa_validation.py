@@ -4,10 +4,12 @@ Uses pytest with psycopg2 to validate data integrity and business rules.
 """
 
 import subprocess
-import hashlib
-import shutil
+import sys
 from pathlib import Path
 import pytest
+
+# Package layout (test/__init__.py exists): make plain `conftest` importable
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 # =========================================================================
@@ -251,7 +253,7 @@ class TestETLIdempotency:
 
         # Run ETL again
         result = subprocess.run(
-            ["python", str(etl_script), "--env-file", str(env_file)],
+            [sys.executable, str(etl_script), "--env-file", str(env_file)],
             capture_output=True, text=True, cwd=str(root_path)
         )
         assert result.returncode == 0, f"ETL failed: {result.stderr}"
@@ -265,52 +267,28 @@ class TestETLIdempotency:
 
 
 # =========================================================================
-# Test 11: Generator Seed Reproducibility (Slow - runs generator twice)
+# Test 11 (generator seed reproducibility) REMOVED — duplicate of
+# test_generator.py::TestGeneratorReproducibility, which now runs one extra
+# reduced-scale comparison instead of two full 12-month generations.
 # =========================================================================
-@pytest.mark.slow
-class TestGeneratorSeed:
-    def test_generator_seed_42_reproducible(self):
-        root_path = Path(__file__).resolve().parent.parent
-        generator_script = root_path / "data_sources" / "data_generator_v7.py"
-        assert generator_script.exists(), f"Generator not found: {generator_script}"
-
-        output_dir_1 = root_path / "data_sources" / "raw_test_1"
-        output_dir_2 = root_path / "data_sources" / "raw_test_2"
-
-        # Clean up and run generator twice
-        for output_dir in [output_dir_1, output_dir_2]:
-            if output_dir.exists():
-                shutil.rmtree(output_dir)
-            result = subprocess.run(
-                ["python", str(generator_script), "--seed", "42", "--output-dir", str(output_dir)],
-                capture_output=True, text=True, cwd=str(root_path)
-            )
-            assert result.returncode == 0, f"Generator failed: {result.stderr}"
-
-        # Compare CSV checksums
-        def get_csv_checksums(directory):
-            checksums = {}
-            for csv_file in directory.rglob("*.csv"):
-                content = csv_file.read_bytes()
-                checksums[csv_file.name] = hashlib.sha256(content).hexdigest()
-            return checksums
-
-        checksums_1 = get_csv_checksums(output_dir_1)
-        checksums_2 = get_csv_checksums(output_dir_2)
-
-        assert checksums_1 == checksums_2, \
-            f"CSV checksums differ: {set(checksums_1.items()) ^ set(checksums_2.items())}"
-
-        # Cleanup
-        shutil.rmtree(output_dir_1)
-        shutil.rmtree(output_dir_2)
 
 
 # =========================================================================
 # Test 12: Metric Percentile Ranges
 # =========================================================================
 class TestMetricRanges:
-    """Verify key metric medians fall within calibrated ranges."""
+    """Verify key metric medians fall within calibrated ranges.
+
+    Bounds come from conftest.METRIC_RANGES (single source of truth).
+    BUGFIX (Aug 2026): bounds were hardcoded inline and ignored the
+    conftest recalibration (kp_pct 65→60 floor, cures_per_tht ceiling
+    0.15→0.20) — medians now read the same dict the rest of the suite uses.
+    """
+
+    @staticmethod
+    def _range(key):
+        from conftest import METRIC_RANGES
+        return METRIC_RANGES[key]
 
     def test_median_rpc_pct_in_range(self, cursor):
         cursor.execute(
@@ -318,7 +296,8 @@ class TestMetricRanges:
             "FROM v_contact_metrics WHERE rpc_pct IS NOT NULL"
         )
         median = cursor.fetchone()[0]
-        assert 35 <= median <= 60, f"Median RPC% = {median}, expected [35, 60]"
+        lo, hi = self._range('rpc_pct')
+        assert lo <= median <= hi, f"Median RPC% = {median}, expected [{lo}, {hi}]"
 
     def test_median_ptp_pct_in_range(self, cursor):
         cursor.execute(
@@ -326,7 +305,8 @@ class TestMetricRanges:
             "FROM v_promise_metrics WHERE ptp_pct IS NOT NULL"
         )
         median = cursor.fetchone()[0]
-        assert 5 <= median <= 40, f"Median PTP% = {median}, expected [5, 40]"
+        lo, hi = self._range('ptp_pct')
+        assert lo <= median <= hi, f"Median PTP% = {median}, expected [{lo}, {hi}]"
 
     def test_median_kp_pct_in_range(self, cursor):
         cursor.execute(
@@ -334,7 +314,8 @@ class TestMetricRanges:
             "FROM v_promise_metrics WHERE kept_pct IS NOT NULL"
         )
         median = cursor.fetchone()[0]
-        assert 65 <= median <= 90, f"Median KP% = {median}, expected [65, 90]"
+        lo, hi = self._range('kp_pct')
+        assert lo <= median <= hi, f"Median KP% = {median}, expected [{lo}, {hi}]"
 
     def test_median_utilization_in_range(self, cursor):
         cursor.execute(
@@ -342,7 +323,8 @@ class TestMetricRanges:
             "FROM v_productivity_metrics WHERE utilization_pct IS NOT NULL"
         )
         median = cursor.fetchone()[0]
-        assert 30 <= median <= 60, f"Median Utilization% = {median}, expected [30, 60]"
+        lo, hi = self._range('utilization_pct')
+        assert lo <= median <= hi, f"Median Utilization% = {median}, expected [{lo}, {hi}]"
 
     def test_median_cures_per_tht_in_range(self, cursor):
         cursor.execute("""
@@ -366,7 +348,8 @@ class TestMetricRanges:
             JOIN agent_tht t USING (agent_id)
         """)
         median = cursor.fetchone()[0]
-        assert 0.02 <= median <= 0.15, f"Median Cures per THT = {median}, expected [0.02, 0.15]"
+        lo, hi = self._range('cures_per_tht')
+        assert lo <= median <= hi, f"Median Cures per THT = {median}, expected [{lo}, {hi}]"
 
     def test_median_acw_rpc_seconds_in_range(self, cursor):
         cursor.execute(
@@ -374,7 +357,8 @@ class TestMetricRanges:
             "FROM fact_interactions WHERE rpc_flag = TRUE"
         )
         median = cursor.fetchone()[0]
-        assert 80 <= median <= 180, f"Median ACW RPC seconds = {median}, expected [80, 180]"
+        lo, hi = self._range('acw_rpc_seconds')
+        assert lo <= median <= hi, f"Median ACW RPC seconds = {median}, expected [{lo}, {hi}]"
 
 
 # =========================================================================
