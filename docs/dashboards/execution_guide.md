@@ -1,5 +1,7 @@
 # MSI Collections — Enterprise Power BI Execution Guide
 
+> ⚠️ **HISTORICAL SNAPSHOT (v1.0, pre-P3/P4).** Table/measure counts below reflect an earlier schema era (e.g., "11 tables", "70+ measures"). Current truth: **16 tables (8 dim + 7 fact + etl_load_log), 252 DAX measures + `_Time Intelligence` calculation group** — see `AGENTS.md`, `docs/CHANGELOG.md` 1.6.0 and `docs/dashboards/dashboard_blueprint.md` for the build. Architecture patterns and DAX techniques remain valid; numbers do not.
+
 > **Document Type:** Architecture + Implementation Playbook
 > **Target Audience:** Intermediate Power BI Developer, Analytics Engineer, Data Engineering Student
 > **Domain:** Banking Collections & Recovery Analytics

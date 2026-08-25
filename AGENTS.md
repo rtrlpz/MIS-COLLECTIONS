@@ -26,11 +26,11 @@
 ### Data Layer
 | File | Purpose |
 |---|---|
-| `data_sources/data_generator_v7.py` | Generator (11 tables, 500K+ rows, weekend-bug-fixed) |
+| `data_sources/data_generator_v7.py` | Generator (P3/P4 engine: 12-mo, ~1.9M rows, strategy arms/SCD2/recoveries) |
 | `data_sources/config.py` | 45+ calibration params (CFG + PRODUCT_CFG) |
 | `data_sources/schema/dictionary.md` | Column-level docs |
 | `database/docker-compose.yml` | Postgres 15 + pgAdmin |
-| `database/migrations/001_create_tables.sql` | DDL: 11 tables (star schema) |
+| `database/migrations/001_create_tables.sql` | DDL: 16 tables (8 dim + 7 fact + etl_load_log) |
 | `database/migrations/002_kpi_views.sql` | 15 KPI views (contact, promise, recovery, productivity, handle time, daily_mis, monthly, dpd_migration, weekly_agent, etl, freshness, rls_supervisor_map, promise_timeline, monthend_portfolio, writeoff_recovery) |
 | `database/migrations/003_constraints.sql` | 15 CHECK constraints |
 | `database/migrations/004_agents_scorecards.sql` | v_agent_scorecards (composite weighted: RPC 25%, KP 25%, Cure 20%, Util 15%, AHT 15%) |
@@ -41,7 +41,7 @@
 | `database/migrations/009_strategy_scd2.sql` | Apply strategy dim + SCD2 to existing DBs (hash-backfill 60/25/15, idempotent) |
 | `database/migrations/010_fact_recoveries.sql` | Create fact_recoveries on existing DBs (empty until regen, idempotent) |
 | `database/seeds/001_dim_products.sql` | 3 products (Tarjeta, Prestamo, Hipoteca) |
-| `database/seeds/002_dim_calendar.sql` | 365 calendar rows (full year 2025) |
+| `database/seeds/002_dim_calendar.sql` | 396 calendar rows (Dec 2024 + full year 2025) |
 | `database/seeds/003_dim_delinquency_bucket.sql` | 5 ordered delinquency buckets (Current→90+) |
 | `database/seeds/004_dim_calendar_extension.sql` | Jan–Mar 2026 rows (I3: covers PTP spill-over dates) |
 | `etl/data_to_pg.py` | CSV → PostgreSQL (idempotent, incremental, transactional) |
@@ -83,7 +83,7 @@
 ### Testing Layer
 | File | Content |
 |---|---|
-| `test/conftest.py` | Fixtures, METRIC_RANGES, GENERATOR_ROW_COUNTS, DB cursor |
+| `test/conftest.py` | Fixtures, METRIC_RANGES, GENERATOR_ROW_COUNTS(+_SMALL), `small_generated_data` session fixture, DB cursor |
 | `test/test_qa_validation.py` | 73 tests (72 fast + 1 slow): data integrity, KPI views, metric ranges (bounds from conftest), migration-matrix regression |
 | `test/test_generator.py` | 11 tests (9 fast + 2 slow): output, dual-fidelity row counts (3-mo fast / 12-mo canonical gate), reproducibility, 4 invariants (chronological month sort) |
 ### Key Docs
@@ -93,7 +93,7 @@
 | `docs/TROUBLESHOOTING.md` | Docker/ETL error resolution |
 | `docs/CHANGELOG.md` | Version history (0.1.0 → 1.0.0) |
 | `docs/CONTEXT.md` | Full project context |
-| `docs/KPI_VIEWS.md` | All 15 KPI views documented |
+| `docs/KPI_VIEWS.md` | 13 of 16 KPI views documented (gap noted at top of file) |
 | `docs/kpi_definitions.md` | 319-line KPI reference with formulas |
 | `docs/data_dictionary.md` | Full column-level dictionary |
 | `docs/executive_summary.md` | 1-page leadership summary |
@@ -108,16 +108,16 @@
 
 ## Key Facts
 - DB: localhost:5433, user=[REDACTED], password=[REDACTED], db=MSI_CollectionsDB
-- Star schema: 5 dim tables (Employees/Clients/Products/Accounts/Calendar), 6 fact tables (Interactions/PTP/Payments/AgentTime/EOMSnapshot/Writeoffs), 8 dim tables (incl. dim_delinquency_bucket I2, dim_strategy I5, dim_employee_history I4), 16 KPI views (15 in 002 incl. v_promise_timeline/v_monthend_portfolio/v_writeoff_recovery, + v_agent_scorecards in 004)
+- Star schema: 8 dim tables (Employees/Clients/Products/Accounts/Calendar/DelinquencyBucket/Strategy/EmployeeHistory), 7 fact tables (Interactions/PTP/Payments/AgentTime/EOMSnapshot/Writeoffs/Recoveries) = 15 base tables + etl_load_log; 16 KPI views (15 in 002 incl. v_promise_timeline/v_monthend_portfolio/v_writeoff_recovery/v_dpd_migration_matrix/v_weekly_agent_summary/v_rls_supervisor_map, + v_agent_scorecards in 004)
 - Dim_Employees: unified table (8 supervisors + 80 agents), self-ref FK, denormalized team/region/skills
 - Dim_Accounts: includes denormalized `product_type` (avoids snowflake join to Dim_Products)
 - Fact_Payments: `ptp_id` has no FK constraint (avoids fact-to-fact chain)
 - Weekend bug FIXED: interactions Mon-Fri only, payments allowed on weekends
 - **84 tests passing (81 fast + 3 slow, 0 failures)** — Hybrid C suite: ONE shared 3-month session generation (`--months 1,2,3` seed 42) feeds all fast generator tests; slow gates = canonical 12-month baseline validation, seed reproducibility (one extra small run), ETL idempotency
-- **P1 audit hotfix (Aug 2026)**: v_agent_scorecards restored (migrate.sh now asserts view count post-run — 15 as of P2); written-off accounts exit the EOM book (generator skip + migration 007, −1,574 zombie rows); team/portfolio rollups are ratio-of-sums (util=ΣTHT/Σop-hrs, cure=Σcures/Σpayments, AHT/ACW from Σsecs/Σn — no AVG-of-rates); self-cure payments record true dpd_at_payment
+- **P1 audit hotfix (Aug 2026)**: v_agent_scorecards restored (migrate.sh now asserts view count post-run — 16 as of P4); written-off accounts exit the EOM book (generator skip + migration 007, −1,574 zombie rows); team/portfolio rollups are ratio-of-sums (util=ΣTHT/Σop-hrs, cure=Σcures/Σpayments, AHT/ACW from Σsecs/Σn — no AVG-of-rates); self-cure payments record true dpd_at_payment
 - **P3 regenerated & verified (Aug 25, 2026)**: replenishment 0.0042 equilibrium holds (re-entry band 10.4–14.3%), G7 seasonality wired, strategy split 58.9/26.2/14.9 with efficacy multipliers biting (RPC by arm 37.7/32.2/28.0 — no longer flat), SCD2 history + 6 Jul-1 transfers live, calendar → Mar 2026 (486 rows)
 - **P4 regenerated & verified (Aug 25, 2026)**: portfolio_cure_rate 56–76% vs prior Mora stock (view stores %), installment plans = 27.9% of kept promises multi-part, fact_recoveries live (323 rows, $39,949 recovered), Exited transitions = 413 in matrix. Targeted pytest runs MUST pair -k with -m "not slow" — name-only filters once matched the ETL idempotency test and reloaded old CSVs over repaired state
-- migrate.sh runs with ON_ERROR_STOP + set -e and FAILS if view count ≠ 13 (prevents silent drift like the scorecard outage)
+- migrate.sh runs with ON_ERROR_STOP + set -e and FAILS if view count ≠ 16 (prevents silent drift like the scorecard outage)
 - Config calibrated May 2026 — 11 param changes + 2 new params (see CONTEXT.md Session Notes)
 - SQL view fixes: cure count uses COUNT(DISTINCT account_id), BB Conversion uses kept_pct * ptp_pct / 100
 - Monthly drift: ±8% per-agent rate drift each month (RPC% swings 38–67%)

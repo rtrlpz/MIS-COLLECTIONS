@@ -25,7 +25,7 @@ What it does: Validates the synthetic data and analysis outputs.
 # Data Documentation & Governance
 What it does: Makes the data understandable and auditable.
 
-- Schema Dictionary: Column-level definitions for all 11 tables
+- Schema Dictionary: Column-level definitions for all 16 tables
 
 - KPI Definitions: Business formulas for every metric (Contact, Promise, Recovery, Productivity)
 

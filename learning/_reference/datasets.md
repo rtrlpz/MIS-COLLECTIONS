@@ -13,7 +13,7 @@ This is the **shared data map** for the entire `learning/` environment. Every to
 
 | Entry point | What it holds | Used by |
 |---|---|---|
-| **PostgreSQL** `MSI_CollectionsDB` (localhost:5433) | 12 tables (star schema incl. dim_delinquency_bucket), ~1.8M rows, 15 KPI views | SQL (all levels), Notebooks (medium+), Power BI (import) |
+| **PostgreSQL** `MSI_CollectionsDB` (localhost:5433) | 15 base tables (star schema, + `etl_load_log`), ~1.9M rows, 16 KPI views | SQL (all levels), Notebooks (medium+), Power BI (import) |
 | **Raw CSVs** `data_sources/raw/` | Same data, file-per-month layout, pre-DB | Python (all levels), Notebooks (basic), Excel (all levels) |
 
 The CSVs and the DB are the **same content**. The ETL (`etl/data_to_pg.py`) loads CSVs → DB. This is by design: SQL exercises run on the DB; Python exercises read the CSVs. Identical answers = proof you understood both paths.
@@ -26,16 +26,19 @@ The CSVs and the DB are the **same content**. The ETL (`etl/data_to_pg.py`) load
 data_sources/raw/
 ├── shared/                    ← dimension tables (one file each, full 12 months)
 │   ├── Dim_Accounts.csv       (~15.5K accounts)
-│   ├── Dim_Calendar.csv       (396 rows: Dec 2024 + full 2025)
+│   ├── Dim_Calendar.csv       (486 rows: Dec 2024 → Mar 2026)
 │   ├── Dim_Clients.csv        (10,000 clients)
+│   ├── Dim_Employee_History.csv (94 SCD2 segments; 6 Jul-1 transfers)
 │   ├── Dim_Employees.csv      (88 people: 8 supervisors + 80 agents)
-│   └── Dim_Products.csv       (3 products)
+│   ├── Dim_Products.csv       (3 products)
+│   └── Dim_Strategy.csv       (3 champion-challenger arms)
 ├── january_2025/ ... december_2025/   ← fact tables, one folder per month
 │   ├── Fact_Agent_Time_Log.csv
 │   ├── Fact_EOM_Snapshot.csv
-│   ├── Fact_Interactions.csv  (~1.36M rows across all months)
+│   ├── Fact_Interactions.csv  (~1.34M rows across all months)
 │   ├── Fact_Payments.csv
 │   ├── Fact_PTP_Log.csv
+│   ├── Fact_Recoveries.csv    (sparse early months — header-only files are valid)
 │   └── Fact_Writeoffs.csv
 └── anomaly_report.csv         (injected edge cases — do NOT treat as fact)
 ```
@@ -53,16 +56,16 @@ data_sources/raw/
 | `dim_products` | Dimension | 1 product | 3 | `product_id`, `product_name`, `product_type`, `annual_rate_pct`, `grace_days`, `min_payment_rule` |
 | `dim_delinquency_bucket` | Dimension | 1 bucket (ordered severity) | 5 | `bucket_key`, `bucket_label`, `sort_order`, `days_from/to` |
 | `dim_strategy` | Dimension | 1 treatment arm | 3 | `strategy_id`, `channel_mix`, `connection_mult`, `rpc_mult` |
-| `dim_employee_history` | Dimension | 1 employee attribute-version (SCD2) | 88+ | `hist_id`, `agent_id`, `team_name`, `valid_from/to`, `is_current` |
-| `dim_calendar` | Dimension | 1 day | 486 (Dec 2024 → Mar 2026 after P3 seed; CSV catches up at regen) | `date` (PK), `year`, `quarter`, `month_num`, `month_name`, `iso_week`, `day_of_week`, `day_name`, `is_weekday`, `is_month_end`, `is_payday_week`, `payday_factor` |
-| `dim_accounts` | Dimension | 1 account | 15,482 | `account_id`, `client_id`, `product_id`, `product_type`, `open_date`, `credit_limit`, `due_day`, `min_payment`, `initial_balance`, `initial_status` |
-| `fact_interactions` | Fact | 1 contact episode | 1,355,587 | `interaction_id`, `interaction_date`, `strategy_id`, `interaction_time`, `agent_id`, `account_id`, `calls_attempted`, `calls_connected`, `rpc_flag`, `call_outcome`, `channel`, `aht_seconds`, `acw_seconds`, `rpc_arrears`, `dpd_at_contact` |
-| `fact_ptp_log` | Fact | 1 promise | 58,811 | `ptp_id`, `ptp_date`, `ptp_time`, `agent_id`, `account_id`, `promised_amount`, `promised_date`, `grace_until_date`, `status`, `rpc_arrears_at_contact` |
-| `fact_payments` | Fact | 1 payment | 49,419 | `payment_id`, `payment_date`, `payment_time`, `account_id`, `ptp_id`, `agent_id`, `amount_paid`, `payment_method`, `is_cured`, `cure_flag`, `dpd_at_payment`, `balance_before/after`, `arrears_before/after`, `amount_to_arrears`, `amount_to_principal`, `dpd_after_payment` |
+| `dim_employee_history` | Dimension | 1 employee attribute-version (SCD2) | 94 | `hist_id`, `agent_id`, `team_name`, `valid_from/to`, `is_current` |
+| `dim_calendar` | Dimension | 1 day | 486 (Dec 2024 → Mar 2026) | `date` (PK), `year`, `quarter`, `month_num`, `month_name`, `iso_week`, `day_of_week`, `day_name`, `is_weekday`, `is_month_end`, `is_payday_week`, `payday_factor` |
+| `dim_accounts` | Dimension | 1 account | 15,480 | `account_id`, `client_id`, `product_id`, `product_type`, `open_date`, `credit_limit`, `due_day`, `min_payment`, `initial_balance`, `initial_status` |
+| `fact_interactions` | Fact | 1 contact episode | 1,338,499 | `interaction_id`, `interaction_date`, `strategy_id`, `interaction_time`, `agent_id`, `account_id`, `calls_attempted`, `calls_connected`, `rpc_flag`, `call_outcome`, `channel`, `aht_seconds`, `acw_seconds`, `rpc_arrears`, `dpd_at_contact` |
+| `fact_ptp_log` | Fact | 1 promise (plan) | 106,226 | `ptp_id`, `ptp_date`, `ptp_time`, `agent_id`, `account_id`, `promised_amount`, `promised_date`, `grace_until_date`, `status`, `rpc_arrears_at_contact` |
+| `fact_payments` | Fact | 1 payment | 120,874 | `payment_id`, `payment_date`, `payment_time`, `account_id`, `ptp_id`, `agent_id`, `amount_paid`, `payment_method`, `is_cured`, `cure_flag`, `dpd_at_payment`, `balance_before/after`, `arrears_before/after`, `amount_to_arrears`, `amount_to_principal`, `dpd_after_payment` |
 | `fact_agent_time_log` | Fact | 1 agent-day | 20,880 | `log_id`, `log_date`, `agent_id`, `login_time`, `logout_time`, `break_minutes`, `operational_hours`, `tht_hours`, `utilization`, `schedule_hours`, `cost_per_hour`, `total_cost` |
-| `fact_eom_snapshot` | Fact | 1 account-month | 185,784 | `snapshot_date`, `snapshot_month`, `account_id`, `status`, `balance`, `arrears`, `dpd`, `dpd_bucket`, `min_payment` |
-| `fact_writeoffs` | Fact | 1 write-off | 222 |
-| `fact_recoveries` | Fact | 1 post-charge-off recovery event | 0 until regen | `recovery_id`, `amount_recovered`, `remaining_recoverable` | `writeoff_id`, `writeoff_date`, `account_id`, `product_type`, `writeoff_amount`, `balance_before`, `dpd_at_writeoff` |
+| `fact_eom_snapshot` | Fact | 1 account-month | 182,968 | `snapshot_date`, `snapshot_month`, `account_id`, `bucket_key`, `status`, `balance`, `arrears`, `dpd`, `dpd_bucket`, `min_payment` |
+| `fact_writeoffs` | Fact | 1 write-off | 441 | `writeoff_id`, `writeoff_date`, `account_id`, `product_type`, `writeoff_amount`, `balance_before`, `dpd_at_writeoff` |
+| `fact_recoveries` | Fact | 1 post-charge-off recovery event | 323 | `recovery_id`, `recovery_date`, `account_id`, `amount_recovered`, `remaining_recoverable` |
 
 > **Naming rule (project convention, reproduced here):** `Dim_` = descriptive side of the star; `Fact_` = measurable/transactional side. You will rediscover *why* this matters when you first join a fact to two dims.
 
@@ -108,7 +111,7 @@ One-line psql smoke test (fills values from your `.env`):
 ```bash
 PGPASSWORD=<password> psql -h localhost -p 5433 -U <user> -d MSI_CollectionsDB -c "SELECT COUNT(*) FROM fact_interactions;"
 ```
-Expect ~1.36M. If you see 0, data isn't loaded — run the pipeline first.
+Expect ~1.34M. If you see 0, data isn't loaded — run the pipeline first.
 
 ---
 
@@ -116,15 +119,15 @@ Expect ~1.36M. If you see 0, data isn't loaded — run the pipeline first.
 
 | Metric | Healthy range (this portfolio) | Notes |
 |---|---|---|
-| RPC% | 35–60% | of connected calls reaching the account holder |
-| PTP% | 5–40% | of RPCs that produce a promise (median ~15 on 12-mo data) |
-| KP% (kept promise) | 65–90% | of evaluated promises honored |
+| RPC% | 35–60% | of connected calls reaching the account holder (median ~51 on 12-mo data) |
+| PTP% | 5–40% | of RPCs that produce a promise (median ~24 on 12-mo data) |
+| KP% (kept promise) | 60–90% | of evaluated promises honored (median sits at the 60 floor post-P4 installments) |
 | Utilization | 30–60% | operational ÷ scheduled hours |
-| Cures / THT | 0.02–0.15 | cures per total-handle-time hour (median ~0.05) |
+| Cures / THT | 0.02–0.20 | cures per total-handle-time hour (median ~0.16 post-regen) |
 | ACW (RPC) | 80–180s | after-call work, RPC calls |
 
-> Ranges calibrated on the full 12-month DB (Aug 2026). They are directional
-> sanity checks for your outputs, not hard business targets.
+> Ranges calibrated on the full 12-month DB (Aug 2026, P3/P4 engine). They are
+> directional sanity checks for your outputs, not hard business targets.
 
 ---
 

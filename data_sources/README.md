@@ -6,7 +6,7 @@ This directory contains the synthetic data generation engine for the collections
 
 | Path | Purpose |
 |------|---------|
-| `data_generator_v7.py` | Main generator (11 tables, 1.8M rows, 12 months) |
+| `data_generator_v7.py` | Main generator (P3/P4 engine: ~1.9M rows, 12 months) |
 | `config.py` | 45+ calibration parameters (CFG + PRODUCT_CFG) |
 | `schema/dictionary.md` | Column-level data dictionary |
 

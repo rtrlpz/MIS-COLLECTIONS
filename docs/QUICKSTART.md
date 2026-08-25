@@ -35,10 +35,10 @@ python -m pytest test/ -v -m "not slow"
 | Step | Time | Result |
 |------|------|--------|
 | Docker start | ~5s | Container `postgres_collections` running on port 5433 |
-| Migrations | ~2s | 6 migration files applied, 12 views created |
-| Data generation | ~90s | 506K+ rows across 11 tables (12 months) |
-| ETL load | ~60s | 1.8M rows in PostgreSQL |
-| Tests | ~30s | 74 fast tests pass (0 failures) |
+| Migrations | ~2s | 10 migration files applied, 16 views created |
+| Data generation | ~90s | ~1.9M rows across 14 CSV outputs (12 months) |
+| ETL load | ~60s | ~1.9M rows in PostgreSQL |
+| Tests | ~5 min fast / ~15 min full gate | 81 fast pass · 84 total (0 failures) |
 
 ## Directory structure
 

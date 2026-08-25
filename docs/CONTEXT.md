@@ -1,10 +1,10 @@
 # MIS-COLLECTIONS — Project Context
 
 ## Project Overview
-Simulated bank collections analytics portfolio project. Generates synthetic data for ~80 agents, ~10,000 clients, ~15,575 accounts across Credit Cards, Personal Loans, and Mortgages (Jan–Dec 2025). Models the full collections lifecycle: dialer interactions, RPC tracking, promise-to-pay management, payment/cure events, and agent utilization.
+Simulated bank collections analytics portfolio project. Generates synthetic data for ~80 agents, ~10,000 clients, ~15,480 accounts across Credit Cards, Personal Loans, and Mortgages (Jan–Dec 2025). Models the full collections lifecycle: dialer interactions, RPC tracking, promise-to-pay management, payment/cure events, and agent utilization.
 
 **Goal:** Portfolio piece demonstrating end-to-end data engineering + analytics for a Scotiabank-style collections department. 9 Power BI dashboards across Executive, Managerial, Supervision, and Analytical tiers.
-**Last updated:** 2026-07-22 (Session: Blueprint updated to 1920x1080 canvas, PDF exports generated)
+**Last updated:** 2026-08-25 (Session: P3/P4 regenerated & verified; Hybrid C test suite; docs synced to post-regen state)
 
 ## Tech Stack
 - **Python 3.x** — Data generation (Faker), ETL ingestion (pandas, psycopg2)
@@ -35,7 +35,7 @@ MIS-COLLECTIONS/
 │
 ├── dashboards/                    # VISUALIZATION LAYER
 │   ├── dax/                   # DAX SOURCE OF TRUTH (CSV + docs)
-│   │   ├── collections_dax_v2.csv           # 258 measures (13 tables, source of truth)
+│   │   ├── collections_dax_v2.csv           # 252 measures (6 measure tables, source of truth)
 │   │   ├── calculation_group_ti.json        # _Time Intelligence Calculation Group (18 items)
 │   │   ├── dax_targets_and_comparisons.md   # Goals & Targets patterns (31 measures documented)
 │   │   └── generate_dax_reference.py        # Script to regenerate dax_measures_all.md from CSV
@@ -51,22 +51,25 @@ MIS-COLLECTIONS/
 │
 ├── data_sources/                  # DATA GENERATION LAYER
 │   ├── config.py                  # 45+ calibration params (CFG + PRODUCT_CFG)
-│   ├── data_generator_v7.py       # 12 tables, 500K+ rows, weekend-bug-fixed
+│   ├── data_generator_v7.py       # P3/P4 engine: 12-mo, ~1.9M rows, strategy arms/SCD2/recoveries
 │   ├── raw/                       # Generated CSVs (DO NOT EDIT)
 │   └── schema/dictionary.md
 │
 ├── database/                      # DATABASE LAYER
 │   ├── docker-compose.yml         # Postgres 15 + pgAdmin
 │   ├── migrations/
-│   │   ├── 001_create_tables.sql  # DDL: 11 tables (star schema)
-│   │   ├── 002_kpi_views.sql      # 9 KPI views
+│   │   ├── 001_create_tables.sql  # DDL: 16 tables (8 dim + 7 fact + etl_load_log)
+│   │   ├── 002_kpi_views.sql      # 15 KPI views
 │   │   ├── 003_constraints.sql    # 15 CHECK constraints
 │   │   ├── 004_agents_scorecards.sql  # v_agent_scorecards (composite weighted)
 │   │   ├── 005_indexes.sql        # 27 indexes
-│   │   └── 006_comments.sql       # 63 COMMENT ON
+│   │   ├── 006_comments.sql       # 63 COMMENT ON
+│   │   └── 007–010_*.sql          # Post-audit repairs: write-off zombies, bucket dim, strategy SCD2, recoveries
 │   └── seeds/
 │       ├── 001_dim_products.sql   # 3 products
-│       └── 002_dim_calendar.sql   # 365 rows (full year 2025)
+│       ├── 002_dim_calendar.sql   # 396 rows (Dec 2024 + full year 2025)
+│       ├── 003_dim_delinquency_bucket.sql # 5 ordered buckets
+│       └── 004_dim_calendar_extension.sql # +90 rows (Jan–Mar 2026)
 │
 ├── etl/                           # ETL LAYER (was database/etl/)
 │   ├── data_to_pg.py              # CSV → PostgreSQL (idempotent, incremental, transactional)
@@ -85,8 +88,8 @@ MIS-COLLECTIONS/
 │   │   ├── dashboard_blueprint.md/.pdf   # Page-by-page wireframes (1920x1080)
 │   │   ├── execution_guide.md            # 2,499-line enterprise build guide
 │   │   ├── mis_collections_build_plan.md # 5-phase Power BI build plan
-│   │   ├── dax_measures_all.md           # Complete DAX reference (all 258)
-│   │   ├── dax_measures_dictionary_v2.md # v2.2 full DAX dictionary
+│   │   ├── dax_measures_all.md           # Complete DAX reference (all 252 + CG items)
+│   │   ├── dax_measures_dictionary_v2.md # v2.2 full DAX dictionary (legacy)
 │   │   ├── reference_guide.html          # 1,555-line DAX reference
 │   │   └── legacy/                       # v1 backups
 │   ├── unused/                    # PRIVATE archive (gitignored): real MTD xlsx, historic CSVs, tech-exam SQL, PBIX prototypes
@@ -95,10 +98,10 @@ MIS-COLLECTIONS/
 ├── reports/                       # EXCEL REPORTING LAYER (Phase D pending)
 │   └── (empty — generate_daily_mis.py pending)
 │
-├── test/                          # TESTING LAYER — 76 tests passing (74 fast + 2 slow)
-│   ├── conftest.py               # Fixtures, METRIC_RANGES, GENERATOR_ROW_COUNTS
-│   ├── test_qa_validation.py    # 68 tests: data integrity + KPI views + metric ranges + migration matrix
-│   ├── test_generator.py          # 10 tests: generator + row counts + 4 invariants
+├── test/                          # TESTING LAYER — 84 tests passing (81 fast + 3 slow), Hybrid C
+│   ├── conftest.py               # Fixtures, METRIC_RANGES, GENERATOR_ROW_COUNTS(+_SMALL), session fixture
+│   ├── test_qa_validation.py    # 73 tests: data integrity + KPI views + metric ranges + migration matrix
+│   ├── test_generator.py          # 11 tests: generator + dual-fidelity row counts + 4 invariants
 │   └── test_kpi_views.sql         # SQL view validation queries
 │
 └── .github/                       # CI templates (ISSUE_TEMPLATE, WORKFLOW)
@@ -106,24 +109,28 @@ MIS-COLLECTIONS/
 
 ## Data Model (Star Schema)
 
-### Dimension Tables (5)
+### Dimension Tables (8)
 | Table | Rows | Description |
 |-------|------|-------------|
 | Dim_Employees | 88 | Unified supervisor + agent table (self-ref FK: agents.supervisor_id → supervisors.agent_id). Denormalized: team_name, region, hire_date, experience_tier, cost_per_hour, tenure_cohort, skills |
+| Dim_Employee_History | 94 | SCD Type 2 versions of org attributes (team/supervisor/region); 6 mid-year transfers on Jul 1 |
+| Dim_Strategy | 3 | Champion-challenger arms: STG-01 Dialer 60% · STG-02 SMS_First 25% · STG-03 FICO_Priority 15% |
 | Dim_Clients | 10,000 | Clients with segment, risk score, income_bracket |
 | Dim_Products | 3 | Credit Card, Personal Loan, Mortgage |
-| Dim_Accounts | ~15,575 | Accounts with product/client FK, balance, DPD, open_date, credit_limit, **product_type (denormalized)** |
-| Dim_Calendar | 365 | Date dimension with weekday/payday flags, iso_week, year (full year 2025) |
+| Dim_Delinquency_Bucket | 5 | Ordered DPD buckets (Current → 1-30 → 31-60 → 61-90 → 90+) |
+| Dim_Accounts | ~15,480 | Accounts with product/client FK, balance, DPD, open_date, credit_limit, **product_type (denormalized)** |
+| Dim_Calendar | 486 | Dec 2024 → Mar 2026 (prepended month + 90d tail for promise/grace spill-over FKs) |
 
-### Fact Tables (6)
+### Fact Tables (7)
 | Table | Rows (12mo) | Description |
 |-------|-------------|-------------|
-| Fact_Interactions | ~1.36M | Dialer calls, RPC/non-RPC, AHT/ACW, channel (weekdays only) |
-| Fact_PTP_Log | ~58K | Promise-to-pay events, Kept/Broken state machine |
-| Fact_Payments | ~49K | Payment transactions, Agent-Cure vs Self-Cure (weekends OK) |
+| Fact_Interactions | ~1.34M | Dialer calls, RPC/non-RPC, AHT/ACW, channel, strategy_id (weekdays only) |
+| Fact_PTP_Log | ~106K | Promise-to-pay events; ~35% multi-part installment plans resolved on cumulative paid ≥95% |
+| Fact_Payments | ~121K | Payment transactions, Agent-Cure vs Self-Cure (weekends OK), ptp_id link for installments |
 | Fact_Agent_Time_Log | ~21K | Agent login/logout, utilization, handle time, cost_per_hour, total_cost |
-| Fact_EOM_Snapshot | ~186K | End-of-month account snapshots with DPD buckets |
-| Fact_Writeoffs | ~222 | Write-off events (5% rate at 91+ DPD) |
+| Fact_EOM_Snapshot | ~183K | End-of-month account snapshots with bucket_key (charged-off accounts exit the book) |
+| Fact_Writeoffs | ~441 | Write-off events (5% rate at 91+ DPD) |
+| Fact_Recoveries | ~323 | Post-charge-off partial collections draining per-account recoverable balance |
 
 ## Key Business Logic
 - **Event-driven PTP state machine**: promises transition through scheduled → kept/broken
@@ -133,7 +140,8 @@ MIS-COLLECTIONS/
 - **Payments on any date**: payment_date = date made, not processed — weekend payments allowed
 - **Weekday-only interactions**: no call center activity on weekends (bug FIXED — 0 weekend interactions now)
 - **Anomaly injection**: realistic edge cases in the data (~9,117 injected)
-- **Mora replenishment**: accounts can re-enter delinquency
+- **Mora replenishment**: accounts can re-enter delinquency (equilibrium rate targets a stable ~12–15% book)
+- **Strategy arms (champion-challenger)**: each account gets ONE stable arm (60/25/15 split) that drives channel mix AND efficacy multipliers — enables strategy→outcome attribution
 - **Progressive severity**: self-cure rate decays by `0.5^cure_count` (min 0.1); agent connection rate penalized for repeat-offender accounts; AHT/ACW increases for escalated collection stages
 - **Monitoring pool**: `other_pool` restricted to accounts that have ever been in Mora — no calling clean Activo accounts
 - **Utilization cap**: clamped at 0.95 to reflect unavoidable idle/wrap-up time
@@ -266,7 +274,7 @@ All 17 SQL files verified with valid content — none empty.
   - **Cure-flag completeness**: 0 rows with `is_cured=True` and `cure_flag="None"`
   - **PTP-payment consistency**: All kept PTPs have `amount_paid >= 95%` of `promised_amount`
   - **Grace-period integrity**: All `grace_until_date >= promised_date`
-  - **Re-entry rate bounds**: 10-25% of cured accounts re-default within 1 month
+  - **Re-entry rate bounds**: 5-25% of cured accounts re-default within 1 month
 
 #### Phase 8.5 (Generator + Schema Enhancements) — 100% Complete
 - **G1**: Vintage open_date spread (23 months, weighted distribution)
@@ -281,8 +289,16 @@ All 17 SQL files verified with valid content — none empty.
 - **Schema**: +9 columns across 5 tables, +1 table (fact_writeoffs), +3 views, +8 constraints, +6 indexes
 - **Data**: 12 months generated (Jan-Dec 2025), 1.8M rows loaded into PostgreSQL
 - **Tests**: Updated conftest.py (TABLES, PK_MAPPING, FK_RELATIONSHIPS, GENERATOR_ROW_COUNTS), re-entry threshold 5-25%
-- **DAX**: 258 measures across 13 tables (CSV source of truth)
+- **DAX**: 258 measures across 13 tables (CSV source of truth) — *superseded by v3.0: 252 measures in 6 measure tables + `_Time Intelligence` calculation group (18 items)*
 - **Docs**: dax_measures_all.md (complete DAX reference), dax_measures_dictionary_v2.md v2.2, docs/ROADMAP.md updated
+
+#### P1–P4 Audit Fixes + Regeneration (Aug 2026) — COMPLETE
+- **P1**: scorecards restored, write-off zombies removed from EOM book, ratio-of-sums rollups
+- **P2**: bucket dimension + snapshot FK, promise timeline, Kimball upgrades
+- **P3**: delinquency equilibrium (replenishment 0.0042), G7 seasonality wired, 3-arm strategies with efficacy multipliers, SCD2 employee history + Jul-1 transfers, calendar → Mar 2026
+- **P4**: portfolio_cure_rate vs prior Mora stock, installment plans (cumulative resolution), fact_recoveries + recovery-curve view, Exited transitions reachable
+- **Regenerated & verified Aug 25, 2026** — full gate green (84 passed); strategy split 58.9/26.2/14.9, RPC-by-arm 37.7/32.2/28.0, recoveries $39,949, installments 27.9%, Exited=413 (see `docs/CHANGELOG.md` 1.5.0–1.6.0)
+- **Test suite (Hybrid C)**: one shared 3-month session generation for fast tests; slow gates = canonical 12-month baseline, seed reproducibility, ETL idempotency
 
 ### ⏳ PENDING (Next Phases)
 
@@ -299,12 +315,12 @@ All 17 SQL files verified with valid content — none empty.
   7. Financial Recovery — Recovery vs cost, Write-offs, Cost-to-collect, Net recovery (**95% DAX ready**)
   8. Vintage Analysis — DPD by account age, Vintage curves, Cure by vintage month (**85% DAX ready**)
   9. Roll Rate Analysis — Migration matrix, Skip/deteriorate rates, Stuck 90+ (**90% DAX ready**)
-- Import mode, star schema, **258 DAX measures** across 13 tables + 2 calculated tables
-- RLS by supervisor_id on Dim_Agents
+- Import mode, star schema, **252 DAX measures** (6 measure tables) + `_Time Intelligence` calculation group (18 items) + 2 calculated tables
+- RLS by supervisor_id on Dim_Employees
 - **Blueprint ready**: `docs/dashboards/dashboard_blueprint.md` — page-by-page wireframes (1920x1080), visual specs, field wells, formatting
 - **Blueprint PDF**: `docs/dashboards/dashboard_blueprint.pdf` — printable PDF export
 - **Plan PDF**: `docs/dashboards/PLAN_DASHBOARDS.pdf` — printable implementation plan
-- **DAX source**: `dax_measures_all.md` (258 measures as copy-paste code blocks)
+- **DAX source**: `dax_measures_all.md` (all measures as copy-paste code blocks)
 
 #### Phase 10 — Excel Daily MIS Report
 - Python (openpyxl) script at `reports/generate_daily_mis.py`
@@ -336,7 +352,7 @@ All 17 SQL files verified with valid content — none empty.
 - `docs/dashboards/mis_collections_build_plan.md` — 5-phase build plan for Phase C/D/E
 - `docs/dashboards/reference_guide.html` — 1,555-line DAX + dashboard blueprint
 - `dashboards/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
-- `dashboards/dax/collections_dax_v2.csv` — 258 measures (source of truth, 13 tables)
+- `dashboards/dax/collections_dax_v2.csv` — 252 measures (source of truth, 6 measure tables + CG)
 - `docs/dashboards/dax_measures_dictionary_v2.md` — v2.2 full documentation (formulas, formats, deps)
 - `docs/dashboards/dax_measures_all.md` — Complete DAX reference (all 258 as code blocks)
 - `docs/kpi_definitions.md` — Business formulas and benchmarks for all KPIs
@@ -369,18 +385,20 @@ All 17 SQL files verified with valid content — none empty.
 - **Dashboard consolidation (July 2026)**: 9 dashboards selected (from original 14+4=18). Excluded: WFM, QA, Compliance, Customer Experience, Recovery Forecast. Merged Executive Collections + Executive Scorecard into single page. `docs/PLAN_DASHBOARDS.md` created with full implementation plan (generator G1-G9, schema changes, DAX expansion to ~320 measures, 12-month data).
 - **Phase 8.5 complete (July 2026)**: All G1-G9 generator enhancements implemented. Schema updated with +9 columns, +1 table (fact_writeoffs), +3 views, +8 constraints, +6 indexes. 12 months of data generated (Jan-Dec 2025) and loaded into PostgreSQL (1.8M rows). All tests passing. Generator output verified: open_date spread, channel mix, credit limits, income brackets, experience tiers, writeoffs.
 - **DAX v2.2 complete (July 2026)**: Expanded from 136 to 258 measures across 13 tables. Added 84 time intelligence measures (WoW/DoD/YoY/OTC for 7 key metrics). Added 22 dashboard-specific measures (Executive 3, Agent 6, Dialer 4, Portfolio 3, Financial Recovery 9, Vintage 3, Roll Rate 5). All measures in CSV (source of truth). Created `dax_measures_all.md` (all 258 as DAX code blocks). Updated `dax_measures_dictionary_v2.md` to v2.2. Updated `docs/PLAN_DASHBOARDS.md` with per-dashboard DAX coverage analysis (range: 55%-95%). 4 require schema changes (deferred).
+- **P3/P4 regenerated & verified + Hybrid C suite (Aug 25, 2026)**: Full gate green (84 passed = 81 fast + 3 slow). Spot-checks: strategy split 58.9/26.2/14.9 with RPC-by-arm 37.7/32.2/28.0 (multipliers bite), recoveries 323 rows/$39,949, installments 27.9% of kept plans, 6 Jul-1 SCD2 transfers, portfolio_cure_rate 56→76%, Exited=413. Test bugs fixed: re-entry invariant sorted months alphabetically (garbage windows since Phase 6; chronological band 10.4–14.3%), metric ranges now read conftest METRIC_RANGES, conftest import under package layout. Docs synced to post-regen state. See CHANGELOG 1.6.0.
 
 ## Quick Reference
 - **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`
 - **Conda env**: `mis-collections`
 - **DB connection**: host=localhost, port=5433, user=[REDACTED], password=[REDACTED], db=MSI_CollectionsDB
-- **Pipeline command**: `./run_pipeline.bat` (from project root in CMD)
-- **Run tests**: `python -m pytest test/ -v -m "not slow"`
-- **DAX base CSV**: `dashboards/dax/collections_dax_v2.csv` (258 measures, source of truth)
-- **DAX full reference**: `docs/dashboards/dax_measures_all.md` (all 258 as code blocks)
-- **DAX dictionary**: `docs/dashboards/dax_measures_dictionary_v2.md` (v2.2)
+- **Pipeline command**: `./run_pipeline.bat` (from project root in CMD) — ~157s end-to-end (12 months)
+- **Run tests (fast)**: `python -m pytest test/ -v -m "not slow"` — 81 tests
+- **Run tests (full gate)**: `python -m pytest test/ -v` — 84 tests (adds canonical 12-mo baseline, seed reproducibility, ETL idempotency)
+- **DAX base CSV**: `dashboards/dax/collections_dax_v2.csv` (252 measures, source of truth)
+- **DAX full reference**: `docs/dashboards/dax_measures_all.md` (all 252 + CG items as code blocks)
+- **DAX dictionary**: `docs/dashboards/dax_measures_dictionary_v2.md` (v2.2, legacy)
 - **DAX targets module**: `dashboards/dax/dax_targets_and_comparisons.md`
 - **Execution guide**: `docs/dashboards/execution_guide.md`
 - **Build plan**: `docs/dashboards/mis_collections_build_plan.md`
 - **Dashboard plan**: `docs/PLAN_DASHBOARDS.md` (9 dashboards, DAX coverage analysis)
-- **Total DAX measures**: 258 (91 base + 120 time intelligence + 47 dashboard-specific)
+- **Total DAX**: 252 measures (6 measure tables) + `_Time Intelligence` calculation group (18 items replaces the 118 legacy TI measures)

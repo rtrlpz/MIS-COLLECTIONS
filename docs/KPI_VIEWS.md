@@ -1,5 +1,7 @@
 # KPI View Documentation
 
+> **Coverage: 13 of 16 live views documented.** Missing (added in P2/P4, see `002_kpi_views.sql` directly): `v_promise_timeline`, `v_monthend_portfolio`, `v_writeoff_recovery`. Live DB is the authority; migrate.sh asserts 16 views.
+
 ## Views (12 in `002_kpi_views.sql`; `v_agent_scorecards` in `004_agents_scorecards.sql`)
 
 | # | View | Granularity | Purpose | Key Columns |

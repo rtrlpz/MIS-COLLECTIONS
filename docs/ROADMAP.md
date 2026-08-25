@@ -17,9 +17,9 @@
 | **5** | Generator Enhancements | ✅ 100% | Progressive severity, monitoring pool, utilization cap |
 | **6** | Testing | ✅ 100% | 4 invariant tests added (cure-flag, PTP, grace, re-entry) |
 | **7** | Automation | ✅ 100% | None |
-| **8** | Documentation | 🟡 ~65% | DAX v2.2 docs + PLAN_DASHBOARDS.md added; QUICKSTART, TROUBLESHOOTING, CHANGELOG pending |
-| **8.5** | Generator + Schema Enhancements | ✅ 100% | G1-G9 complete, 12-month data loaded, 256 DAX measures |
-| **9** | BI / Reporting (9 dashboards) | 🔵 Ready to Build | 256 DAX measures ready, dashboard build pending |
+| **8** | Documentation | 🟡 ~85% | DAX v3 docs + PLAN_DASHBOARDS + CHANGELOG 1.6.0 done; execution_guide/reference_guide partially historical |
+| **8.5** | Generator + Schema Enhancements | ✅ 100% | G1-G9 complete, 12-month data loaded, P1-P4 audit fixes regenerated (Aug 2026) |
+| **9** | BI / Reporting (9 dashboards) | 🔵 Ready to Build | 252 DAX measures + CG ready, dashboard build pending |
 
 ---
 
@@ -131,45 +131,48 @@
 ## PHASE 6 — Testing ✅ COMPLETE
 
 ### Test Files Created
-- [x] `test/conftest.py` — Pytest fixtures: DB cursor, table metadata, PK/FK mappings, KPI views, GENERATOR_ROW_COUNTS, METRIC_RANGES, custom `slow` mark
-- [x] `test/test_qa_validation.py` — Data integrity + metric percentile test classes (68 tests: 66 fast + 2 slow)
-- [x] `test/test_generator.py` — Generator unit tests + CSV row count validation + Phase 6 invariant tests (10 tests)
+- [x] `test/conftest.py` — Pytest fixtures: DB cursor, table metadata, PK/FK mappings, KPI views, GENERATOR_ROW_COUNTS(+_SMALL), METRIC_RANGES, `small_generated_data` session fixture (Hybrid C), custom `slow` mark
+- [x] `test/test_qa_validation.py` — Data integrity + metric percentile test classes (73 tests: 72 fast + 1 slow)
+- [x] `test/test_generator.py` — Generator unit tests + dual-fidelity row counts + Phase 6 invariant tests (11 tests: 9 fast + 2 slow)
 - [x] `test/test_kpi_views.sql` (168 lines) — SQL validation queries for KPI views
 - [x] `test/README.md` — Test documentation
 
-### QA Validation Tests (64 fast + 2 slow)
+> **Hybrid C (Aug 2026):** fast generator tests share ONE session-scoped 3-month generation; slow gates carry full fidelity (canonical 12-month baseline vs conftest ±10%, seed reproducibility, ETL idempotency). Total suite: **84 passed** (81 fast + 3 slow).
+
+### QA Validation Tests (72 fast + 1 slow)
 | # | Test Class | Validates | Status |
 | :--- | :--- | :--- | :--- |
-| 1 | `TestRowCounts` | Dim_Agents=80, Dim_Clients=10000, Dim_Accounts~15575 ±5% | ✅ Pass |
-| 2 | `TestNoNullPKs` | No nulls in PK columns across all 11 tables | ✅ Pass |
-| 3 | `TestFKIntegrity` | 15 FK relationships have no orphans | ✅ Pass |
-| 4 | `TestDateRanges` | Fact dates within Oct–Dec 2025, calendar covers full period | ✅ Pass |
+| 1 | `TestRowCounts` | dim_employees=88, dim_clients=10000, dim_accounts~15,480 | ✅ Pass |
+| 2 | `TestNoNullPKs` | No nulls in PK columns across all 16 tables | ✅ Pass |
+| 3 | `TestFKIntegrity` | All FK relationships have no orphans (incl. bucket/strategy/history) | ✅ Pass |
+| 4 | `TestDateRanges` | Fact dates within Jan–Dec 2025, calendar covers full period | ✅ Pass |
 | 5 | `TestWeekdayOnly` | No interactions on weekends | ✅ Pass |
 | 6 | `TestDPDLogic` | DPD >= 0 in fact_interactions, fact_payments, fact_eom_snapshot | ✅ Pass |
 | 7 | `TestUtilizationBounds` | Utilization between 0 and 1 (decimal) | ✅ Pass |
 | 8 | `TestCallDuration` | AHT > 0s, max < 3600s | ✅ Pass |
-| 9 | `TestKPIViewOutput` | All 9 views return rows, percentage columns in 0–100 | ✅ Pass |
-| 10 | `TestMetricRanges` | RPC% 35-60, PTP% 20-65, KP% 65-90, Util% 30-60, Cures/THT 0.08-0.30, ACW RPC 80-180 | ✅ Pass |
+| 9 | `TestKPIViewOutput` | All views return rows, percentage columns in 0–100 | ✅ Pass |
+| 10 | `TestMetricRanges` | Bounds from conftest.METRIC_RANGES (RPC% 35-60, PTP% 5-40, KP% 60-90, Util% 30-60, Cures/THT 0.02-0.20, ACW RPC 80-180) | ✅ Pass |
 | 11 | `TestCappedKPPositive` | SUM(capped_kp) > 0 | ✅ Pass |
 | 12 | `TestBBConversionPositive` | median(bucket_conversion) > 0 | ✅ Pass |
 | 13 | `TestETLIdempotency` | Running ETL twice = same row counts (slow) | ✅ Pass |
-| 14 | `TestGeneratorSeed` | Same seed produces identical CSV checksums (slow) | ✅ Pass |
 
-### Generator Unit Tests (test_generator.py — 10 tests)
+*(legacy `TestGeneratorSeed` removed — duplicate coverage now lives in test_generator.py)*
+
+### Generator Unit Tests (test_generator.py — 11 tests)
 | # | Test Class | Validates |
 | :--- | :--- | :--- |
-| 1 | `TestGeneratorOutput` | Generator exists, `--help` works, produces CSVs with correct structure |
-| 2 | `TestGeneratorRowCounts` | CSV row counts match seed 42 baseline (±5% tolerance) for all 10 tables |
-| 3 | `TestGeneratorReproducibility` | Seed 42 produces identical output across two runs |
+| 1 | `TestGeneratorOutput` | Generator exists, `--help` works, produces CSVs with correct structure (incl. Fact_Recoveries) |
+| 2 | `TestGeneratorRowCounts` | Fast: 3-mo structure vs GENERATOR_ROW_COUNTS_SMALL · Slow (canonical): 12-mo run vs GENERATOR_ROW_COUNTS ±10% |
+| 3 | `TestGeneratorReproducibility` | Seed 42 produces identical checksums (fixture vs one extra small run, slow) |
 | 4 | `TestGeneratorDataQuality` | No null PKs in generated CSVs across all dimension tables |
-| 5 | `TestGeneratorPostFixInvariants` (4 tests) | Cure-flag completeness, PTP-payment consistency, grace-period integrity, re-entry rate bounds (10-25%) |
+| 5 | `TestGeneratorPostFixInvariants` (4 tests) | Cure-flag completeness, per-plan PTP-payment consistency (installment-aware), grace-period integrity, re-entry rate bounds (5-25%, chronological windows) |
 
 ### Run Tests
 ```bash
-# Fast tests only (excludes ETL idempotency + generator seed reproducibility)
+# Fast tests only (~5-6 min incl. DB percentile queries)
 /c/Users/Leand/.conda/envs/mis-collections/python -m pytest test/ -v -m "not slow"
 
-# All tests (includes ~2 min slow tests)
+# Full gate (~15 min: adds canonical 12-mo generation, seed repro, ETL idempotency)
 /c/Users/Leand/.conda/envs/mis-collections/python -m pytest test/ -v
 ```
 
@@ -256,13 +259,13 @@
 ### Build Plan Complete
 - [x] `docs/dashboards/mis_collections_build_plan.md` — 5-phase build plan
 - [x] Architecture defined: single .pbix, 9 pages, 3 Excel sheets
-- [x] **DAX v2.2 complete**: **256 measures** — `dashboards/dax/collections_dax_v2.csv` (source of truth)
+- [x] **DAX v3.0 complete**: **252 measures** (6 measure tables) + `_Time Intelligence` calculation group (18 items) — `dashboards/dax/collections_dax_v2.csv` (source of truth)
 - [x] `dashboards/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
-- [x] `docs/dashboards/dax_measures_dictionary_v2.md` — v2.2 documentation (13 tables, formats, deps)
-- [x] `docs/dashboards/dax_measures_all.md` — Complete DAX reference (all 256 as code blocks)
+- [x] `docs/dashboards/dax_measures_dictionary_v2.md` — v2.2 documentation (legacy)
+- [x] `docs/dashboards/dax_measures_all.md` — Complete DAX reference (all measures as code blocks)
 - [x] 2 calculated tables: `Dim_Targets` (7 goal definitions), `Color Reference` (RAG hex codes)
 - [x] Legacy v1 files preserved as backups (`collections_dax.csv`, `legacy/dax_measures_dictionary.md`)
-- [x] `PLAN_DASHBOARDS.md` — Full implementation plan with DAX coverage analysis per dashboard (256 measures)
+- [x] `PLAN_DASHBOARDS.md` — Full implementation plan with DAX coverage analysis per dashboard
 - [x] **`docs/dashboards/dashboard_blueprint.md`** — Page-by-page wireframes (1920x1080 canvas), visual specs, field wells, formatting
 - [x] **`docs/dashboards/dashboard_blueprint.pdf`** — Printable PDF export of blueprint
 - [x] **`docs/dashboards/PLAN_DASHBOARDS.pdf`** — Printable PDF export of implementation plan, DAX references
@@ -283,16 +286,16 @@
 ### DAX Coverage Summary
 | Category | Count | Status |
 |----------|-------|--------|
-| In CSV (256) | 256 | ✅ Complete |
+| In CSV (252) | 252 | ✅ Complete (+ `_Time Intelligence` CG replaces 118 legacy TI measures) |
 | Requires schema changes | 4 | ❌ Deferred (campaign, occupancy, login/logout) |
 | Visual-only gaps | 3 | ⚠️ Layout, not DAX (Risk Heat Map, Arrears Waterfall, Vintage Distribution) |
 
 ### Build — Pending
-- [ ] Import data model into Power BI (star schema, 12 tables)
-- [ ] Import 256 DAX measures from `dax_measures_all.md` (copy-paste code blocks)
+- [ ] Import data model into Power BI (star schema, 15 base tables + etl_load_log; PBIX v3 predates P3/P4 schema — fresh import required)
+- [ ] Import 252 DAX measures from `collections_dax_v2.csv`, then run `create_calc_group.cs` for the CG
 - [ ] Create 2 calculated tables: Dim_Targets, Color Reference
 - [ ] Build all 9 dashboard pages (follow `dashboard_blueprint.md`)
-- [ ] Add RLS by supervisor_id
+- [ ] Add RLS by supervisor_id on dim_employees
 - [ ] Publish to Power BI Service
 - [ ] `reports/generate_daily_mis.py` — Python script for Excel generation
 - [ ] Generate sample Excel reports for Jan-Dec 2025

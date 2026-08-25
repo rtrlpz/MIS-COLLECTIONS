@@ -37,7 +37,7 @@ The CSVs in `data_sources/raw/` hold **exactly the same data** as the database y
 |---|---|---|
 | `basic/` | Read CSVs, recombine the 12 month folders, filter/group/aggregate, first rate columns | *"Give me January's totals — from files, not the DB."* |
 | `medium/` | Merges, datetime handling and resampling, bucketing, rank-within-group, pivots | *"Rank agents within each team by KP%; flag the bottom three."* |
-| `advanced/` | Rebuild the project's KPI logic purely in pandas at ~1.36M-row scale | *"Prove the SQL numbers using only files."* |
+| `advanced/` | Rebuild the project's KPI logic purely in pandas at ~1.34M-row scale | *"Prove the SQL numbers using only files."* |
 
 ## How the files work
 

@@ -13,7 +13,7 @@ learning/
 └── README.md
 ```
 
-**Up from python medium:** merges, datetimes, buckets, group-transforms, pivots — all yours. Advanced is the finish line: **rebuild the project's KPI logic in pandas without a database**, and do it on the full ~1.36M-row scale without blowing up memory.
+**Up from python medium:** merges, datetimes, buckets, group-transforms, pivots — all yours. Advanced is the finish line: **rebuild the project's KPI logic in pandas without a database**, and do it on the full ~1.34M-row scale without blowing up memory.
 
 **Setup:** conda env `mis-collections`. Create `work/attempt_*.py`. Read raw CSVs from `data_sources/raw/`. Reuse your saved `work/` tables.
 
@@ -83,7 +83,7 @@ Steps:
 
 ---
 
-## Task 4 — Scale discipline: ~1.36M rows without melting RAM
+## Task 4 — Scale discipline: ~1.34M rows without melting RAM
 
 The supervisor: *"The full year is big. Show me you can work at that size deliberately: right dtypes, one read-pass to reassemble, and a memory number written down — not a mystery."*
 
