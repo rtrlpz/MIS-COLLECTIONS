@@ -133,15 +133,18 @@
 - Generator seed 42 row counts (12mo): Interactions ~1.34M / PTP ~106K / Payments ~121K / Agent Time ~21K / EOM ~183K / Writeoffs ~441 / Recoveries ~323
 
 ## Learning Environment (`learning/`)
-If asked about a task/skill material at `learning/`, follow these contracts (see `learning/README.md`):
+If asked about a task/skill material at `learning/`, follow these contracts (see `learning/README.md`; execution plan in `learning/_reference/REFACTOR_PLAN.md`):
+- **Purpose:** practice lab aligned to the Collections MIS Analyst JD (`docs/unused/general_docs/mis analyst.docx`) — JD→track coverage map lives in REFACTOR_PLAN.md
 - **Tracks:** `sql/` `python/` `notebooks/` `excel/` `powerbi/` × `basic/medium/advanced` (tasks.md + results.md + work/) + single-level `git-cli/`
-- **tasks.md:** scenario + steps-with-why + guiding questions + conceptual checks. **NO code, NO numbers** — tasks must teach method, never expected results (lesson learned: a "Tarjeta dominates" hint contradicted real data)
-- **results.md:** guidance-only — reasoning path, steps-with-why, verification strategy, traps/alternatives. No full runnable solutions, no computed outputs. Syntax fragments ONLY where syntax is the lesson
-- **Answer-key discipline:** learner attempts in `work/`, then peeks at results.md
+- **tasks.md:** workplace-inbox scenario (sender/day/time/urgency), background, steps-with-why, guiding questions, data pointers into `_reference/`, explicit Done-When checklist. **NO code, NO expected numbers** — tasks must teach method, never expected results (lesson learned: a "Tarjeta dominates" hint contradicted real data)
+- **results.md:** full worked approach + **complete executable code** (SQL/pandas/DAX/VBA) + verification recipe + traps/alternatives. **NO computed outputs or result tables** — give the code that should be written, not the numbers it prints
+- **Answer-key discipline:** learner attempts in `work/`, then reads results.md; keep early attempts — the trail IS the progress log
+- **Language:** English workplace voice throughout
 - **Reference:** `_reference/` is copied (self-contained) per user choice; DB queries are a QA gate only, never a content source
 - **Reproduce-from-scratch ethos:** learners re-derive the project's `v_*` KPI views in SQL/Python and audit against them; divergence = finding, not failure
 - **House rules practiced in the track:** never commit `.env`/credentials, never edit generated CSVs, DAX measures CSV-first, RAG/targets from `_reference/kpi_glossary.md`
 - **Ignored:** `learning/**/work/*` (keeps `.gitkeep`), `**/.ipynb_checkpoints/`; all `.md` tracked
+- **Refactor (Aug 2026):** 7-phase rewrite per REFACTOR_PLAN.md (~95 JD-aligned tasks); phases land track-by-track with one commit each
 
 ## DAX v3.0 (252 measures across 6 tables + 1 CG)
 - **Base (107)**: `_Outreach & Activity` (22), `_Promise & Recovery` (29), `_Portfolio Health` (25), `_Goals & Targets` (31)
