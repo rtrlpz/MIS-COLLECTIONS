@@ -35,7 +35,7 @@
 |---|---|---|
 | **Cures** | `COUNT(DISTINCT account_id)` with arrears eliminated | Distinct accounts — one account cured twice in a month counts once. |
 | **Cured amount** | `SUM(amount_paid)` on cured payments | Gross recovery revenue; includes spontaneous (non-PTP) payments. |
-| **Cures / THT** | `Cures / SUM(tht_hours)` | Core productivity. THT isolates actual on-call time. **0.02–0.15** (median ~0.05 on 12-mo data). |
+| **Cures / THT** | `Cures / SUM(tht_hours)` | Core productivity. THT isolates actual on-call time. **0.02–0.20** (median ~0.16 on post-P4 12-mo data). |
 
 ## 4. Productivity (source: `fact_agent_time_log`)
 
@@ -86,3 +86,22 @@ KPI views exclude non-production roles (Team Leader, Ops Sr Manager, etc.). In t
 
 - **`product_type`**: `Tarjeta` (credit card), `Prestamo` (personal loan), `Hipoteca` (mortgage — largest balances and arrears exposure, senior-agent handling). Delinquency rate is ~7% for all three on 12-mo data — no product dominates.
 - **DPD buckets** in `fact_eom_snapshot.dpd_bucket`: `Current`, `1-30`, `31-60`, `61-90`, `90+`. Ordering is by *severity rank*, never by comparing bucket names as text.
+
+
+## 10. Portfolio risk metrics (sources: `fact_eom_snapshot`, `fact_writeoffs`, `fact_recoveries`)
+
+| Metric | Formula | Notes |
+|---|---|---|
+| **Roll rate** | share of accounts moving from bucket B to a WORSE bucket between consecutive month-ends | The early-warning metric for board packs. Severity order comes from `dim_delinquency_bucket.sort_order` — never alphabetically. See `v_dpd_migration_matrix`. |
+| **Exited transitions** | accounts whose final month has no following month | Charged-off accounts leave the book by design; the view admits pre-end finals so exits are countable (~413 on current data). |
+| **Vintage curve** | Mora% by months-on-book, one line per open-date cohort | Replaces calendar time with account age — the only fair cohort comparison. Right-edge ages are thin (censoring), not broken. |
+| **Re-entry / recycle rate** | of accounts Mora at month-end M and Activo at M+1, the share Mora again by M+2 | Plausible band for this engine: **5–25%**; measured 10.4–14.3% chronologically across all twelve-month windows. |
+| **Portfolio cure rate** | cured accounts this month ÷ prior month-end Mora stock | Industry definition fixed in audit I1 — denominator is delinquent STOCK, not payments. `v_monthend_portfolio` implements it with `LAG` and stores PERCENT. Current band 56–76%. |
+
+## 11. Forecasting & capacity planning terms
+
+| Term | Plain meaning | This project's convention |
+|---|---|---|
+| **Seasonal-naive baseline** | next month ≈ trailing average of recent months (or same month last year) | Deliberately simple; every assumption stated inline. December breaks it — say so. |
+| **Capacity estimate** | projected delinquent accounts × attempts per account ÷ collector attempts-per-hour → hours → FTE | Constants must be named with provenance; sensitivity table (±50%) ships unprompted. |
+| **Loss-impact scenario** | roll-rate shifts propagated forward to write-off dollars | Modeled from `v_dpd_migration_matrix` × write-off rates at 91+ DPD. |

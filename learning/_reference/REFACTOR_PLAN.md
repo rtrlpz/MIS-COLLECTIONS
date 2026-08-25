@@ -1,6 +1,7 @@
 # learning/ REFACTOR PLAN — Collections MIS Analyst JD Alignment
 
-> **Status:** APPROVED PLAN (Aug 2026) · **Owner:** MIS & Analytics Lead review
+> **Status:** ✅ COMPLETE — all 7 phases delivered (Aug 2026) · ~95 JD-aligned tasks across 6 tracks
+> **Owner:** MIS & Analytics Lead review
 > **Goal:** Rewrite and expand the entire `learning/` practice lab so a new analyst is
 > day-one ready for the Collections MIS Analyst role (source JD:
 > `docs/unused/general_docs/mis analyst.docx` — Scotiabank GBS DR).
@@ -119,4 +120,4 @@ and keeps each commit self-contained/revertable.
 | 4 | `python/` all levels | ✅ Done (Aug 2026; solutions QA-run vs live CSVs+DB: row counts, team RPC% parity, 22-cell matrix match) |
 | 5 | `notebooks/` all levels | ✅ Done (Aug 2026; 14 explanation-first tasks: KPI explainer, roll-rate heatmap, forecast narrative, reproducibility hardening) |
 | 6 | `excel/` all levels (incl. VBA) | ✅ Done (Aug 2026; 17 tasks: openpyxl generator, Workbook_Open + one-button VBA pipeline, keep_vba flow, scheduler governance) |
-| 7 | `git-cli/` + kpi_glossary additions + consistency sweep | ⬜ Pending |
+| 7 | `git-cli/` + kpi_glossary additions + consistency sweep | ✅ Done (Aug 2026; 8 drills incl. conflict resolution/revert/stash/tag; glossary +2 sections: portfolio risk metrics, forecasting & capacity) |

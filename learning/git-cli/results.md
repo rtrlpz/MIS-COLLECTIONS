@@ -1,142 +1,162 @@
-# git-cli — Results (Guidance)
+# git-cli — Results (worked commands)
 
-```
-learning/
-├── _reference/            ← datasets.md, kpi_glossary.md, data_dictionary.md
-├── git-cli/               ← YOU ARE HERE
-│   ├── README.md
-│   ├── tasks.md
-│   ├── results.md         ← current file
-│   └── work/
-├── sql/  python/  notebooks/  excel/  powerbi/
-└── README.md
-```
-
-**How to use this file:** attempt → run → read one section. This is the one module where **commands ARE the lesson** — so unlike the analysis tracks, results show the syntax and the *model* behind it. No scratch-data is permanent: everything is your `work/` scratch.
+Run everything. Git rewards muscle memory; reading alone teaches nothing here.
 
 ---
 
 ## Task 1 — Read the newspaper
 
-**Thinking path:**
-- `git status` has three sections, and their names ARE the model:
-  - **Changes to be committed** (staged/index): you've marked them with `git add` — the index is the "next commit" proposal.
-  - **Changes not staged** (working tree vs index): edited but not yet proposed.
-  - **Untracked files**: exist on disk, git doesn't know them at all.
-- `work/` is absent from untracked because of `.gitignore`: git knows about them but *chooses* to ignore (see Task 5) — that's why "untracked" and "ignored" are different concepts.
-- `git log --oneline` is the newspaper: who (author), when, and in what order the project moved. Reading history in reverse is the analyst's habit.
-- `git diff` reads as: `-` = removed, `+` = added, else context. A file diff is a *recipe* of changes, not a snapshot.
-
-**Verification strategy:**
-- After reading, `git status` should still show the repo as you found it (you touched nothing).
-- Check `git status --ignored` lists `learning/**/work/*`, `.env`-relevant patterns, and `.ipynb_checkpoints/`.
-
-**Syntax worth having:**
+```bash
+git status                 # staged (index) / unstaged (working tree) / untracked
+git log --oneline -15      # one line per commit: hash + subject
+git diff                   # unstaged changes vs index (context lines start with space)
+git diff -- file.sql       # scoped to one file
+git status --ignored       # what .gitignore deliberately hides
 ```
-git status
-git status --ignored
-git log --oneline -15
-git diff
-git diff --cached     # staged-only diff (Task 2 uses this)
-```
+
+**Reading the output:** staged = will be in next commit; unstaged = modified but not selected; untracked = git has never seen it. `work/` is ABSENT from untracked because `.gitignore` covers it — ignored ≠ invisible, it's *deliberately* unseen.
+
+**Verify yourself:** pick any `+`/`-` pair in a diff and paraphrase the change aloud — that's the skill.
 
 ---
 
-## Task 2 — Commit like a grown-up
+## Task 2 — Diff before you send
 
-**Thinking path:**
-- The model has THREE copies of truth: **working tree** (on disk), **index/staging** (`git add`ed — the proposal), **HEAD** (last commit). A commit takes the index and freezes it as history. This is why "I edited but didn't add" produces "nothing happens" — you wrote to the working tree, not to the proposal.
-- `git add -A` stages everything untracked+modified + deleted — dangerous when a repo's contract says "don't commit X". Specific-path staging is the grown-up default; `-A` is an explicit, conscious choice.
-- Message voice: the repo `log` uses short imperative summaries ("Fix…", "Add…", "Update…"). Imperative = "this commit, when applied, does X" — a stable instruction to future readers. "Fixed…" narrates the past; "Fix…" describes the change.
-
-**Verification strategy:**
-- `git diff --cached` before every commit: what you're about to freeze; anything surprising = stage more surgically.
-- `git status` after commit shows the proposal emptied and the file in history.
-
-**Syntax worth having:**
+```bash
+git diff work/report.sql                # classic patch view
+git diff --word-diff work/report.sql    # inline word-level — catches typos best
+git diff > work/review.patch            # sendable artifact for reviewers
+git diff --stat                         # which files changed and how much
 ```
-git add learning/README.md learning/sql/basic/*
-git status
-git diff --cached
-git commit -m "Add learning track scaffolding"
-git log --oneline -3
-```
+
+**Why each variant:** classic shows structure; word-diff surfaces a stray character inside an unchanged-looking line (`WHERE dat >= '2025-01-0'`); `--stat` is the "did I touch anything I forgot about?" sweep.
+
+**Habit:** `git diff --stat` then full diff on anything with real changes — 30 seconds before every send.
 
 ---
 
-## Task 3 — Branch without fear
+## Task 3 — Commit like a grown-up
 
-**Thinking path:**
-- A **branch** is just a named moving pointer to a commit — it lives in git's *bookkeeping*, not in your files. That's why switching is instant and why your `work/` files look different per branch (the pointers move; the working tree updates the checkout).
-- `checkout -b` (or `switch -c`) = create + move to the new pointer. On the branch you commit normally; HEAD moves only that branch's pointer.
-- Going back to main: your branch's commits are unreachable from main's pointer — your work "disappears" from the working tree but *exists* as long as the branch does. Two realities, one repo.
-- Merge: git walks the history and creates a combining commit. **Fast-forward** = the target branch hasn't moved since you branched, so merge just slides the pointer forward (clean, no merge commit). `--no-ff` forces a merge commit even then (keeps the branch's shape visible). Reviewing `git log --graph` shows the branching reality.
-
-**Verification strategy:**
-- `git log --graph --oneline -10` after your merge: does the picture match your drawn branch map?
-- A scratch file committed on the branch must NOT exist while on main — that absence is the proof of separation.
-
-**Syntax worth having:**
+```bash
+git status                       # choose ONE logical unit
+git add learning/git-cli/work/report.sql
+git diff --cached                # REVIEW exactly what's staged — the pre-commit gate
+git commit -m "docs(learning): add MIS report query drill for git-cli track"
+git log --oneline -3             # confirm shape matches repo voice
 ```
-git switch -c learning/report
-git switch main            # work vanishes from working tree — expected!
-git switch learning/report
-git merge learning/report   # or: git merge --no-ff learning/report
-git log --graph --oneline -10
-```
+
+**Why each part:** path-scoped add beats `-A` unless you've reviewed everything; `--cached` shows the COMMIT'S future contents, not your working tree. Repo style: imperative mood ("add", not "added") — messages describe what the commit DOES to the repo.
+
+**Verify yourself:** `git show --stat HEAD` — exactly the files you intended, nothing else.
 
 ---
 
-## Task 4 — Delete-proof
+## Task 4 — Branch: the new MIS variant
 
-**Thinking path:**
-- Rescue map (the safety of each command matters more than its name):
-  - **Working-tree-only ops (safe)**: `git restore <file>` (or older `checkout -- <file>`) brings a *tracked* file back to its HEAD/commit state; `git restore --staged` unstages. Working tree and index can be overwritten; **history is untouched**.
-  - **Stash (interrupted work, safe)**: `git stash` shelves *uncommitted* changes (working tree + staged) into a parking lot; `git stash pop` re-applies them. Confirm your change returns exactly.
-  - **History archaeology (read-only)**: `git log --all --oneline` scans all branches; a deleted file is *found* in history via the commit that last had it. Recovering a deleted *committed* file = restore it from that commit. Revoking a bad commit from history (rebasing/push --force) is the **irreversible family** — this module trains you to *never need* it.
-- The three-copies mental model again: when you lose something, ask WHICH copy has it (working tree? index? HEAD? a branch? a stash?). Answering that question IS the recovery skill.
-
-**Verification strategy:**
-- After `restore`, the file exists with its committed content again.
-- After stash→pop, your edit is back — confirm by diffing.
-- The archaeology pass: pick a commit, `git show <sha>` read-only, no changes made.
-
-**Syntax worth having:**
+```bash
+git switch -c feature/mis-variant-clientX     # create AND switch (modern syntax)
+echo "-- clientX override" >> learning/git-cli/work/report.sql
+git add learning/git-cli/work/report.sql
+git commit -m "feat(learning): clientX pack variant draft"
+git switch main                                # tree reverts to main's state
+git branch -v                                  # both branches, last commits side by side
+git switch feature/mis-variant-clientX         # back into the experiment
 ```
-git restore learning/git-cli/work/probe.txt      # recovered from HEAD
-git stash && git status                             # clean working tree
-git stash pop
-git log --all --oneline                            # archaeology scope = all branches
-git show <commit-sha>                               # read-only peek
-```
+
+**Why each part:** branches are cheap pointers, not copies — switching swaps your working tree instantly. Main staying shippable while experiments live elsewhere IS the workflow the JD's "multiple projects simultaneously" assumes.
+
+**Verify yourself:** after switching to main, confirm your edit is absent from the file; switch back, it returned. That disappearance act is the whole concept made visible.
 
 ---
 
-## Task 5 — The pact
+## Task 5 — Merge conflict on report SQL
 
-**Thinking path:**
-- `.gitignore` is the wall, but its blind spot: **a file only becomes ignored if it was never tracked**. "Ignored/untracked/absent" are three different protections:
-  - *Untracked* = git doesn't know it (safe to commit later).
-  - *Ignored* = git refuses to list/commit (wall works ❌ once committed).
-  - **Once committed to history, ignoring does NOTHING** — the secret stays in `git log` forever unless you rewrite history (the hard, force-push lesson). Prevention > cure: **never add a secret in the first place**.
-- The perma-dirty footgun: `git add .env && echo '.env' >> .gitignore` — the add already happened; the ignore is pretend-protection. The habit: check `.gitignore` FIRST, add SECOND.
-- Reading this repo's `.gitignore` should surface: `.env`-class secrets, `data_sources/raw/` (generated — never edit), `learning/**/work/*` + `**/.ipynb_checkpoints/` (practice/noise), and the PBIX. Each rule encodes a *contract*: what may and may not enter history.
+Manufacture it:
 
-**Audit commands to run on any repo you're handed:**
-```
-git status --ignored                 # what's walls-protected?
-git ls-files | grep -E '\.env|secrets?$'     # is a secret already TRACKED? (empty = clean)
-git ls-files -- '.gitignore'         # is the ignore file itself tracked?
+```bash
+git switch main
+# edit work/report.sql line 1: WHERE month = '2025-07'
+git commit -am "chore: main uses July filter"
+git switch feature/mis-variant-clientX
+# edit SAME line: WHERE month = '2025-08' AND team = 'Team 4'
+git commit -am "chore: variant uses August + Team 4"
+git merge main            # CONFLICT
 ```
 
-**Verification strategy:**
-- `work/probe.env` shows under `--ignored` (= the wall works) and is absent from `git ls-files` (never tracked). Delete it after.
-- Final pact (yours, in words): never commit `.env`/credentials; never edit or commit generated CSVs; keep `work/` out of history; check with the two audit commands before believing a repo is clean.
+The file now contains:
+
+```text
+<<<<<<< HEAD
+WHERE month = '2025-08' AND team = 'Team 4'
+=======
+WHERE month = '2025-07'
+>>>>>>> main
+```
+
+Resolve by hand (keep BOTH intents if that's correct):
+
+```sql
+WHERE month BETWEEN '2025-07' AND '2025-08'
+  AND team = 'Team 4'
+```
+
+```bash
+git add learning/git-cli/work/report.sql
+git commit                      # merge-resolution commit opens with default message
+```
+
+**Marker anatomy:** between `<<<<<<<` and `=======` = YOUR branch (HEAD); between `=======` and `>>>>>>>` = incoming (main). Resolution is editing the file to its true final form, then staging — git doesn't guess intent.
+
+**Verify yourself:** `git log --graph --oneline -6` should show the two histories joining at the merge commit.
 
 ---
 
-### Finish
+## Task 6 — Revert the bad load
 
-Your `answers_*.md` files together are the cheat-sheet *in your own words* — that's the deliverable. If any command above behaved unexpectedly, that's the moment to re-read the three-copies model (Tasks 2/4) — the model, not the command, is what scales.
+```bash
+git log --oneline -4                     # spot the bad commit hash
+git revert <hash>                        # creates an INVERSE commit — history preserved
+git log --oneline -6                     # bad commit still there, undone by a new one
+```
 
-**Move up when:** you can explain working tree vs index vs HEAD to a friend cold, and you reach for `git status --ignored` + `git ls-files | grep` before trusting any repo.
+Reset family (private/unpushed contexts ONLY):
+
+```bash
+git reset --soft HEAD~1   # undo commit, keep changes staged
+git reset --hard HEAD~1   # undo commit AND delete the changes — destructive
+```
+
+**Why revert wins on shared branches:** rewriting history others have pulled forces everyone to untangle; revert appends truth ("this was wrong, here's the correction") — auditable, which is exactly the governance posture this JD demands.
+
+**Verify yourself:** after revert, the working file equals pre-bad state; `git log` tells the honest story including the mistake.
+
+---
+
+## Task 7 — Stash under pressure
+
+```bash
+# mid-edit on next month's pack...
+git stash push -m "wip: august pack draft"      # named stashes save future-you
+git stash list                                   # stash@{0} visible
+git status                                       # clean tree — handle the fire
+# ...urgent fix + commit...
+git stash pop                                    # edits return; conflicts reported if any
+```
+
+**Gotchas worth hitting once:** pop can conflict if the urgent commit touched the same lines — resolve like Task 5. Untracked files need `git stash -u`. Named messages turn `stash list` from archaeology into inventory.
+
+**Verify yourself:** checksum your WIP file before stashing and after popping (`git diff --no-index` or eyeball) — byte-identical return.
+
+---
+
+## Task 8 — Tag the monthly pack release
+
+```bash
+git tag -a monthly-pack-2025-07 <commit-hash> -m "July monthly pack as shipped"
+git show monthly-pack-2025-07                    # the exact state + message, forever retrievable
+git log --graph --oneline -20                    # branching rhythm made visible
+```
+
+**Why annotated (-a):** carries author, date, message — a label with provenance, matching how finance archives period-end artifacts. Lightweight tags are fine for throwaway bookmarks only.
+
+**Verify yourself:** `git show` prints the commit your pack shipped from; six months from now that command answers "what EXACTLY went out" without archaeology.
