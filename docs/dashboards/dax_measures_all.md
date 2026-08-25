@@ -1,6 +1,6 @@
 # DAX Measures — Complete Reference
 
-**Total Measures:** 252
+**Total Measures:** 266
 **Source:** `dashboards/dax/collections_dax_v2.csv`
 
 ---
@@ -8,10 +8,10 @@
 ## Table of Contents
 
 - [_Outreach & Activity](#outreach--activity) (22 measures)
-- [_Promise & Recovery](#promise--recovery) (29 measures)
-- [_Portfolio Health](#portfolio-health) (25 measures)
+- [_Promise & Recovery](#promise--recovery) (30 measures)
+- [_Portfolio Health](#portfolio-health) (34 measures)
 - [_Goals & Targets](#goals--targets) (31 measures)
-- [_Composites & Strategy](#composites--strategy) (27 measures)
+- [_Composites & Strategy](#composites--strategy) (31 measures)
 - [_Time Intelligence](#time-intelligence) (118 measures)
 
 ---
@@ -332,6 +332,12 @@ DIVIDE(CALCULATE(COUNTROWS('Fact_Payments'), 'Fact_Payments'[payment_method] = "
 DIVIDE(CALCULATE(COUNTROWS('Fact_Payments'), 'Fact_Payments'[payment_method] = "OFI"), COUNTROWS('Fact_Payments'), 0)
 ```
 
+**Cure Rate %**
+
+```dax
+VAR _Cured = CALCULATE ( DISTINCTCOUNT ( 'Fact_Payments'[account_id] ), 'Fact_Payments'[is_cured] = TRUE() ) VAR _PayRows = COUNTROWS ( 'Fact_Payments' ) RETURN DIVIDE ( _Cured * 100, _PayRows, 0 )
+```
+
 ---
 
 ## _Portfolio Health
@@ -486,6 +492,60 @@ VAR _CurrentMonth = MAX('Fact_EOM_Snapshot'[snapshot_date]) VAR _PriorMonth = EO
 
 ```dax
 CALCULATE(DISTINCTCOUNT('Fact_EOM_Snapshot'[account_id]), 'Fact_EOM_Snapshot'[dpd_bucket] = "90+", 'Fact_EOM_Snapshot'[snapshot_date] = MAX('Fact_EOM_Snapshot'[snapshot_date]))
+```
+
+**Recovered Amount**
+
+```dax
+SUM ( 'Fact_Recoveries'[amount_recovered] )
+```
+
+**Recovery Events**
+
+```dax
+COUNTROWS ( 'Fact_Recoveries' )
+```
+
+**Recovery Rate %**
+
+```dax
+DIVIDE ( [Recovered Amount], [Write-off Amount], 0 )
+```
+
+**Net Write-off Position**
+
+```dax
+[Write-off Amount] - [Recovered Amount]
+```
+
+**Recoverable Outstanding**
+
+```dax
+SUMX ( VALUES ( 'Fact_Recoveries'[account_id] ), VAR _acct = 'Fact_Recoveries'[account_id] VAR _last = CALCULATE ( MAX ( 'Fact_Recoveries'[recovery_date] ), 'Fact_Recoveries'[account_id] = _acct, REMOVEFILTERS ( 'Fact_Recoveries' ) ) RETURN CALCULATE ( MAX ( 'Fact_Recoveries'[remaining_recoverable] ), 'Fact_Recoveries'[account_id] = _acct, 'Fact_Recoveries'[recovery_date] = _last, REMOVEFILTERS ( 'Fact_Recoveries' ) ) )
+```
+
+**Roll Rate Worsened %**
+
+```dax
+VAR _Cur = MAX ( 'Fact_EOM_Snapshot'[snapshot_date] ) VAR _Prev = MAXX ( FILTER ( ALL ( 'Fact_EOM_Snapshot'[snapshot_date] ), 'Fact_EOM_Snapshot'[snapshot_date] < _Cur ), 'Fact_EOM_Snapshot'[snapshot_date] ) VAR _To = SELECTCOLUMNS ( FILTER ( ALL ( 'Fact_EOM_Snapshot' ), 'Fact_EOM_Snapshot'[snapshot_date] = _Cur ), "acct", 'Fact_EOM_Snapshot'[account_id], "toKey", 'Fact_EOM_Snapshot'[bucket_key] ) VAR _From = SELECTCOLUMNS ( FILTER ( ALL ( 'Fact_EOM_Snapshot' ), 'Fact_EOM_Snapshot'[snapshot_date] = _Prev ), "acct", 'Fact_EOM_Snapshot'[account_id], "fromKey", 'Fact_EOM_Snapshot'[bucket_key] ) VAR _J = NATURALINNERJOIN ( _From, _To ) VAR _Moved = FILTER ( _J, LOOKUPVALUE ( Dim_Delinquency_Bucket[sort_order], Dim_Delinquency_Bucket[bucket_key], [toKey] ) > LOOKUPVALUE ( Dim_Delinquency_Bucket[sort_order], Dim_Delinquency_Bucket[bucket_key], [fromKey] ) ) RETURN DIVIDE ( COUNTROWS ( _Moved ), COUNTROWS ( _J ), 0 )
+```
+
+**Roll Rate Improved %**
+
+```dax
+VAR _Cur = MAX ( 'Fact_EOM_Snapshot'[snapshot_date] ) VAR _Prev = MAXX ( FILTER ( ALL ( 'Fact_EOM_Snapshot'[snapshot_date] ), 'Fact_EOM_Snapshot'[snapshot_date] < _Cur ), 'Fact_EOM_Snapshot'[snapshot_date] ) VAR _To = SELECTCOLUMNS ( FILTER ( ALL ( 'Fact_EOM_Snapshot' ), 'Fact_EOM_Snapshot'[snapshot_date] = _Cur ), "acct", 'Fact_EOM_Snapshot'[account_id], "toKey", 'Fact_EOM_Snapshot'[bucket_key] ) VAR _From = SELECTCOLUMNS ( FILTER ( ALL ( 'Fact_EOM_Snapshot' ), 'Fact_EOM_Snapshot'[snapshot_date] = _Prev ), "acct", 'Fact_EOM_Snapshot'[account_id], "fromKey", 'Fact_EOM_Snapshot'[bucket_key] ) VAR _J = NATURALINNERJOIN ( _From, _To ) VAR _Better = FILTER ( _J, LOOKUPVALUE ( Dim_Delinquency_Bucket[sort_order], Dim_Delinquency_Bucket[bucket_key], [toKey] ) < LOOKUPVALUE ( Dim_Delinquency_Bucket[sort_order], Dim_Delinquency_Bucket[bucket_key], [fromKey] ) ) RETURN DIVIDE ( COUNTROWS ( _Better ), COUNTROWS ( _J ), 0 )
+```
+
+**Worst Active Bucket**
+
+```dax
+VAR _Cur = MAX ( 'Fact_EOM_Snapshot'[snapshot_date] ) VAR _TopRank = MAXX ( FILTER ( ALL ( 'Fact_EOM_Snapshot' ), 'Fact_EOM_Snapshot'[snapshot_date] = _Cur && 'Fact_EOM_Snapshot'[status] = "Mora" ), LOOKUPVALUE ( Dim_Delinquency_Bucket[sort_order], Dim_Delinquency_Bucket[bucket_key], 'Fact_EOM_Snapshot'[bucket_key] ) ) RETURN LOOKUPVALUE ( Dim_Delinquency_Bucket[bucket_label], Dim_Delinquency_Bucket[sort_order], _TopRank )
+```
+
+**Portfolio Cure Rate %**
+
+```dax
+VAR _CurSnap = MAX ( 'Fact_EOM_Snapshot'[snapshot_date] ) VAR _PrevSnap = MAXX ( FILTER ( ALL ( 'Fact_EOM_Snapshot'[snapshot_date] ), 'Fact_EOM_Snapshot'[snapshot_date] < _CurSnap ), 'Fact_EOM_Snapshot'[snapshot_date] ) VAR _StockIn = COUNTROWS ( FILTER ( ALL ( 'Fact_EOM_Snapshot' ), 'Fact_EOM_Snapshot'[snapshot_date] = _PrevSnap && 'Fact_EOM_Snapshot'[status] = "Mora" ) ) VAR _CuredAccts = CALCULATE ( DISTINCTCOUNT ( 'Fact_Payments'[account_id] ), 'Fact_Payments'[is_cured] = TRUE() ) RETURN DIVIDE ( _CuredAccts * 100, _StockIn )
 ```
 
 ---
@@ -690,7 +750,7 @@ VAR _Status = [Utilization Status] RETURN LOOKUPVALUE('Color Reference'[HexColor
 
 *Composite scores, agent metrics, dialer performance, financial efficiency, vintage analysis, credit risk.*
 
-**Portfolio Health Score**
+**Portfolio Goal Achievement Index**
 
 ```dax
 VAR _PTP = [Promise Rate] * 25 VAR _KP = [KP Rate] * 25 VAR _Cures = DIVIDE([Cures per THT Hr], 3, 0) * 25 VAR _Util = [Avg Utilization %] * 25 RETURN _PTP + _KP + _Cures + _Util
@@ -705,7 +765,7 @@ CALCULATE(SUM('Fact_EOM_Snapshot'[arrears]), 'Fact_EOM_Snapshot'[snapshot_date] 
 **Agent Quality Score**
 
 ```dax
-VAR _KPScore = [KP Rate] * 40 VAR _AHTScore = IF([Avg AHT RPC (sec)] <= 180, 30, IF([Avg AHT RPC (sec)] <= 240, 20, 10)) VAR _UtilScore = [Avg Utilization %] * 30 RETURN _KPScore + _AHTScore + _UtilScore
+VAR _RPCPct  = [RPC Rate] * 100 VAR _KPPct   = [KP Rate] * 100 VAR _CurePct = [Cure Rate %] VAR _UtilPct = [Avg Utilization %] * 100 VAR _AHT     = [Avg AHT RPC (sec)] VAR _AHTNorm = IF ( ISBLANK ( _AHT ) || _AHT >= 300, 0, ( 300 - _AHT ) / 300 * 100 ) RETURN ROUND ( _RPCPct * 0.25 + _KPPct * 0.25 + _CurePct * 0.20 + _UtilPct * 0.15 + _AHTNorm * 0.15, 2 )
 ```
 
 **Agent Performance Tier**
@@ -723,10 +783,10 @@ DATEDIFF(LOOKUPVALUE('Dim_Employees'[hire_date], 'Dim_Employees'[agent_id], SELE
 **Coaching Alert**
 
 ```dax
-VAR _PriorWeekScore = CALCULATE([Agent Quality Score], FILTER(ALL('Dim_Calendar'), 'Dim_Calendar'[iso_week] = SELECTEDVALUE('Dim_Calendar'[iso_week]) - 1)) VAR _WoWDrop = DIVIDE([Agent Quality Score] - _PriorWeekScore, _PriorWeekScore, 0) RETURN IF(_WoWDrop < -0.10, "Alert", "OK")
+VAR _PriorWeekScore = CALCULATE ( [Agent Quality Score], DATEADD ( 'Dim_Calendar'[date], -7, DAY ) ) VAR _Drop = DIVIDE ( [Agent Quality Score] - _PriorWeekScore, _PriorWeekScore ) RETURN IF ( ISBLANK ( _PriorWeekScore ), "OK", IF ( _Drop < -0.10, "Alert", "OK" ) )
 ```
 
-**Dialer Abandon Rate**
+**Dialer Non-RPC Share %**
 
 ```dax
 VAR _Abandoned = CALCULATE(COUNTROWS('Fact_Interactions'), 'Fact_Interactions'[channel] = "Dialer", 'Fact_Interactions'[rpc_flag] = FALSE()) RETURN DIVIDE(_Abandoned, [Total Connected], 0)
@@ -819,7 +879,7 @@ AVERAGE('Fact_EOM_Snapshot'[balance])
 **Cure Rate by Vintage**
 
 ```dax
-DIVIDE([Total Cures], CALCULATE(DISTINCTCOUNT('Fact_EOM_Snapshot'[account_id]), ALL('Dim_Calendar')), 0)
+DIVIDE ( [Total Cures], CALCULATE ( DISTINCTCOUNT ( 'Fact_EOM_Snapshot'[account_id] ), 'Fact_EOM_Snapshot'[snapshot_date] = MAX ( 'Fact_EOM_Snapshot'[snapshot_date] ) ), 0 )
 ```
 
 **Avg Credit Limit**
@@ -850,6 +910,30 @@ CALCULATE([KP Rate], DATESINPERIOD('Dim_Calendar'[date], LASTDATE('Dim_Calendar'
 
 ```dax
 CALCULATE(SUM('Fact_EOM_Snapshot'[balance]), 'Fact_EOM_Snapshot'[snapshot_date] = EOMONTH(MAX('Fact_EOM_Snapshot'[snapshot_date]), -1))
+```
+
+**Strategy Arm Interactions**
+
+```dax
+COUNTROWS ( 'Fact_Interactions' )
+```
+
+**Strategy Mix %**
+
+```dax
+DIVIDE ( COUNTROWS ( 'Fact_Interactions' ), CALCULATE ( COUNTROWS ( 'Fact_Interactions' ), REMOVEFILTERS ( 'Dim_Strategy' ) ), 0 )
+```
+
+**Connect Lift vs Champion %**
+
+```dax
+VAR _Arm = [Connection Rate] VAR _Champ = CALCULATE ( [Connection Rate], 'Dim_Strategy'[strategy_name] = "Champion_Dialer", REMOVEFILTERS ( 'Dim_Strategy' ) ) RETURN DIVIDE ( _Arm - _Champ, _Champ, 0 )
+```
+
+**RPC Lift vs Champion %**
+
+```dax
+VAR _Arm = [RPC Rate] VAR _Champ = CALCULATE ( [RPC Rate], 'Dim_Strategy'[strategy_name] = "Champion_Dialer", REMOVEFILTERS ( 'Dim_Strategy' ) ) RETURN DIVIDE ( _Arm - _Champ, _Champ, 0 )
 ```
 
 ---

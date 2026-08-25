@@ -146,9 +146,11 @@ If asked about a task/skill material at `learning/`, follow these contracts (see
 - **Ignored:** `learning/**/work/*` (keeps `.gitkeep`), `**/.ipynb_checkpoints/`; all `.md` tracked
 - **Refactor (Aug 2026):** 7-phase rewrite per REFACTOR_PLAN.md (~95 JD-aligned tasks); phases land track-by-track with one commit each
 
-## DAX v3.0 (252 measures across 6 tables + 1 CG)
-- **Base (107)**: `_Outreach & Activity` (22), `_Promise & Recovery` (29), `_Portfolio Health` (25), `_Goals & Targets` (31)
-- **Composites (27)**: `_Composites & Strategy` — all unique composites (scores, tiers, efficiency, credit risk, vintage)
+## DAX v3.1 (266 measures across 6 measure tables + 1 CG)
+- **Base (148)**: `_Outreach & Activity` (22), `_Promise & Recovery` (30), `_Portfolio Health` (34), `_Goals & Targets` (31)
+- **Composites (31)**: `_Composites & Strategy` — scores, tiers, efficiency, credit risk, vintage + P3 strategy-arm attribution
+- **v3.1 corrections (Aug 2026)**: Agent Quality Score realigned to v_agent_scorecards weights (RPC25/KP25/Cure20/Util15/AHT15, AHT inverted vs 300s); Portfolio Health Score → renamed Portfolio Goal Achievement Index (goal-relative normalization vs Dim_Targets — old version had dead cure weight from /3 scaling); Coaching Alert now DATEADD(-7,DAY) (iso_week−1 broke on year boundary); Dialer Abandon Rate → Dialer Non-RPC Share % (old name measured connected-non-RPC, not abandonment); Cure Rate by Vintage denominator no longer ALL(Dim_Calendar)
+- **v3.1 additions (Aug 2026, P3/P4 coverage)**: Cure Rate % base (parity with v_recovery_metrics); Strategy Arm Interactions/Mix %/Connect+RPC Lift vs Champion %; Recovered Amount/Recovery Events/Recovery Rate %/Net Write-off Position/Recoverable Outstanding (parity v_writeoff_recovery); Roll Rate Worsened/Improved % + Worst Active Bucket via Dim_Delinquency_Bucket severity (replaces hardcoded dpd_bucket labels); Portfolio Cure Rate % (mirrors v_monthend_portfolio: is_cured payments ÷ prior month-end Mora stock)
 - **Time Intelligence (118 legacy + 1 CG)**: `_Time Intelligence` table (118 measures for backward compatibility) + `_Time Intelligence` Calculation Group (18 items — replaces all 118)
 - **Deduplicated**: 6 exact duplicates removed (Agent RPC per Hour, Agent KP Rate, Dialer Connection Rate, Mora Balance Rate, Agent-Assisted Cure Rate, Monthly Recovery Rate)
 - **Expression fixes**: 47 triple-quote expressions cleaned, AHT/ACW column reference bug fixed, Income Segment VALUES→SELECTEDVALUE
