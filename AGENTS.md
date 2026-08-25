@@ -166,7 +166,7 @@ If asked about a task/skill material at `learning/`, follow these contracts (see
 - **Calculation Group**: `_Time Intelligence` CG defined in `calculation_group_ti.json` — apply as slicer to any base measure. Creates via `create_calc_group.cs` in Tabular Editor.
 
 ## Next Phase
-- Phase 9: Build Power BI dashboard (fresh PBIX, 9 pages, import mode, star schema, 148 DAX measures + TI calc group, RLS by supervisor) — **Blueprint ready**
+- Phase 9: Build Power BI dashboard (fresh PBIX, 9 pages, import mode, star schema, 148 DAX measures + TI calc group, RLS by supervisor) — **Blueprint ready** · guided execution plan saved at `docs/dashboards/PHASE9_EXECUTION_PLAN.md` (M0 prep pack builds when kickoff starts)
   - Import order: `_Outreach & Activity` → `_Promise & Recovery` → `_Portfolio Health` → `_Goals & Targets` → `_Composites & Strategy`; TI comes from `create_calc_group.cs` (legacy per-metric TI measures are retired — do NOT import them)
   - Run `create_calc_group.cs` in Tabular Editor after importing all measures
 - Phase 10: Excel MIS report generator (openpyxl at `reports/generate_daily_mis.py`) — needs real MIS report layout study first
