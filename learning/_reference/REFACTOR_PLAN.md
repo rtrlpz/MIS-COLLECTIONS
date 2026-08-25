@@ -114,7 +114,7 @@ and keeps each commit self-contained/revertable.
 | # | Phase | Status |
 |---|---|---|
 | 1 | README rewrite + AGENTS.md contract update | ✅ Done (Aug 2026) |
-| 2 | `sql/` basic → medium → advanced | ⬜ Pending |
+| 2 | `sql/` basic → medium → advanced | ✅ Done (Aug 2026; solutions QA-run against live DB) |
 | 3 | `powerbi/` all levels | ⬜ Pending |
 | 4 | `python/` all levels | ⬜ Pending |
 | 5 | `notebooks/` all levels | ⬜ Pending |

@@ -5,7 +5,7 @@ You are here: learning/sql/   (basic → medium → advanced)
 Master guide: learning/README.md
 ```
 
-SQL is how you ask a database questions. In this project, all 1.8M rows of collections data live in PostgreSQL, and **every other track depends on this one**: Python re-checks what SQL proves, Excel and Power BI display it. If you can express a KPI in SQL, you genuinely understand the data.
+SQL is how you ask a database questions. In this project, all ~1.9M rows of collections data live in PostgreSQL, and **every other track depends on this one**: Python re-checks what SQL proves, Excel and Power BI display it. If you can express a KPI in SQL, you genuinely understand the data.
 
 ## At work, you reach for SQL when…
 
@@ -36,8 +36,8 @@ That is exactly what the tasks rehearse.
 
 Each level folder has:
 
-- `tasks.md` — the assignments, written as supervisor requests
-- `results.md` — reasoning guidance per task; open **only after** attempting
+- `tasks.md` — your inbox: assignments styled as workplace requests with Done-When checklists
+- `results.md` — full worked solutions with the complete runnable SQL; open **only after** attempting, then run the solution yourself
 - `work/` — your attempt files (`attempt_1.sql`, …); git-ignored scratchpad
 
 Routine: read task → write attempt in `work/` → compare with `results.md` → note what you'd change in your file.

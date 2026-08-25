@@ -1,130 +1,209 @@
-# SQL — Medium — Tasks
+# SQL Medium — Your Inbox (level 2 of 3)
 
 ```
-learning/
-├── _reference/            ← READ FIRST (datasets.md, kpi_glossary.md, data_dictionary.md)
-├── sql/
-│   ├── README.md
-│   └── medium/            ← YOU ARE HERE
-│       ├── tasks.md       ← current file
-│       ├── results.md     ← guidance, peek AFTER attempting
-│       └── work/          ← your .sql files live here
-├── python/  notebooks/  excel/  powerbi/  git-cli/
-└── README.md
+You are here: learning/sql/medium/
+Assumed:      you finished basic/ — filters, joins, group-bys are muscle memory now
+Your answers: work/attempt_*.sql
+Solutions:    medium/results.md — after attempting; then RUN the solution
+New tools:    CTE chains, FILTER, window functions, per-plan logic, ratio-of-sums discipline
 ```
 
-**Up from basic:** you can count, filter, group, sort, and compute a rate from two sums. Now we make queries *answer why* — joins, conditional logic, date math, CTEs, and window functions.
-
-**Setup:** DB running (see `_reference/datasets.md` §5). Create `work/attempt_*.sql` per task.
-
-**Discipline:** attempt → commit → then read `results.md`.
+**What this level gives you.** The *"why did it change?"* questions: breakdowns that hold up under scrutiny, reconciliation against the official `v_*` views, and the two aggregation traps that embarrass analysts in front of directors.
 
 ---
 
-## Task 1 — Joining a fact to two dimensions (and surviving the blowup)
+## Words you'll meet
 
-The supervisor: *"Break down January interactions by product type and by region. I want to see real usage by our customers, not by internal teams."*
-
-**What you'll practice:** the diamond join — a fact in the middle, two dimensions on the sides — and the JOIN BLOWUP, the #1 silent bug in SQL.
-
-Steps:
-1. Map the path: `fact_interactions` → `dim_accounts` (for product) → and where does region come from? The account's client, or the agent? Trace it before writing a line.
-2. Build the join, aggregating by `product_type` and `region`.
-3. Sanity-check the total rows *before* aggregating: does `COUNT(*)` stay equal to the raw fact count for the month, or did it multiply? If it multiplied, you've hit a fan-out — find it and fix it.
-4. Re-read the data dictionary for whether the needed labels are already denormalized (this project occasionally denormalizes — know when you're *supposed* to skip a join).
-
-**Guiding questions:**
-- Which dimension in this model is at "many accounts per client"? Which is "many accounts per employee"? If either relationship is one-to-many, what does that do to a `COUNT` on the fact?
-- Would aggregating by *agent's* region answer a different question than aggregating by *account's* region? Which one did the supervisor actually ask for?
-
-**Deliverable:** `work/attempt_1.sql` — product × region grid for January, plus a comment explaining why your row counts did (or didn't) stay exact.
+| Term | Plain meaning |
+|---|---|
+| **CTE** (`WITH`) | A named subquery — build your answer in readable, testable steps |
+| **Window function** | An aggregate that doesn't collapse rows (`OVER (PARTITION BY …)`) |
+| **`FILTER (WHERE)`** | Count/sum only matching rows inside one aggregate — no CASE gymnastics |
+| **Ratio-of-sums** | Aggregate numerators and denominators FIRST, divide LAST. The correct way to weight a rate |
+| **Average-of-averages** | `AVG(rate)` over groups. Almost always the wrong weighting. Learn to spot it everywhere |
+| **Installment plan** | One promise paid across multiple payments; judged on cumulative ≥95% within grace |
 
 ---
 
-## Task 2 — CASE buckets, or "every accent in my data is now a palette"
+## Task 1 — Daily MIS skeleton for one day
+📥 **Inbox:** From MIS Manager · Mon 9:00 AM · "this becomes a template, so write it like one"
 
-The supervisor: *"Give me a delinquency profile of the current portfolio: bucket accounts by their DPD — current, early, mid, late, and severe — and show how many accounts and how much arrears sit in each bucket."*
+> "I need a one-day agent-level pack: contacts, connects, RPCs, promises, cures, cured dollars — one row per agent who did anything that day, team attached. You'll reuse this shape forever, so build it clean."
 
-**What you'll practice:** turning continuous DPD into meaningful bands with `CASE`, then aggregating over the buckets. Buckets are where *analysis* happens — nobody reads a 200-row DPD histogram.
+**Background:** This is `v_daily_mis`'s job. Yours is to rebuild its skeleton from raw tables with a CTE chain — because one day someone will ask you to modify it and you must not fear it.
 
-Steps:
-1. Look at the DPD column in the latest `fact_eom_snapshot`. Also look at the project's own bucket terminology in `_reference/data_dictionary.md` (there's a predefined bucket set used everywhere — reuse it so your bands match the house standard).
-2. Express the bands in `CASE`, making sure literals and boundary semantics (inclusive/exclusive) are explicit.
-3. Aggregate accounts and arrears per bucket. Also report per product type × bucket — one bucketed table is the profile; the cross-tab is the *story*.
-4. Verify the special statuses: this table mixes `Activo` and `Mora` accounts — decide where non-Mora/current accounts belong in the band ladder, or where `is_cured`-type flags appear.
+**Your job:**
+1. One CTE per source fact (contacts / promises / cures), each grouped by agent.
+2. Join them to `dim_employees`; keep agents even if a source is empty for them.
+3. Attach team name; sort by team, then RPCs descending.
 
-**Guiding questions:**
-- Why does `CASE` give you *both* a new dimension column *and* a filter condition depending on whether it's in `SELECT` or `WHERE`? Try putting your status check directly in `WHERE` vs. encoding it in `CASE`.
-- If you bucket by DPD but leave out the accounts with `NULL` or unusual DPD, where do they go? What does "missing" as a bucket tell you?
+**Guiding questions:** Which join type keeps an agent who took calls but logged zero promises? Where does `COALESCE(…,0)` belong? Why does each CTE reduce before joining (hint: row explosion)?
 
-**Deliverable:** `work/attempt_2.sql` — DPD bucket profile + per-product cross-tab for the latest snapshot.
+**Data pointers:** `fact_interactions`, `fact_ptp_log`, `fact_payments`, `dim_employees`; cross-check target: `v_daily_mis` for the same date.
 
----
-
-## Task 3 — Date math, or "same question last month"
-
-The supervisor: *"Show me weekly interaction volumes for the team, with each week's average connected per agent-day, and flag the weeks where a weekday was skipped."*
-
-**What you'll practice:** date arithmetic and window-aligned trimming — the workhorse of longitudinal reporting: `date_trunc`, interval math, and the discipline of "same-sized periods". Also two important habits: day-of-week frequency to spot skipped days, and the weekend gap — this portfolio has *no* weekend interactions, so a "week with a skipped day" is a real event to find.
-
-Steps:
-1. Truncate each interaction date to the ISO week ("week starting which day?"), then aggregate counts per week.
-2. For "average connected per agent-day", decide the denominator: actual agent-days that appear in the time log, or calendar weekdays? These differ — justify the choice.
-3. Detecting a skipped weekday: compare a per-week count of distinct interaction dates against the expected weekday count for that ISO week.
-4. Layer the weekend filter correctly — is it a `WHERE` or something you must account for in the expected-day count? (Glossary §6 has a note about weekend behavior in this portfolio.)
-
-**Guiding questions:**
-- Why `date_trunc('week', …)` instead of `GROUP BY` on a date string? What changes on the boundaries between weeks, and why is ISO important?
-- A week is Monday–Sunday. If you compare against a naive 7-day expectation, will you misfire *every* week here? What's the *right* expected day count?
-
-**Deliverable:** `work/attempt_3.sql` — weekly table (week start date, count, avg connected per agent-day, distinct-days-used, flag for skipped weekdays), with a comment defending the expected-count logic.
+**Done when:**
+- [ ] Three CTEs + one final join; runs for any single date
+- [ ] Agent rows survive missing sources (no lost agents)
+- [ ] Row count matches `v_daily_mis` for that date
 
 ---
 
-## Task 4 — CTEs: from one giant query to a readable pipeline
+## Task 2 — Installment plans: who really kept their promise?
+📥 **Inbox:** From Collections Strategy Lead · Wed 11:00 · "finance challenged our KP% again"
 
-The supervisor: *"Genuinely I need the ≥90-days-past-due accounts plus their last interaction's date and outcome. Accounts without any interaction should still appear, with a NULL for that last interaction."*
+> "A promise can be paid across multiple installments — we judge it kept when cumulative payments reach 95% of what was promised, within grace. Someone summed per-payment last month and called half our book broken. Build the per-plan view of the world for Q2 promises."
 
-**What you'll practice:** building a *query pipeline* with CTEs — the `WITH` stage that turns a wall of SQL into named, reviewable layers — plus keeping the *left* side even when the right side has no match.
+**Background:** `fact_payments.ptp_id` links payments to plans (nullable — not every payment belongs to a promise). Status lives on the plan, not the payment.
 
-Steps:
-1. Split the question into stages: (a) which accounts are severely delinquent as of latest snapshot, (b) per account *their most recent* interaction, (c) combine.
-2. For stage (b), think about selecting the "latest row per account" before you join — you'll reach for a window/RANK approach, but for this task, a CTE with a row-numbered pass gets you there too. Which do you prefer and why?
-3. Combine with the join flavor that keeps every severe account even if it has zero interactions. Explain in a comment what happens to a right-side NULL.
-4. Final projection: account, status, DPD bucket, last-interaction-date, last-outcome.
+**Your job:**
+1. Sum payments per `ptp_id`.
+2. Attach promise status and grace date.
+3. For Kept plans: verify none sits below the 95% cumulative threshold.
+4. Report how many Kept plans needed more than one payment.
 
-**Guiding questions:**
-- Why is a CTE better than a subquery for reviewing someone else's (or your own, next-week) SQL?
-- "Latest interaction per account" needs an ordering key. When two interactions share a date, what's the tiebreaker, and does it matter for a report like this?
-- Why `LEFT JOIN` (vs `INNER`) here, and where would a `LEFT JOIN` *hide* rows rather than preserve them (the head-scratch day you'll thank me for)?
+**Guiding questions:** What happens if you group payments without filtering `ptp_id IS NOT NULL`? A Broken plan with partial payments — is that a data error or expected? Where would a per-row check have lied?
 
-**Deliverable:** `work/attempt_4.sql` — pipeline with ≥2 CTEs producing the severe-accounts + last-interaction view (must include the NULL cases).
+**Data pointers:** `fact_payments`, `fact_ptp_log`; `_reference/kpi_glossary.md` → KP%; cross-check: `v_promise_metrics` monthly `kept_pct`.
 
----
-
-## Task 5 — Window functions: the previous month's number, in the same row
-
-The supervisor: *"Give me monthly interactions per team, and next to each month the previous month's count, plus the delta. I want month-over-month movement without re-jointing the table to itself."*
-
-**What you'll practice:** window functions — `LAG`/`LEAD`, `PARTITION BY`, `ORDER BY` inside the window — the difference between "aggregate, then look" and "look inside each group".
-
-Steps:
-1. Aggregate monthly counts per team first (a plain GROUP BY of interactions).
-2. Now bring in the previous month's value with `LAG` partitioned by team and ordered by month. Compute the delta and the % change.
-3. Add cumulative (running) total per team with a second window — show you can *reuse the same partition* in one query.
-4. Note what happens to the first row of each team partition (no previous value) and decide how to present it.
-
-**Guiding questions:**
-- What's the difference between a plain `GROUP BY` sum and a window sum over a `PARTITION`? When would you ever want *both* in one query?
-- Why is `LAG` safer than a self-join for previous-month? What silent bug can a self-join introduce on months with zero activity (a month that exists in the calendar but has no interactions)?
-- Do you specify the frame (`ROWS BETWEEN …`) in your running total? What's the default for `ORDER BY` present, and does it matter here?
-
-**Deliverable:** `work/attempt_5.sql` — per team: month, count, previous count, delta, % change, running total; with a comment on the first-row edge case.
+**Done when:**
+- [ ] Per-plan totals joined to status; zero Kept plans under 95%
+- [ ] Multi-installment share reported
+- [ ] One-paragraph note: why per-row checking breaks here
 
 ---
 
-### Finish
+## Task 3 — Does the treatment arm change the channel mix?
+📥 **Inbox:** From Strategy Analyst · Thu 3:15 PM · "steering committee wants proof"
 
-Attempt all five (right or wrong), then read `medium/results.md` and compare. Note divergences in your files — that's your log.
+> "Accounts sit in three treatment arms — champion dialer plus two challengers. Each arm is *supposed* to mix channels differently. Show me actual channel mix per arm, share within arm. If SMS-first isn't SMS-heavy, the program is mis-wired."
 
-**Move up when:** you can explain, out loud, the difference between `LAG(… OVER (PARTITION BY …))` and a self-join, and when you'd pick each.
+**Background:** `dim_strategy` carries each arm's intended mix and efficacy multipliers; interactions carry which arm the account belongs to. Intended vs actual is the whole story.
+
+**Your job:**
+1. Interactions per arm × channel.
+2. Share within each arm using a window function over the grouped totals.
+3. Compare against `dim_strategy.channel_mix` (intended) in a comment.
+
+**Guiding questions:** Why does `SUM(COUNT(*)) OVER (PARTITION BY …)` work while nesting aggregates doesn't? Which arm should skew Manual/FICO rather than Dialer?
+
+**Data pointers:** `fact_interactions.strategy_id`, `dim_strategy`; `_reference/data_dictionary.md` → strategy section.
+
+**Done when:**
+- [ ] Arm × channel counts + within-arm percentages
+- [ ] Actual-vs-intended verdict written per arm
+
+---
+
+## Task 4 — AHT vs the team benchmark
+📥 **Inbox:** From Supervisor, Team 4 · Tue 8:30 · "coaching chats Thursday"
+
+> "Give me July average handle time on RPCs for each of my agents next to the team benchmark, worst offenders first. And I want the benchmark computed the defensible way — I heard averages-of-averages got someone burned here recently."
+
+**Background:** AHT-RPC = total handle seconds ÷ RPC count. Team benchmark = all RPC seconds ÷ all RPCs in the team (ratio-of-sums), NOT the mean of agent means.
+
+**Your job:**
+1. Per-agent AHT-RPC for July, minimum activity floor so part-timers don't distort.
+2. Team benchmark via separate aggregation (sum÷sum).
+3. Difference vs benchmark, sorted worst first.
+
+**Guiding questions:** Why exclude low-volume agents from ranking but not from the benchmark math? Compute the naive AVG-of-agent-AHTs too — how far does it drift from ratio-of-sums, and why?
+
+**Data pointers:** `fact_interactions.aht_seconds`, `rpc_flag`; `_reference/kpi_glossary.md` → AHT; cross-check: `v_handle_time_metrics`.
+
+**Done when:**
+- [ ] Agent table + team ratio-of-sums benchmark + delta
+- [ ] Both benchmark methods computed side by side, difference noted
+
+---
+
+## Task 5 — Broken promises with money already paid
+📥 **Inbox:** From Collections Manager · Fri 10:00 · "rework queue for Monday"
+
+> "Broken promises usually get written off as dead. But some broke AFTER a first installment landed — those clients showed intent. Pull broken plans where at least something was paid: account, promised amount, amount actually collected, dates. That's my rework list."
+
+**Background:** Installment plans stay Pending between parts; some miss the second payment and die as Broken despite real cash received. Standard broken-reporting hides them.
+
+**Your job:**
+1. Payments per plan (left side: ALL broken plans, right side: their optional totals).
+2. Keep only plans with collected > 0.
+3. Order by collected amount descending — biggest salvageable first.
+
+**Guiding questions:** Why LEFT JOIN (what dies with INNER here)? Can a plan's payments exceed what was promised — and would that change how you rank it?
+
+**Data pointers:** `fact_ptp_log.status`, `fact_payments.ptp_id`; cross-check: `v_promise_timeline.paid_amount`.
+
+**Done when:**
+- [ ] Salvage list ordered by collected desc
+- [ ] Cross-checked against `v_promise_timeline` (note any definitional differences)
+
+---
+
+## Task 6 — Utilization for July: daily vs month-level
+📥 **Inbox:** From Workforce Analyst · Mon 2:00 PM · "capacity review Wednesday"
+
+> "I need July utilization per agent. Careful — someone last quarter averaged the daily percentages and got numbers that made no sense against scheduled hours. Whatever you do, show me BOTH ways so we can see the gap."
+
+**Background:** `fact_agent_time_log` stores one row per agent-day with `utilization` already computed (decimal, capped 0.95), plus raw hours. Month-level utilization should be total handle-time hours ÷ total operational hours.
+
+**Your job:**
+1. Per agent for July: sum of operational hours, sum of tht hours, and ratio-of-sums utilization %.
+2. Next to it, the naive `AVG(utilization)` × 100.
+3. Flag rows where the two methods differ by more than a rounding hair.
+
+**Guiding questions:** Why do the two methods disagree at all? Which agents diverge most — what pattern do their days have? Which method matches the project's official productivity view?
+
+**Data pointers:** `fact_agent_time_log` (`operational_hours`, `tht_hours`, `utilization`, `schedule_hours`); cross-check: `v_productivity_metrics`.
+
+**Done when:**
+- [ ] Both methods side by side, divergence flagged
+- [ ] Verdict written: which method is correct here and why
+
+---
+
+## Task 7 — Cure rate by product (the aggregation trap, formal edition)
+📥 **Inbox:** From Portfolio Manager · Thu 1:30 PM · "credit risk committee packet"
+
+> "Cured accounts as a share of paying accounts, by product, H2 2025. And I need it computed the right way at product level — last deck had Tarjeta's rate swinging depending on who built it. Make one number per product that survives questions."
+
+**Background:** Cures are payments flagged `is_cured`. The trap: computing monthly rates then averaging them weights quiet months equal to busy months.
+
+**Your job:**
+1. Per product-month: distinct cured accounts, distinct paying accounts.
+2. Product-level rate = SUM(cures) ÷ SUM(paying) across months.
+3. Beside it, AVG-of-monthly-rates. Explain the gap in comments.
+
+**Guiding questions:** Which method overweights February-type months? If a product launched mid-year with tiny early months, which method lies harder?
+
+**Data pointers:** `fact_payments.is_cured`, `dim_accounts.product_type`; `_reference/kpi_glossary.md` → cure.
+
+**Done when:**
+- [ ] One row per product: correct ratio-of-sums + naive average + delta
+- [ ] Comment naming which number goes in the committee pack
+
+---
+
+## Task 8 — Weekly activity summary per agent
+📥 **Inbox:** From Ops Lead · Mon 7:50 AM · "Monday leadership email attachment"
+
+> "September, week by week, per agent: interactions, RPCs, RPC%, average AHT, distinct accounts touched. Team attached, weeks ordered. Same shape every Monday from now on — save it."
+
+**Background:** This mirrors the project's own weekly view. Rebuilding official views from raw is the core skill this track exists to teach — and your version becomes the template you edit when the business asks for "one more column".
+
+**Your job:**
+1. ISO week start date per interaction; group by week × agent.
+2. Interactions, RPCs, RPC% (volume-weighted), avg AHT, distinct accounts.
+3. Join team; order chronologically within team.
+
+**Guiding questions:** Does `DATE_TRUNC('week', …)` give the week start you want (Monday)? Your weekly RPC% — computed from sums or averaged from days? Why does it matter more at week grain than day grain?
+
+**Data pointers:** cross-check target: `v_weekly_agent_summary` for September.
+
+**Done when:**
+- [ ] One query, all five metrics, September only
+- [ ] Row count reconciled against the official weekly view
+
+---
+
+## Finish
+
+Eight templates saved. You now speak fluent breakdown-and-reconcile. [`../advanced/tasks.md`](../advanced/tasks.md) is where you stop consuming the official views and start auditing them.

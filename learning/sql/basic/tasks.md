@@ -1,144 +1,242 @@
-# SQL Basic — Tasks (level 1 of 3)
+# SQL Basic — Your Inbox (level 1 of 3)
 
 ```
 You are here: learning/sql/basic/
 Read first:   _reference/datasets.md and _reference/kpi_glossary.md (10 min, one time)
 Your answers: work/attempt_1.sql, attempt_2.sql …  (this folder's work/ is your scratchpad)
-Guidance:     basic/results.md — open ONLY after attempting each task
+Solutions:    basic/results.md — open ONLY after attempting, then RUN the solution yourself
 ```
 
-**What this level gives you.** After these four tasks you can answer the most common analyst requests straight from the database — *"how many?", "how much?", "who are the biggest?"* — which covers a large share of day-to-day reporting work.
+**What this level gives you.** After these nine tasks you can answer the requests that fill a Collections MIS analyst's mornings — *"how many?", "how much?", "who are the biggest?", "is the data even fresh?"* — straight from the database, without asking anyone for help.
 
 ---
 
 ## Words you'll meet in these tasks
-
-Plain definitions — the reference docs go deeper:
 
 | Term | Plain meaning |
 |---|---|
 | **Table** | One spreadsheet-like dataset inside the database |
 | **Fact table** | One row per *event*: a call made, a promise logged, a payment received. These tables are big |
 | **Dimension table** | One row per *thing*: an agent, an account, a client, a calendar day. These tables are small |
-| **Star schema** | The standard analytics layout: facts in the middle, dimensions around them, connected by ID columns |
-| **Grain** | What ONE row represents ("one row per call"). Always identify this before trusting any count |
-| **Snapshot** | A photo of *state at a date* (e.g., every account's balance at month-end) — different from an event log |
+| **Star schema** | Facts in the middle, dimensions around them, connected by ID columns |
+| **Grain** | What ONE row represents ("one row per call"). Identify this before trusting any count |
+| **Snapshot** | A photo of *state at a date* (every account's balance at month-end) — different from an event log |
 
 ---
 
 ## How to work through a task
 
-Each task has the same shape:
+1. **The request** — how it arrives at work.
+2. **Your job** — steps, each with the *why* attached.
+3. **Guiding questions** — answer as comments in your attempt file.
+4. **Done when** — acceptance criteria. You're not done until every box ticks.
 
-1. **The request** — how it would arrive at work (message from your supervisor).
-2. **Steps** — what to do, with the *why* attached.
-3. **Guiding questions** — answer them as comments in your attempt file; they're where the real learning is.
-4. **Deliverable + Done when** — what to produce and how you know it's right.
-
-Discipline: write your honest attempt first, then read that task's section in `results.md`. Keep "wrong" files — the fix is the lesson.
+Attempt honestly → read that task's section in `results.md` → **run the solution yourself** → note what you'd do differently.
 
 ---
 
 ## Task 1 — Take inventory of the database
+📥 **Inbox:** From MIS Manager · Day 1, 9:00 AM · no rush, but it gates everything else
 
-> **The request.** First week on the job. Your lead says: *"Before you touch anything, tell me what data we actually have here."*
+> "Welcome aboard. Before you touch any report, show me you know the lay of the land: list every table we own, tell me which are facts and which are dimensions, and give me a one-line description of what each one is for. This becomes your cheat sheet."
 
-You'll practice the most underrated senior skill: orienting yourself in an unfamiliar database quickly.
+**Background:** You inherited a 15-table star schema. Everyone on the team keeps a personal map of it; yours starts today.
 
-Steps:
+**Your job:**
+1. List all tables from the system catalog (don't type them from memory).
+2. Classify each: fact vs dimension, plus the grain (what one row is).
+3. For each fact, name its join keys back to dimensions.
 
-1. Ask the database for its list of tables. Every client shows it somehow — DBeaver's sidebar tree, pgAdmin's browser, or a catalog query in `psql`. *Why:* never memorize a schema from documentation alone; look at the live thing.
-2. Preview about ten rows from each fact table. *Why:* grain can't be learned from column names — you feel it by seeing rows.
-3. Write one sentence per table in your own words: what it holds, and which other tables it connects to.
-4. Only now open `_reference/data_dictionary.md` and correct your guesses.
+**Guiding questions:** Why are facts big and dims small? Which fact looks suspiciously small, and what does that say about its grain? Which table exists so every other date has a home?
 
-Guiding questions (answer in comments):
+**Data pointers:** `_reference/data_dictionary.md`; `_reference/datasets.md` §3 (row estimates).
 
-- Why is the interactions table so much bigger than everything else?
-- Why does the month-end snapshot exist as a *snapshot* instead of logging events like the payment table does? What problem does each style solve?
-- The calendar table was built from nothing — every analyst could generate dates themselves. What does having it as a proper dimension buy you?
-
-**Deliverable:** `work/attempt_1.sql` — your exploration queries, plus a short paragraph (as comments) describing the model in your own words.
-
-**Done when:** your description names the 5 dimensions, the 6 facts, and at least 3 connections between tables — and another person could join two tables correctly using only your description.
+**Done when:**
+- [ ] Catalog query lists every table (nothing typed by hand)
+- [ ] Comment block classifies each: fact/dim + grain + 2–3 join keys
+- [ ] Saved as `work/attempt_1.sql`
 
 ---
 
-## Task 2 — Count January by team
+## Task 2 — Count January interactions by team
+📥 **Inbox:** From Operations Manager · Mon 8:12 AM · "need it before the 9:30 stand-up"
 
-> **The request.** Monday standup: *"How many calls did we make in January — total, and per team? Sorted so I can read it."*
+> "Quick one: how many interactions did we make in January, per team? Sorted top-down. And if you have 30 seconds, per day too — I want to see the shape of the month."
 
-You'll practice the classic pattern behind most daily reporting: filter to a period, split by a category, order the result.
+**Background:** First working Monday of February. The ops manager opens stand-up with volume, every week.
 
-Steps:
+**Your job:**
+1. Total January interactions.
+2. Per team — the team name does NOT live in the interactions table; find who carries it.
+3. Bonus: same count per calendar day, chronological.
 
-1. Total interactions for January 2025. First check what dates actually exist in the data. *Why:* filtering on an assumed range is how reports silently miss rows.
-2. Now the same number per team. Find where team names live before joining anything. *Why:* fact tables carry IDs, not labels — knowing where labels live tells you whether a join is needed at all.
-3. Add a per-day count for one team you find interesting. *Why:* a monthly total hides the shape of the month; daily numbers reveal quiet days and spikes.
-4. Sort the result and be ready to say why you sorted that way. *Why:* sort order is how you decide what the reader sees first.
+**Guiding questions:** What makes your date filter safe if this column becomes a timestamp next year? After joining to get team names, does the total still match step 1? If not, what leaked?
 
-Guiding questions:
+**Data pointers:** `fact_interactions`, `dim_employees`.
 
-- When is counting all rows fine, and when must you count distinct values instead? Give a concrete example from this data where the two differ.
-- If you want to keep only groups above some size, why can't that condition go in the same place as your date filter? (Try putting it there and read the error.)
-
-**Deliverable:** `work/attempt_2.sql` — one query answering the supervisor's full question, with results pasted as comments.
-
-**Done when:** your per-team counts roughly add up to your January total (if not, the join leaked or duplicated rows — revisit the join, not the numbers).
+**Done when:**
+- [ ] Three result sets: total, per-team (desc), per-day (asc)
+- [ ] Per-team counts sum back to the total (you actually checked)
+- [ ] Saved as `work/attempt_2.sql`
 
 ---
 
-## Task 3 — Compute RPC% by channel properly
+## Task 3 — RPC% by channel, done properly
+📥 **Inbox:** From Dialer Vendor Manager · Wed 2:05 PM · "vendor QBR tomorrow"
 
-> **The request.** *"Show me RPC% by channel for January. And tell me whether FICO and SMS belong in that rate."*
+> "The vendor claims our FICO-sourced accounts connect worse than dialer ones. Before tomorrow's QBR I need RPC% split by channel. Careful with the denominator — the last intern divided by attempts and made us look terrible."
 
-RPC% = Right Party Contact % — of the relevant denominator, the share of contacts where the agent reached the right person. You'll practice THE core analysis move: building a rate from two counts, correctly.
+**Background:** RPC% = Right-Party Contacts ÷ Connected calls. Channel records how the call was placed.
 
-Steps:
+**Your job:**
+1. Q1 2025: connected calls, RPCs, RPC% per channel.
+2. Make division NULL-safe — one empty group must not crash the query.
+3. Reconcile against the project's official contact view.
 
-1. Before writing any query: define in plain words what the top of the fraction counts and what the bottom counts. *Why:* most wrong rates are wrong because the denominator was chosen carelessly.
-2. Confirm the official definition in `_reference/kpi_glossary.md`. There is a documented correct answer — don't guess.
-3. By channel: count connected calls, count RPCs, compute the rate. Watch out for integer math truncating your division.
-4. Look at which channels have almost no activity and make a deliberate, written decision about including them.
+**Guiding questions:** Why `100.0 *` instead of `100 *`? Which official view already computes this — do your numbers match it exactly?
 
-Guiding questions:
+**Data pointers:** `fact_interactions` (`calls_connected`, `rpc_flag`, `channel`); `_reference/kpi_glossary.md` → RPC%; cross-check: `v_contact_metrics`.
 
-- Averaging a per-row yes/no flag feels equivalent to computing a rate — but it isn't when groups have very different sizes. Why not? (Same reason averaging daily rates misleads.)
-- What happens if numerator and denominator use slightly different filters — and what would that do to your rate?
-
-**Deliverable:** `work/attempt_3.sql` — channel × RPC% table, plus a comment explaining your channel decision.
-
-**Done when:** you computed the rate as total-over-total (not an average of flags), both sides use the same filters, your defended channel choice matches the project's own convention, and every rate sits sensibly between zero and one.
+**Done when:**
+- [ ] One query: per-channel connected / RPC / RPC%
+- [ ] NULL-safe division
+- [ ] Reconciled against `v_contact_metrics`, difference explained in a comment
 
 ---
 
 ## Task 4 — Biggest overdue accounts at month-end
+📥 **Inbox:** From Team Manager, Recoveries · Thu 4:40 PM · "allocation meeting Friday"
 
-> **The request.** Month-end review: *"List our 20 biggest delinquent accounts ('Mora' status) at December month-end — arrears amount and product type. Also, which product type carries the most total arrears overall?"*
+> "Give me the ugliest 25 accounts at March month-end: most arrears first, with product, bucket, and balance. That's who we hand to senior collectors on Friday."
 
-You'll practice choosing the right *kind* of table — state vs events — and see two different business questions come from the same data.
+**Background:** Month-end snapshots freeze every account's state — the fair basis for allocations, not today's moving numbers.
 
-Steps:
+**Your job:**
+1. March 31 snapshot rows only.
+2. Delinquent book only, worst arrears first, cap at 25.
+3. Add product type and balance for context.
 
-1. Decide which table answers "who is delinquent at month-end": a state snapshot or an event log? Write your justification down. *Why:* picking the wrong table type is the classic beginner error, and the reasoning transfers to every future project.
-2. Filter to the latest snapshot, Mora status only, biggest arrears first, take twenty.
-3. Bring in product type. Check the dictionary — you may not need to hop through the products table at all.
-4. Separately compute total arrears per product across ALL Mora accounts (not just the top twenty). Notice these are two different questions.
+**Guiding questions:** Why filter to the snapshot date instead of "latest data"? Arrears vs balance — which one ranks collection urgency, and why?
 
-Guiding questions:
+**Data pointers:** `fact_eom_snapshot`, `dim_accounts`.
 
-- Why can the "top 20 individual exposures" list tell a different story than the "total per bucket" summary? Who in the business cares about each one?
-- Taking exactly the top N quietly drops ties — is that acceptable here? What would you change for an official list?
-- Why should the snapshot date be pinned explicitly rather than "whatever rows happen to be there"?
+**Done when:**
+- [ ] Exactly 25 rows, March 31 only, Mora only, arrears desc
+- [ ] Product + balance included
 
-**Deliverable:** `work/attempt_4.sql` — the top-20 list plus the per-product totals, with your two-lenses explanation in comments.
+---
 
-**Done when:** you used the snapshot table (and can say why), pinned the latest date explicitly, have no duplicate accounts in the top-20, and your per-product totals sum to the grand total over all Mora accounts.
+## Task 5 — The 8:40 morning pack
+📥 **Inbox:** From Ops Lead · daily 8:40 AM · "numbers in my hands by 8:55"
+
+> "Same as every morning: yesterday's contacts, connects, promises, payments. Four numbers, sticky-note format. Go."
+
+**Background:** The most frequent request of your career. Speed comes from a saved script, not fast typing.
+
+**Your job:**
+1. One script taking a single date, returning: interactions, connected calls, promises logged, payments received.
+2. Parameterize the date ONCE at the top so tomorrow you change one character.
+3. Run it end-to-end in under a minute.
+
+**Guiding questions:** Are these four numbers even in the same table? What's the cheapest correct way to combine counts from different tables? On the Tuesday after a Monday holiday, does "yesterday" mean what the boss thinks?
+
+**Data pointers:** `fact_interactions`, `fact_ptp_log`, `fact_payments`; `_reference/datasets.md` §6 (do your four numbers feel plausible?).
+
+**Done when:**
+- [ ] One saved script, single date variable
+- [ ] Exactly four numbers out, any date in
+- [ ] Under a minute, end to end
+
+---
+
+## Task 6 — How are clients actually paying?
+📥 **Inbox:** From Channel Strategy Analyst · Tue 10:15 AM · "steering deck Friday"
+
+> "I need May payments split by method — Online vs Branch/ATM vs OFI — count and dollars. OFI is supposedly growing; prove it or kill it."
+
+**Background:** Payment method shows where to push digital adoption. Counts alone lie: two methods can tie on volume while one triples in dollars.
+
+**Your job:**
+1. May 2025 payments by `payment_method`: count + total dollars.
+2. Add each method's share of dollars.
+3. Sort by dollar share descending.
+
+**Guiding questions:** When do count-share and dollar-share disagree strongly, and what does that mean business-wise? Why cast before dividing for the percentage?
+
+**Data pointers:** `fact_payments` (`payment_method`, `amount_paid`).
+
+**Done when:**
+- [ ] Per-method count + dollars + dollar-share
+- [ ] Shares sum to ~100% (checked)
+
+---
+
+## Task 7 — What do we collect? Products 101
+📥 **Inbox:** From New Team Member · any day · "onboarding favor"
+
+> "You know this DB, right? One query: accounts per product plus average credit limit. And tell me if the denormalized product column makes the join unnecessary — I keep forgetting its name."
+
+**Background:** Three retail products: Tarjeta (credit card), Prestamo (personal loan), Hipoteca (mortgage). The accounts table carries `product_type` directly — a deliberate design choice you should understand.
+
+**Your job:**
+1. Accounts per product + average credit limit.
+2. Answer the favor: prove whether joining the products dimension would change anything.
+
+**Guiding questions:** If `product_type` on the account can disagree with the product table's name, which would you trust — and how would you check? What does average credit limit tell you that count alone doesn't?
+
+**Data pointers:** `dim_accounts` (`product_type`, `credit_limit`), `dim_products`; `_reference/data_dictionary.md`.
+
+**Done when:**
+- [ ] One query: per-product accounts + avg credit limit
+- [ ] Written answer: does the dimension join add anything here?
+
+---
+
+## Task 8 — House rules check: weekends
+📥 **Inbox:** From QA-minded Supervisor · Fri 3:30 PM · "before I sign off your onboarding"
+
+> "Our data rules say no calls happen on weekends but payments can. I don't take rules on faith — prove both from the data, one query each."
+
+**Background:** The generator encodes business rules; verifying them from data is how analysts catch broken pipelines early. This exact check has caught real bugs in this project's history.
+
+**Your job:**
+1. Count interactions landing on Sat/Sun (any month).
+2. Count weekend payments.
+3. Write one sentence stating each rule as verified true/false.
+
+**Guiding questions:** Which date function gives you weekday without locale tricks? If weekend interactions were nonzero, what would you do first — doubt the data or doubt the rule?
+
+**Data pointers:** `fact_interactions.interaction_date`, `fact_payments.payment_date`; `_reference/data_dictionary.md` → status/flag cheat sheet.
+
+**Done when:**
+- [ ] Two counts with a clear verdict each
+- [ ] Verdicts match `_reference/datasets.md` §1 claims
+
+---
+
+## Task 9 — Freshness check before you hit send
+📥 **Inbox:** From MIS Manager · recurring · "nothing leaves this desk without it"
+
+> "New house rule: before ANY number leaves your desk, you run a freshness check — newest date per fact table, oldest gap flagged. Build the script once; run it forever."
+
+**Background:** Stale-data embarrassments end careers faster than wrong formulas. The project even ships a view for this idea; your job is to build your own and then compare.
+
+**Your job:**
+1. Newest date per fact table, labeled, one result set.
+2. Add days-since-that-date relative to the latest of all of them.
+3. Compare your output to the official freshness view.
+
+**Guiding questions:** Which table will always lag the others, and why is that normal? Which two tables should move together day by day — and if they ever diverge, what does that suggest?
+
+**Data pointers:** all six fact tables' date columns; cross-check: `v_data_freshness`; `_reference/datasets.md` §4 (view inventory).
+
+**Done when:**
+- [ ] One query: per-fact max date + days-behind
+- [ ] Compared against `v_data_freshness`, differences annotated
+- [ ] Saved as `work/freshness_check.sql` — this one stays in your toolbox
 
 ---
 
 ## Finish
 
-Attempt all four (right or wrong), then read `basic/results.md` and compare approaches. For each task add a short note in your file: *what differed between my approach and the guidance.* That note trail is your progress log — and interview material.
-
-**Move up to medium when:** you can write Task 2's query from memory, no notes.
+Nine scripts saved. You can now survive the morning-requests layer of this job. Next: [`../medium/tasks.md`](../medium/tasks.md) — joins with intent, CTEs, and the traps that bite at month-end.
