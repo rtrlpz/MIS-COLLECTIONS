@@ -38,14 +38,16 @@ ROOT_PATH = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_PATH / "data_sources" / "raw"
 
 # Table definitions
-SHARED_TABLES = ['Dim_Employees', 'Dim_Calendar', 'Dim_Clients', 'Dim_Products', 'Dim_Accounts']
-TRANSACTIONAL_TABLES = ['Fact_PTP_Log', 'Fact_Payments', 'Fact_EOM_Snapshot', 'Fact_Interactions', 'Fact_Agent_Time_Log', 'Fact_Writeoffs']
+SHARED_TABLES = ['Dim_Employees', 'Dim_Employee_History', 'Dim_Strategy', 'Dim_Calendar', 'Dim_Clients', 'Dim_Products', 'Dim_Accounts']
+TRANSACTIONAL_TABLES = ['Fact_PTP_Log', 'Fact_Payments', 'Fact_EOM_Snapshot', 'Fact_Interactions', 'Fact_Agent_Time_Log', 'Fact_Writeoffs', 'Fact_Recoveries']
 TABLE_ORDER = SHARED_TABLES + TRANSACTIONAL_TABLES
 
 PK_MAPPING = {
     'Dim_Employees': 'agent_id',
     'Dim_Clients': 'client_id', 'Dim_Products': 'product_id',
     'Dim_Accounts': 'account_id', 'Fact_Interactions': 'interaction_id',
+    'Dim_Employee_History': 'hist_id', 'Dim_Strategy': 'strategy_id',
+    'Fact_Recoveries': 'recovery_id',
     'Fact_PTP_Log': 'ptp_id', 'Fact_Payments': 'payment_id',
     'Fact_Agent_Time_Log': 'log_id', 'Fact_Writeoffs': 'writeoff_id',
 }
@@ -71,7 +73,9 @@ def validate_csv(file_path: Path, table_name: str) -> tuple:
     if len(df.columns) == 0 or all(col.strip() == '' for col in df.columns):
         return False, "CSV has no valid headers"
     if len(df) == 0:
-        return False, "CSV has 0 rows"
+        # N4: sparse fact months are legitimate (e.g., Fact_Recoveries before
+        # the first write-offs age into existence) — header-only files are valid.
+        return True, "Validation passed (0 rows, headers ok)"
     if table_name == 'Fact_EOM_Snapshot':
         for col in ['snapshot_date', 'account_id']:
             if col in df.columns and df[col].isna().any():
@@ -150,7 +154,9 @@ def ingest_data_to_pg(df: pd.DataFrame, table_name: str, conn):
 
     cursor = conn.cursor()
     try:
-        cursor.copy_from(file=buffer, table=pg_table_name, sep=',', columns=df.columns.tolist(), null='')
+        cols = ', '.join(f'"{c}"' for c in df.columns.tolist())
+        sql = f"COPY \"{pg_table_name}\" ({cols}) FROM STDIN WITH (FORMAT csv, NULL '')"
+        cursor.copy_expert(sql, buffer)
         conn.commit()
         logging.info(f"  [OK] {pg_table_name}: {len(df):,} records inserted.")
         return True, len(df)

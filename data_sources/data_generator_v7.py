@@ -610,6 +610,7 @@ fact_payments      = []
 fact_time_log      = []
 fact_eom_snapshots = []
 fact_writeoffs     = []   # G6
+fact_recoveries    = []   # N4 (P4)
 
 ptp_registry  = {}               # ptp_id → dict (status mutated in-place)
 payment_queue = defaultdict(list) # date → [payment events]
@@ -898,7 +899,7 @@ for sim_date in DATE_RANGE:
                 # ── PTP GENERATION ──────────────────────────────────────────────
                 if (rpc_flag
                         and state["status"] == "Mora"
-                        and state["arrears"] > 0
+                        and state["arrears"] >= 1.0   # P4: no $0 promises on dust arrears
                         and acct_id not in suppressed
                         and acct_id not in accts_ptp_today
                         and random.random() < prof["ptp_rate"] * dr):
