@@ -125,5 +125,6 @@ If these sound like things you want to do without panic — welcome; this lab wa
 | [`kpi_glossary.md`](_reference/kpi_glossary.md) | A task mentions a KPI and you need its exact definition, formula and traps. |
 | [`data_dictionary.md`](_reference/data_dictionary.md) | You wonder what a column means or how tables connect. |
 | [`REFACTOR_PLAN.md`](_reference/REFACTOR_PLAN.md) | You want the JD coverage map or the refactor's phase status. |
+| [`LEARNING_GUIDE.md`](_reference/LEARNING_GUIDE.md) | You want the recommended order and the *why* behind each step. |
 
 When a task says "check the glossary", it means `_reference/kpi_glossary.md`.
