@@ -1,87 +1,178 @@
-# Python — Basic — Results (Guidance)
+# Python Basic — Results (worked solutions)
 
-```
-learning/
-├── _reference/            ← datasets.md, kpi_glossary.md, data_dictionary.md
-├── sql/  notebooks/  excel/  powerbi/  git-cli/
-├── python/
-│   ├── README.md
-│   └── basic/             ← YOU ARE HERE
-│       ├── tasks.md
-│       ├── results.md     ← current file
-│       └── work/
-└── README.md
-```
-
-**How to use this file:** attempt → commit → read one section. Guidance only — reasoning paths, steps-with-why, verification strategy, traps. No full scripts, no computed values.
+Run every solution; diff behavior against your attempt. Parity with SQL is the level's spine.
 
 ---
 
 ## Task 1 — Meet the raw files
 
-**Thinking path:**
-- `pd.read_csv` the dim and the fact. `df.shape` / `df.columns` / `df.dtypes` / `df.head()` / `df.describe()` are the orientation toolkit. The *why* of each: shape = inhabitants, dtypes = habitat, describe = temperament.
-- Look for dtype lies. A date column read as `object` is a lie waiting to bite; an `account_id` read as `int64` is convenient but semantically a *code*, not a number to add. The lesson is to *notice* the dtype, not necessarily to fix it now — Task 2/medium will punish you where it matters.
-- Sparseness: columns that are mostly zero/NaN on a fact table tell you the generator was told to leave fields empty for some call channels — that's a *design signal*, e.g. `aht_seconds` absent for non-RPC rows. Noting it now will explain weird aggregation in later tasks.
-- Row-count sanity vs `_reference/datasets.md`: the doc gives year totals; that's for Task 2's exact check, but grabbing the *per-month* fact count here and roughly dividing is a good "does this smell right" moment.
+```python
+from pathlib import Path
+import pandas as pd
 
-**Verification strategy:**
-- `df.info()` gives missing + dtype in one place — read it before and after you "fix" dtypes.
-- `describe()` skips object columns by default; run `describe(include='object')` too.
+RAW = Path("data_sources/raw")
 
-**Traps & worth knowing:**
-- pandas infers `int64` for ID columns — `account_id` 01548 becomes the integer 1548; if any later merge key depends on leading zeros, you've lost information. (Check whether this dataset's IDs carry zeros that matter.)
-- A blank in a numeric column → `NaN`; pandas silently makes the whole column `float64`. Sums still "work" — and that's exactly how rates sneak off.
+# 1) Folder walk
+month_dirs = sorted(d for d in RAW.iterdir() if d.is_dir() and d.name != "shared")
+print(f"{len(month_dirs)} month dirs:", [d.name for d in month_dirs])
+print("shared:", sorted(p.name for p in (RAW / "shared").iterdir()))
+for d in month_dirs[:2]:
+    print(d.name, "->", sorted(p.name for p in d.glob("*.csv")))
 
----
+# 2) One month, safely typed where it matters
+df = pd.read_csv(
+    RAW / "january_2025" / "Fact_Interactions.csv",
+    dtype={"agent_id": "string", "account_id": "string", "channel": "category"},
+    parse_dates=["interaction_date"],
+)
+print(df.shape)
+print(df.dtypes)
+print(df.head(3))
+```
 
-## Task 2 — Recombine the year
+**Why each part:** `dtype=` at read time prevents the classic silent damage — `EID-001` survives as string instead of becoming NaN-ridden floats; `parse_dates` makes `interaction_date` a real datetime so range masks work later. `pathlib.Path` over string paths: joins stay OS-clean.
 
-**Thinking path:**
-- The pattern: `frames = [pd.read_csv(path) for path in sorted_paths]; df = pd.concat(frames)`. Sorting the paths is the hidden requirement — "folders may arrive in any order" is a real-world promise that breaks `concat` order-insensitive downstream groups only if you rely on it.
-- Reassembly check: your total rows must equal the reference year total (datasets.md §3). A mismatch = a folder double-read, a skipped folder, or a filtered read. Fix the *loop*, never the number.
-- Add month: deriving from the *path or folder* name is explicit and immune to date-parse quirks; deriving from `interaction_date` is content-driven and survives renames. Note which you chose and why.
-- Save assembled data under `work/` (parquet keeps dtypes; CSV is human-eyeable). `work/` is git-ignored — perfect for derived artifacts.
+**Verify yourself:** `interaction_date` dtype must be `datetime64[ns]`; `rpc_flag` should already be bool if the CSV stores true/false — check, and note what would break downstream if it arrived as strings.
 
-**Verification strategy:**
-- Count unique months in your assembled table == 12.
-- `df.groupby(month).size()` sums to the exact reassembled total — the partition identity.
-
-**Traps & worth knowing:**
-- `concat` without `ignore_index=True` keeps each file's own index → duplicate indices across months. Subsequent `reset_index` or indexing gets confusing. Decide one convention and re-use it.
-- Reading a folder that turns out to be `anomaly_report.csv`-style junk (see §2 of datasets.md) into your concat would poison the totals — filter to `Fact_*.csv` by name.
+**Traps & alternatives:** `pd.read_csv` without dtypes "works" — that's the danger. A column that's 99% numeric-looking IDs will load as float64 and corrupt every join later.
 
 ---
 
-## Task 3 — The SQL-basic question, in pandas
+## Task 2 — Rebuild the year
 
-**Thinking path:**
-- The translation table is the point: SQL `WHERE month` → pandas boolean mask; `GROUP BY team` → `groupby('team')`; `COUNT` of rows → `.size()` (returns per-group row count) vs `.count()` (returns non-null of one column — a different animal); `ORDER BY` → `.sort_values(ascending=False)`.
-- Team location: if `fact_interactions` carries `agent_id` but not team, the merge via `dim_employees` is the *same* join you proved in SQL. After `merge`, re-run `.shape` and compare to the pre-merge row count — a jump = join blowup, this time in pandas.
-- The cross-track check is the whole point: two tools + same data = same answer. Print both, eyeball, and match. If they disagree, the culprit is usually filter text (channel, status) or a silent row loss on merge (`how='left'` vs `'inner'`).
+```python
+from pathlib import Path
+import pandas as pd
 
-**Verification strategy:**
-- The per-team counts should sum to your January total (partition identity again).
-- Filtering January: `df['interaction_date'].dt.month == 1` needs the date parsed first; comparing against a *string* column only "works" if the file format cooperates — parse dates, it's safer.
+RAW = Path("data_sources/raw")
+DTYPES = {"agent_id": "string", "account_id": "string", "channel": "category"}
 
-**Traps & worth knowing:**
-- `.size()` returns a Series named 0; rename it. `.value_counts()` on a column sorts descending by default and counts the grouping column — convenient, but it's `groupby().size()`, not a general aggregate.
-- After filtering an index-altered frame, `sort_values` by the count column; don't accidentally sort by the index label.
+parts, total = [], 0
+for md in sorted(d for d in RAW.iterdir() if d.is_dir() and d.name != "shared"):
+    m = pd.read_csv(md / "Fact_Interactions.csv", dtype=DTYPES,
+                    parse_dates=["interaction_date"])
+    parts.append(m)
+    total += len(m)
+
+year = pd.concat(parts, ignore_index=True)
+
+assert len(year) == total, f"concat lost rows: {len(year)} vs {total}"
+print(f"year interactions: {len(year):,}")
+```
+
+**Why each part:** reading per-month keeps memory honest and gives you the sum-of-parts counter BEFORE concat. `ignore_index=True` because interaction_id uniqueness across files is the PK's job, not the index's. The assert turns "should be fine" into a contract.
+
+**Verify yourself:** the printed total must match `_reference/datasets.md`'s ~1.34M fact_interactions estimate within tolerance — write the actual number next to the reference in a comment.
+
+**Traps & alternatives:** `glob("**/*.csv")` would also swallow shared dims — filter by directory name, not pattern luck.
 
 ---
 
-## Task 4 — RPC%: ratio of sums
+## Task 3 — RPC% by team
 
-**Thinking path:**
-- Correct: `groupby('channel').agg(num=('rpc_flag','sum'), den=('calls_connected','sum'))` then `num/den`. This weights by effort — a channel with big connected volumes drives the rate proportionally. This is the exact ratio-of-sums argument from SQL basic.
-- Wrong-but-tempting: `groupby('channel')['rpc_flag'].mean()` — averages the flags per *row*, so a channel with 2 calls and 1 RPC scores the same as another with 2000 calls, 1000 RPCs. Same data, two credible-looking numbers — the diff print is your teaching moment.
-- Channel policy: FICO/SMS (or whichever the glossary marks non-dialing) shouldn't sit in a *contact* rate. Keep the row visible but flag it rather than silently dropping — that's the field-honest version of the SQL `WHERE channel IN (...)` decision.
+```python
+import pandas as pd
+from pathlib import Path
 
-**Verification strategy:**
-- Sum numerator over all channels == your SQL numerator in the same window (the invariant).
-- Your pandas table vs your SQL basic Task 3: same channel order, same ratios. Any mismatch is a definitional statement you get to *find*.
-- Division by an all-zero denominator: pandas gives `NaN` + a warning; that `NaN` IS the honest answer for "no connected calls", not an error to chase.
+RAW = Path("data_sources/raw")
+inter = pd.read_csv(RAW / "january_2025" / "Fact_Interactions.csv",
+                    dtype={"agent_id": "string", "channel": "category"},
+                    parse_dates=["interaction_date"])
+emps = pd.read_csv(RAW / "shared" / "Dim_Employees.csv", dtype="string")
 
-**Traps & worth knowing:**
-- In pandas/NumPy, int/int division returns a float in NumPy ≥2, but policy differs by version and dtype — verify rather than assume; `df['num'] / df['den']` on int columns may produce int truncation under some paths, so `.astype(float)` is the explicit, version-proof move.
-- A boolean column summed with `sum()` == count of Trues; `mean()` of the same column == % true — they're *different metrics*, keep the labels clear.
+jan = inter[inter["interaction_date"] < "2025-02-01"]
+
+g = (jan.merge(emps[["agent_id", "team_name"]], on="agent_id", how="left")
+        .groupby("team_name")
+        .agg(connected=("calls_connected", "sum"),
+             rpcs=("rpc_flag", "sum")))
+
+g["rpc_pct"] = (100 * g["rpcs"] / g["connected"]).round(1)
+print(g.sort_values("rpc_pct", ascending=False))
+```
+
+**Why each part:** merge on dim FIRST then groupby mirrors the SQL join-then-group shape. Tuple-named aggs keep column names stable for later merges. Boolean sum counts TRUEs — same trick as SQL's `SUM(rpc_flag::int)`.
+
+**Verify yourself:** parity against `v_contact_metrics WHERE month_num=1` (or your SQL-basic Task 3 numbers). Mismatch checklist: date edge (did Feb leak in?), dtype corruption on agent_id (NaN team), boolean-as-string summing.
+
+---
+
+## Task 4 — Month slicing like SQL ranges
+
+```python
+q1 = year[(year["interaction_date"] >= "2025-01-01")
+          & (year["interaction_date"] <  "2025-04-01")]
+
+per_month = q1.groupby(q1["interaction_date"].dt.to_period("M")).size()
+assert per_month.index.tolist() == [pd.Period("2025-01"),
+                                    pd.Period("2025-02"),
+                                    pd.Period("2025-03")]
+print(per_month)
+```
+
+**Why each part:** string comparisons against datetime64 columns are parsed to timestamps — half-open ranges behave exactly like SQL's `>= start AND < end`. `.dt.to_period("M")` groups without creating helper columns.
+
+**Verify yourself:** the index assert proves April never leaked in. Compare January's count to Task 2's per-part number for january — equal or your slice is wrong.
+
+**Traps & alternatives:** `.dt.strftime('%Y-%m') == '2025-01'` works until it doesn't (performance, and it invites `'2025-1'` typos); ranges are the habit that transfers to SQL and back.
+
+---
+
+## Task 5 — Weekend rule, files edition
+
+```python
+import pandas as pd
+from pathlib import Path
+
+RAW = Path("data_sources/raw")
+pay = pd.read_csv(RAW / "january_2025" / "Fact_Payments.csv", parse_dates=["payment_date"])
+# full-year payments: concat all 12 months exactly as Task 2 did
+pay_year = pd.concat(
+    [pd.read_csv(md / "Fact_Payments.csv", parse_dates=["payment_date"])
+     for md in sorted(d for d in RAW.iterdir() if d.is_dir() and d.name != "shared")],
+    ignore_index=True)
+
+inter_jan = pd.read_csv(RAW / "january_2025" / "Fact_Interactions.csv",
+                        parse_dates=["interaction_date"])
+
+weekend_inter = int((inter_jan["interaction_date"].dt.dayofweek >= 5).sum())
+weekend_pays  = int((pay_year["payment_date"].dt.dayofweek >= 5).sum())
+
+assert weekend_inter == 0, "weekday-only rule violated!"
+print({"weekend_interactions": weekend_inter, "weekend_payments": weekend_pays})
+# Verdict: interactions weekday-only (0 violations); payments DO occur on weekends.
+```
+
+**Why each part:** `.dt.dayofweek` is Monday=0 … Sunday=6 — `>= 5` is the locale-proof weekend test. The assert encodes the RULE, so a future broken extract fails loudly here instead of shipping.
+
+**Verify yourself:** verdicts must match your SQL Task 8 and `_reference/datasets.md`. A mismatch means an extract/load divergence — check `etl_load_log` freshness before blaming either side.
+
+---
+
+## Task 6 — The morning pack, files edition
+
+```python
+from pathlib import Path
+import pandas as pd
+
+RAW = Path("data_sources/raw")
+REPORT_DATE = "2025-06-02"          # ← change ONE character-set daily
+
+d = pd.Timestamp(REPORT_DATE)
+month_dir = RAW / d.strftime("%B").lower() + f"_{d.year}"
+
+inter = pd.read_csv(month_dir / "Fact_Interactions.csv", parse_dates=["interaction_date"])
+ptp   = pd.read_csv(month_dir / "Fact_PTP_Log.csv",      parse_dates=["ptp_date"])
+pay   = pd.read_csv(month_dir / "Fact_Payments.csv",     parse_dates=["payment_date"])
+
+print("contacts :", int((inter["interaction_date"] == d).sum()))
+print("connects :", int(inter.loc[inter["interaction_date"] == d, "calls_connected"].sum()))
+print("promises :", int((ptp["ptp_date"] == d).sum()))
+print("payments :", int((pay["payment_date"] == d).sum()))
+```
+
+**Why each part:** the month folder is DERIVED from the parameter — loading one file instead of twelve is the whole performance trick. Four independent counts, four prints: sticky-note format as requested. (Note: `Path` string-building above is intentionally naive; if you spot the cleaner `(RAW / f"{...}_{...}")` form, use it — say why in a comment.)
+
+**Verify yourself:** run for a known date and compare to your SQL morning-pack numbers — all four must match exactly; that's the parity proof this track exists for.
+
+**Traps & alternatives:** month-folder naming is `%B` lowercase (`june_2025`) — confirm against the walk from Task 1 rather than assuming. Payments can belong to the NEXT day's file edge cases? No — `payment_date` is authoritative regardless of folder; trust columns over folders when they disagree, then investigate.

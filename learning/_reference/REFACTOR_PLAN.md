@@ -116,7 +116,7 @@ and keeps each commit self-contained/revertable.
 | 1 | README rewrite + AGENTS.md contract update | ✅ Done (Aug 2026) |
 | 2 | `sql/` basic → medium → advanced | ✅ Done (Aug 2026; solutions QA-run against live DB) |
 | 3 | `powerbi/` all levels | ✅ Done (Aug 2026; 17 tasks incl. SVG cards, RLS, governance) |
-| 4 | `python/` all levels | ⬜ Pending |
+| 4 | `python/` all levels | ✅ Done (Aug 2026; solutions QA-run vs live CSVs+DB: row counts, team RPC% parity, 22-cell matrix match) |
 | 5 | `notebooks/` all levels | ⬜ Pending |
 | 6 | `excel/` all levels (incl. VBA) | ⬜ Pending |
 | 7 | `git-cli/` + kpi_glossary additions + consistency sweep | ⬜ Pending |

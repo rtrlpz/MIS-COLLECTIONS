@@ -1,108 +1,129 @@
-# Python — Basic — Tasks
+# Python Basic — Your Inbox (level 1 of 3)
 
 ```
-learning/
-├── _reference/            ← READ FIRST (datasets.md, kpi_glossary.md, data_dictionary.md)
-├── sql/  notebooks/  excel/  powerbi/  git-cli/
-├── python/
-│   ├── README.md
-│   └── basic/             ← YOU ARE HERE
-│       ├── tasks.md       ← current file
-│       ├── results.md     ← guidance, peek AFTER attempting
-│       └── work/          ← your .py scripts live here
-└── README.md
+You are here: learning/python/basic/
+Assumed:      sql/basic done — you know the tables; pandas basics assumed, depth not
+Setup:        conda env mis-collections · read ONLY from data_sources/raw/ · save work/attempt_*.py
+Solutions:    basic/results.md — after attempting; then RUN the solution and diff behavior
+Discipline:   where a task mirrors a SQL task, your numbers must agree. Disagreement = finding.
 ```
 
-**Up from SQL basic:** you can filter, group, and compute a rate in SQL. Now do the same in pandas — and learn the field's #1 trick: **the raw CSVs arrive one folder per month, and the first thing you do is put the year back together.**
+**What this level gives you.** The file-side of the same job: recombine monthly extracts into a year, compute the morning KPIs in pandas instead of SQL, and never ship a number that disagrees with the database without knowing why.
 
-**Setup:** conda env `mis-collections` (see `python/README.md`). Create `work/attempt_*.py` per task. Read from `data_sources/raw/` — never write there.
+---
 
-**Discipline:** attempt → commit → then read `results.md`. Where a task mirrors a SQL-basic task, **compare your Python answer to your SQL answer** — they must agree.
+## Words you'll meet
+
+| Term | Plain meaning |
+|---|---|
+| **DataFrame / df** | pandas' table — think query result you can program against |
+| **Monthly folders** | `data_sources/raw/january_2025/ …` each holding that month's fact CSVs; dims live in `shared/` |
+| **dtype** | A column's data type. Wrong dtype = silent wrong answers (`"EID-001"` as NaN-prone float) |
+| **groupby** | The `GROUP BY` of pandas — split, apply, combine |
+| **Parity check** | Comparing a pandas number against its SQL twin until they match exactly |
 
 ---
 
 ## Task 1 — Meet the raw files
+📥 **Inbox:** From MIS Manager · Day 1 · "orientation before touching anything"
 
-The supervisor: *"We keep data one month per folder. Before analyzing, show me you actually know what's inside."*
+> "Same drill as SQL onboarding, files edition: list what's actually in `data_sources/raw/`, open ONE month's interaction file safely, and report its shape plus dtypes. I want to know if you'd spot a broken export."
 
-**What you'll practice:** the *orientation move* — load, peek, shape, dtypes, and the honesty of `info()` on a wide fact table.
+**Your job:**
+1. Walk the folder tree programmatically: shared dims + 12 month dirs + per-fact CSVs.
+2. Load one month's `Fact_Interactions.csv`; print shape, dtypes, head(3).
+3. Note which columns pandas guessed WRONG without help (ids? dates? flags?).
 
-Steps:
-1. Pick one shared dimension (e.g. `Dim_Accounts.csv`) and one month folder's fact (e.g. `january_2025/Fact_Interactions.csv`).
-2. Load both with pandas. For each: print shape, column names, dtypes, first rows, and a numerical summary.
-3. Look at the fact's *sparseness*: which columns are mostly missing/zero? Which are dense? Write one sentence on what that suggests about the data-generation designers' intent.
-4. Sanity: does the fact's row count match what `_reference/datasets.md` implies per month? (Record the count; don't just nod at it.)
-
-**Guiding questions:**
-- Which dtypes did pandas guess, and which are *lying* (e.g. an ID column read as integer when it's really a code, a date read as object)?
-- Why are the dims in `shared/` while the facts are per-month? What does that tell you about how the generator writes disk?
-
-**Deliverable:** `work/attempt_1.py` — script printing all of the above, plus your one-sentence per-file note as a comment.
+**Done when:**
+- [ ] Folder walk printed for all 12 months + shared
+- [ ] One month loaded; dtype suspicions written as comments
+- [ ] Saved `work/attempt_1.py`
 
 ---
 
-## Task 2 — Recombine the year (the ETL's job, your hands)
+## Task 2 — Rebuild the year from monthly folders
+📥 **Inbox:** From Ops Lead · Tue 9:00 · "the extracts arrive monthly; analysis needs a year"
 
-The supervisor: *"Our ETL loads all 12 months into Postgres. Reproduce that: one DataFrame of the whole year of interactions."*
+> "Concatenate all twelve months of interactions into one DataFrame. Row count must equal the sum of the parts — prove it in the script. And carry a proper datetime column, not strings."
 
-**What you'll practice:** the loop-over-files concat — the single most repeated gesture in file-based data work — and total-row verification against the known year total.
+**Your job:**
+1. Loop/glob the 12 month dirs; read each interactions CSV with correct dtypes.
+2. Concat; add nothing else yet.
+3. Assert: len(year_df) == sum(len(month_dfs)); parse dates.
 
-Steps:
-1. List all 12 month folders, read their `Fact_Interactions.csv` into a growing list of DataFrames, then `pd.concat` once.
-2. Verify: your combined shape must equal the year total in `_reference/datasets.md` (§3 row estimate, or the DB smoke-test count from §5). They must match — this is the *reassembly correctness check*.
-3. Add a `month` column (derive from folder name or dates — decide which is less error-prone).
-4. Write the combined frame to `work/` as CSV or parquet for reuse in later tasks. Note the dtype of the new month column.
-
-**Guiding questions:**
-- Concat with `ignore_index=True` or not — what breaks between the two? How does the index behave when you concatenate twice?
-- If month folders later arrive out of order (e.g. `march` then `january`), does your script survive? What assumption should your loop not make?
-
-**Deliverable:** `work/attempt_2.py` — the reassembly + a printed verification line + the saved `work/all_interactions.parquet`.
+**Done when:**
+- [ ] One concatenated frame, dates parsed
+- [ ] Sum-of-parts assertion passes in-code
+- [ ] Total row count noted in a comment vs `_reference/datasets.md`
 
 ---
 
-## Task 3 — The SQL-basic question, in pandas
+## Task 3 — RPC% by team, pandas edition
+📥 **Inbox:** From Operations Manager · Mon 8:15 · "same numbers, different tool"
 
-The supervisor: *"January interactions, per team, sorted by count. You did this in SQL — do it here. They should agree."*
+> "The SQL kid gave me January RPC% by team. You replicate it from files — if you two disagree, I need to know WHICH one is wrong and why."
 
-**What you'll practice:** translate `WHERE → GROUP BY → ORDER BY` into pandas — filtering, groupby-aggregate, sort — and the cross-track consistency check with your own SQL output.
+**Your job:**
+1. Merge interactions (Jan) with the employees dim for team names.
+2. Groupby team → connected calls sum, rpc count sum.
+3. Compute RPC% with divide-guarding; sort desc.
 
-Steps:
-1. Reuse your Task 2 table (or `Dim_Employees` merge if team is not on the fact — check the dictionary for where `team_name` lives).
-2. Filter to January. Group by team; count interactions. Sort descending by count.
-3. Run the same query in your SQL client; print **both** results side by side and confirm agreement.
-4. Add the per-day count for one team and compare its *shape* (weekends visible?) with what you found in SQL basic Task 2.
-
-**Guiding questions:**
-- `value_counts` vs `groupby(...).size()` vs `groupby(...).count()` — when does each differ?
-- If team lives on the employee dimension, `merge` brings it in — but double-check you didn't *multiply* rows (the pandas merge blowup is the SQL join blowup's twin).
-
-**Deliverable:** `work/attempt_3.py` — January-per-team table + a printed agreement check against your saved SQL result.
+**Done when:**
+- [ ] Team-level table matching your SQL attempt's shape
+- [ ] Parity check executed vs `v_contact_metrics` numbers (or your SQL twin)
+- [ ] Any mismatch investigated, not rounded away
 
 ---
 
-## Task 4 — RPC% in pandas: ratio of sums, not mean of flags
+## Task 4 — Month slicing like SQL ranges
+📥 **Inbox:** From MIS Manager · Thu 11:00 · "quarterly cut"
 
-The supervisor: *"RPC% by channel for January. Use the same definition you proved in SQL."*
+> "Q1-only slice of the year frame using date RANGES like we do in SQL (>= start, < end), not string tricks. Show it survives February properly."
 
-**What you'll practice:** the #1 pandas mistake — computing a rate as `groupby.mean()` of a boolean flag instead of **sum over sum** — and the discipline of reusing the SQL-proven definition.
+**Your job:**
+1. Slice Q1 via boolean mask on parsed dates.
+2. Prove edge safety: include Feb fully, exclude Apr 1.
+3. Report rows per month within the slice.
 
-Steps:
-1. Compute RPC% by channel: numerator `sum(rpc_flag)`, denominator `sum(calls_connected)`; ratio per group. (Don't skip to `mean()` — try both and *diff them*.)
-2. State, in a comment, the denominator convention you're committing to (from `_reference/kpi_glossary.md`), exactly as you did in SQL.
-3. Compare your channel numbers to your SQL basic Task 3 output — same table, same order.
-4. Handle the "almost no connected calls" channels explicitly: keep the group, but mark it as unreliable rather than silently excluding (see glossary's FICO/SMS note).
-
-**Guiding questions:**
-- Why does `groupby.mean()` on a 0/1 flag *always* lean wrong for rates — restate the weighted-average-of-sums argument from SQL basic.
-- Integer division: in pure Python `1/2 == 0.5`, but what happens if both columns are integers and you do `numerator / denominator` in pandas 3 / NumPy 2? When do you need `.astype(float)`?
-
-**Deliverable:** `work/attempt_4.py` — channel × RPC% table + a `mean()`-vs-`sum()` diff + agreement check with your SQL result.
+**Done when:**
+- [ ] Range-based mask (no `.dt.strftime('%Y-%m') == '2025-01'` crutches)
+- [ ] Per-month counts shown; edges asserted
 
 ---
 
-### Finish
+## Task 5 — Payments: weekend rule, verified in files
+📥 **Inbox:** From QA Supervisor · Fri 3:30 PM · "trust, but verify — files this time"
 
-Attempt all four, then read `basic/results.md`. Note in each file how your pandas answer compared to your SQL answer — that cross-track note is your progress proof.
+> "SQL said zero weekend interactions but weekend payments exist. Confirm BOTH facts from raw CSVs across the full year. Same verdicts as the DB or something's off between extract and load."
 
-**Move up when:** you can reassemble the year and answer a groupby-rate question without opening your SQL notes.
+**Your job:**
+1. Full-year payments + one month's interactions (enough) loaded with parsed dates.
+2. Weekend counts per weekday-number function of your choice.
+3. Verdicts in comments; note any divergence from DB truth.
+
+**Done when:**
+- [ ] Both rules checked; verdicts stated
+- [ ] Divergence handling explained (there should be none)
+
+---
+
+## Task 6 — The morning pack, file edition
+📥 **Inbox:** From Ops Lead · daily 8:40 · "same four sticky numbers, no database allowed today"
+
+> "DB is under maintenance. Yesterday's contacts, connects, promises, payments — from FILES only. One saved script taking a date; tomorrow I change one line."
+
+**Your job:**
+1. Parameter = single date at top of script.
+2. Load only what's needed (which months? think).
+3. Print exactly four labeled numbers.
+
+**Done when:**
+- [ ] One-line date change reruns everything
+- [ ] Numbers equal the DB pack for a test date (parity!)
+- [ ] Runtime sane because you loaded selectively
+
+---
+
+## Finish
+
+Six scripts. Files hold no secrets now — next level makes them fast and honest at scale: [`../medium/tasks.md`](../medium/tasks.md).

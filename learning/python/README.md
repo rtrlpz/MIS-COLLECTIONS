@@ -43,8 +43,8 @@ The CSVs in `data_sources/raw/` hold **exactly the same data** as the database y
 
 Each level folder has:
 
-- `tasks.md` — assignments written as supervisor requests
-- `results.md` — reasoning guidance; open **only after** attempting
+- `tasks.md` — your inbox: workplace requests with Done-When checklists (no code, no expected numbers)
+- `results.md` — full worked solutions with complete runnable pandas code; open **only after** attempting, then RUN it yourself
 - `work/` — your scripts and outputs; git-ignored scratchpad
 
 Routine: read task → attempt in `work/` → cross-check against your SQL numbers → then compare with `results.md`.
