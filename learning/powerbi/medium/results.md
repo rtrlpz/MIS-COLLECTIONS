@@ -1,101 +1,156 @@
-# Power BI — Medium — Results (Guidance)
+# Power BI Medium — Results (worked solutions)
 
+Rebuild each pattern in your attempt .pbix, then diff behavior — slicer states are your test suite. No outputs shown; screenshots verify.
+
+---
+
+## Task 1 — Time intelligence
+
+```dax
+Interactions MTD =
+TOTALMTD ( [Total Interactions], dim_calendar[date] )
+
+Interactions YTD =
+TOTALYTD ( [Total Interactions], dim_calendar[date] )
+
+RPC % PM =
+CALCULATE ( [RPC %], PREVIOUSMONTH ( dim_calendar[date] ) )
 ```
-learning/
-├── _reference/            ← datasets.md, kpi_glossary.md, data_dictionary.md
-├── sql/  python/  notebooks/  excel/  git-cli/
-├── powerbi/
-│   ├── README.md
-│   └── medium/            ← YOU ARE HERE
-│       ├── tasks.md
-│       ├── results.md     ← current file
-│       └── work/
-└── README.md
+
+**Why each part:** the TOTAL* family requires the MARKED date table (basic Task 5) — that's why the prerequisite exists. `PREVIOUSMONTH` inside `CALCULATE` shifts filter context one calendar month; `[RPC %]` re-computes in shifted context because measures are context-aware by design.
+
+**Verify yourself:** MTD line resets at each month boundary; YTD climbs within year and resets at January; `RPC % PM` on a March visual equals plain `[RPC %]` filtered to February (cross-check against SQL for both months). Note for the file: 2025-only data means SAMEPERIODLASTYEAR returns blank — previous-month is the honest comparison here.
+
+**Traps & alternatives:** using the fact's own date column instead of `dim_calendar[date]` silently breaks MTD at month edges. Production replaces all of these with the `_Time Intelligence` calculation group applied as a slicer — you built them explicitly once so the CG is a tool, not magic.
+
+---
+
+## Task 2 — Targets vs actuals
+
+Modeling → New table:
+
+```dax
+Dim_Targets =
+DATATABLE (
+    "Goal", STRING, "Target", DOUBLE,
+    {
+        { "RPC %", 45 },
+        { "PTP %", 80 },
+        { "KP %", 80 }
+    }
+)
 ```
 
-**How to use this file:** attempt → commit → read one section. Guidance only — reasoning paths, steps-with-why, verification strategy, traps. No full DAX, no computed values.
+Measures:
+
+```dax
+Selected Target =
+VAR g = SELECTEDVALUE ( Dim_Targets[Goal] )
+RETURN SWITCH ( g,
+    "RPC %", 45,
+    "PTP %", 80,
+    "KP %", 80,
+    BLANK ()
+)
+```
+
+Simpler, data-driven version (preferred):
+
+```dax
+Selected Target = SELECTEDVALUE ( Dim_Targets[Target] )
+
+Actual for Goal =
+VAR g = SELECTEDVALUE ( Dim_Targets[Goal] )
+RETURN SWITCH ( g,
+    "RPC %", [RPC %],
+    "PTP %", [PTP %],
+    "KP %",  [KP %],
+    BLANK ()
+)
+
+Gap to Target =
+DIVIDE ( [Actual for Goal] - [Selected Target], [Selected Target] )
+```
+
+**Why each part:** targets live in a TABLE so a strategy change edits a row, not DAX. `SWITCH` maps goal name → its actual measure; the table visual lists goals with actual/target/gap columns driven purely by selection.
+
+**Verify yourself:** change KP target from 80 to 75 in the table — every gap recomputes with zero DAX edits. Cross-check one month's actuals against SQL views.
+
+**Traps & alternatives:** hardcoding `IF(goal="KP %",[KP %]>=0.80,…)` inside color measures scatters thresholds across five measures — governance violation you'll fix properly in Task 3.
 
 ---
 
-## Task 1 — CALCULATE
+## Task 3 — RAG colors
 
-**Thinking path:**
-- DAX is *context*: a measure's numeric output is a function of the current filter context (row filters, slicers, page context). `CALCULATE` is the one function that **changes** that context for one expression — the surgeon's knife. The base measure (no CALCULATE) inherits whatever slicers exist; the Manual-only measure *narrows* the context (channel filter); the "genuine overall" measure *widens* it (removes the channel effect via a `REMOVEFILTERS`-class argument on that column) so it says "overall" even under a channel slicer.
-- Inherit-vs-intend: the Manual measure inherits the month slicer (fine — you asked only channel to change); the overall measure must remove *only channel*, keeping the month slicer. The lesson: CALCULATE changes what you specify, and *only* what you specify; everything else inherits.
+```dax
+-- Project RAG standard: Green #00B050 · Amber #FFC000 · Red #FF0000
+KP % Color =
+VAR kp = [KP %]
+RETURN IF ( ISBLANK ( kp ), BLANK (),
+    IF ( kp >= 0.80, "#00B050",
+        IF ( kp >= 0.60, "#FFC000", "#FF0000" ) ) )
 
-**Verification strategy:**
-- Under a channel slicer → the overall card must NOT change (it overrides); the base card must change (it inherits); Manual stays Manual. All three behaviors on one screen *are* the proof.
-- Cross-check: Manual's number matches a hand filter of the raw data for the same window.
+RPC % Color =
+VAR r = [RPC %]
+RETURN IF ( ISBLANK ( r ), BLANK (),
+    IF ( r >= 0.45, "#00B050",
+        IF ( r >= 0.35, "#FFC000", "#FF0000" ) ) )
+```
 
-**Traps & worth knowing:**
-- `ALL`-class removers are *broad*: removing "all columns of channel" can over-remove if you intended only one column. State precisely what you mean to wipe.
-- A measure text must compile with a trailing function-only body (no standalone `FILTER` in a measure body without `CALCULATE`); the rule "currently, filter functions live only inside ␁CALCULATE-adjacent" is the #1 newbie error in DAX.
+Apply: visual → conditional formatting → Background color → Format style **Field value** → pick the measure.
 
----
+**Why each part:** colors as MEASURES mean thresholds live in reviewed code (with comments), survive refresh, and can later read their bounds FROM `Dim_Targets` — the full governance loop.
 
-## Task 2 — Time intelligence
-
-**Thinking path:**
-- Parallel-period functions (`PREVIOUSMONTH`-class) return the equiv-period **relative to the then-current context**, then connect to a lifted `DATE` context via `CALCULATE`. The honest edge: when a partial slice (e.g., a 3-month window from June) is active, the period-before measure computes against the *whole* prior period, and `DATEADD`-schemes can produce all-context or blank rows depending on the pattern. The professional move is to *observe* and *declare* the edge (blank for "no previous"), not to silently guess.
-- Delta = current − previous as a *measure* (live, re-computes under any slice) — never a stored column (which freezes the slice it was computed under). Same theorem as measure-vs-column, restated in time.
-
-**Verification strategy:**
-- For a mid-series month, your previous-month measure == the same month's proven rate (cross-track). For the *first* month of data, it must blank (no previous) — show that blank as a designed fact, not an accident.
-- Slice to a window: the previous-month measure returns the period-before *of the window*, and the trend line stays flattering-honest (no fabricated early rows).
-
-**Traps & worth knowing:**
-- Calendar continuity: month-end-30 vs 31-day months make `PREVIOUSMONTH` land on a distinct set of days — a "31-day vs 30-day" comparison bug that swims silently. State whether you compare *calendar months* or *days-in-window*.
-- A measure that uses time-intel without a calendar table in the model (or with `date` not marked as date-table) quietly computes nothing — the `Dim_Calendar`-style table + marking is the precondition.
+**Verify yourself:** slice to a team/month with weak RPC% — cell flips amber/red without touching format rules. Blank-safe: an empty slice shows no fill, not red.
 
 ---
 
-## Task 3 — Trend vs state pages
+## Task 4 — The roll-rate matrix
 
-**Thinking path:**
-- One model, two claims: Flows = time series over event facts (interactions/PTPs); State = point-in-time view of `fact_eom_snapshot` (buckets/arrears at a snapshot date). They belong on *separate pages* not because of aesthetics but because mixing them yields "a trend made of monthly snapshot deltas" — a claim that's neither a flow nor a state.
-- As-of control: State page needs a *snapshot-period* slicer (or an explicit as-of caption) so December's profile isn't read as "current" — the Excel as-of discipline, carried into a live dashboard.
-- Edit-interactions: Power BI lets you decide whether another page's slicer cross-filters a visual. Keep sync where two pages are *same-entity* (both about teams — a team sync is meaningful); break it where the combination is *semantically empty* (a team slicer dead-filtering a snapshot that's account-level and team-independent) — a "smoke screen" filter is worse than no filter.
+1. Model: import `v_dpd_migration_matrix` (from/to bucket labels + counts) AND create the ordering dimension via Enter Data:
 
-**Verification strategy:**
-- An auditor flicks the snapshot period on the State page: profile + top-10 re-answer to that month-end; the Flow page is unaffected (or deliberately linked) — the divergence is *expected and labeled*.
-- Cross-track: State page top-10 arrears == Excel advanced top-10 arrears (same as-of). Flow RPC% trend == the line you've drawn three times.
+| Bucket | SortOrder |
+|---|---|
+| Current | 1 |
+| 1-30 | 2 |
+| 31-60 | 3 |
+| 61-90 | 4 |
+| 90+ | 5 |
 
-**Traps & worth knowing:**
-- Snapshot table *without* an as-of slicer silently shows ALL months stacked (a "current profile" that's actually a year of stacks) — the #1 state-page bug; always pin the as-of.
-- `ALL`-style page baselines on the Flow page can inject "this visual ignores all your slicers" weirdness — prefer page-level default filters over buried all-context measures for the normal user story.
+Relate it to BOTH from_bucket and to_bucket? Power BI allows one active relationship per pair — practical route: keep the view's own label columns for the matrix and set **Sort by column** on each label column using duplicated order columns created in Power Query (merge against the order table twice).
 
----
+2. Matrix: Rows `from_bucket`, Columns `to_bucket`, Values `SUM(accounts)`.
+3. Conditional formatting → Background → Rules: highlight cells where from-rank < to-rank (worsened) — implement rank columns in Power Query so rules compare numbers, not text.
 
-## Task 4 — Measure library
+**Why each part:** alphabetical sorting is THE classic migration-matrix failure — severity order must be structural (sort-by columns), never left to default. Below-diagonal highlighting makes deterioration pre-attentive: directors see red before reading numbers.
 
-**Thinking path:**
-- The `_Measures` table is an empty (display-only) table that exists to *house* measures — so measures live in a dedicated container rather than inside a model table's field list. It must never hold data (a data-bearing `_Measures` is a fact table wearing a disguise — breaks cardinality hopes and confuses the model reader).
-- Display folders = the taxonomy the reference deck already uses (Contact / Promise / Recovery / Time Intelligence — mirror naming for scale). A measure without a folder in a 252-measure library is needle-in-haystack.
-- Comments/descriptions on measures = the source-of-truth habit: definition, denominator, and the "people misread this because…" line. This is the CSV-measure philosophy (measures documented *at authoring time*, reviewable outside the PBIX) in embryo.
-- The manifest (`work/measure_manifest.md`) = your own mini version of the CSV measure documentation: pattern, taxonomy, comment policy.
-
-**Verification strategy:**
-- Stranger-test the library: given "pull MoM RPC%", can they find it by folder+name in under a minute without reading bodies? That's the taxonomy test.
-- Comment audit: every measure in your PBIX has a description or comment explaining its denominator — none leave the reader guessing.
-
-**Traps & worth knowing:**
-- Three measures named `RPC%`, `RPC % YoY`, `RPC% (py)` read as siblings — the *naming rule* (e.g. prefix family + horizon: `Contact_RPC%`, `Contact_RPC%_MoM`, `Contact_RPC%_PY`) must be stated in the manifest or the CSV replaces nothing.
-- Deferred-editing measures in the field list right pane (a "measure" you only rename) — name your measures at *creation* time; renaming later breaks existing visuals without a widespread replace.
+**Verify yourself:** reconcile total account count against SQL `v_dpd_migration_matrix` for the same months; diagonal should dominate (stability is normal).
 
 ---
 
-## Task 5 — Multi-page report stands a review
+## Task 5 — Drillthrough page
 
-**Thinking path:**
-- Navigation buttons (a button strip or a nav page) over the raw tab bar: hierarchy + call-to-action + guardrail (a reader lands on a *reset/no-filter* state, not a deep-filtered one). Tab bars encourage dead-ends; buttons *walk* your narrative.
-- The slicer shelf with a "applies to…" caption sets scope; a page with slicers that whisper their application area is a page that produces misreadings.
-- The stranger-filters test is the guts of Task 5 — a measure that *silently blanks* or returns a grotesque value under an unexpected combination is either a real context bug or a design statement (the combination is meaningless). The professional frame: *decide* which, then *show* the decision (blank + caption, a "no data for this combination" text), never ship an unexplained surrogate.
-- The ≤3-clicks cold-read test is the report's acceptance criterion — measure it with a real stranger, don't pretend to.
+Build `Agent Detail` page: monthly trend line (`month_name` × `[RPC %]`), channel bar, promise outcomes (kept/broken counts). Visual pane → Drag `dim_employees[agent_name]` into **Add drillthrough fields**. Insert → Buttons → Back.
 
-**Verification strategy:**
-- Reset → stranger walk: channel-who-volume-and-trend in three clicks; note the click-path that failed (navigation order, slicer placement) and fix it — the fix is the deliverable.
-- Cross-filter the stranger state: no measure breaks; the "no data" states are labeled. Screenshot everything, because the report *state* at that moment is part of the record.
+**Why each part:** the drillthrough well auto-applies the clicked agent as a page filter; the Back button ships free navigation users expect.
 
-**Traps & worth knowing:**
-- Deep-linking into a filtered PBIX state on open (a page loaded with last-session filters) can confuse the cold-read test — reset the report's default filter state so first open = neutral.
-- A measure that depends on *which* slicer is on (rather than reacting to its values) is the sign of an over-engineered context — simplify until it's a simple function of the context.
+**Verify yourself:** right-click any agent bar/table row → Drill through → Agent Detail shows ONLY that agent (check a card); test from every source visual; Back returns with selections intact.
+
+**Traps & alternatives:** forgetting "Maintain filters" options changes what carries over — choose deliberately and note it in the page footer like Task basic-6 taught.
+
+---
+
+## Task 6 — Titles that update themselves
+
+```dax
+Page Title RPC =
+VAR m = SELECTEDVALUE ( dim_calendar[month_name], "All Months" )
+VAR t = SELECTEDVALUE ( dim_employees[team_name], "All Teams" )
+RETURN "RPC % by Team — " & t & " — " & m
+```
+
+Wire: select visual → Title → fx (Field value) → the measure. Turn OFF auto title.
+
+**Why each part:** `SELECTEDVALUE`'s second argument is the graceful nothing-selected default — no "(Blank)" leaks. Concatenation stays minimal: grain first, scope after.
+
+**Verify yourself:** click March + Team 3 → title updates; clear slicers → falls back cleanly. Screenshot pairs saved.

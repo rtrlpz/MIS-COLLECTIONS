@@ -1,109 +1,131 @@
-# Power BI — Basic — Tasks
+# Power BI Basic — Your Inbox (level 1 of 3)
 
 ```
-learning/
-├── _reference/            ← READ FIRST (datasets.md, kpi_glossary.md, data_dictionary.md)
-├── sql/  python/  notebooks/  excel/  git-cli/
-├── powerbi/
-│   ├── README.md
-│   └── basic/             ← YOU ARE HERE
-│       ├── tasks.md       ← current file
-│       ├── results.md     ← guidance, peek AFTER attempting
-│       └── work/          ← your .pbix + screenshots live here
-└── README.md
+You are here: learning/powerbi/basic/
+Assumed:      sql/basic done — you know the tables and the KPI definitions
+Setup:        Power BI Desktop; save attempt_*.pbix + a page screenshot per task into work/
+Solutions:    basic/results.md — after attempting; then REBUILD the solution model yourself
+House rule:   measures are code. Name them, describe them, keep them in one place.
 ```
 
-**Up from excel medium/advanced:** you can build a printable pack with live formulas. Power BI basic is the first step of the same story in a *visual-first* tool: model → measure → one honest page.
-
-**Setup:** Power BI Desktop (see `powerbi/README.md`). Save each as `learning/powerbi/basic/work/attempt_*.pbix` + a screenshot per task into `work/`.
-
-**Discipline:** attempt → commit → **look at the visual as a reader** → read `results.md`.
+**What this level gives you.** A working import-mode model of the collections star schema, your first correct measures, and one page a manager could actually read — plus the date-table and slicer hygiene that stops month-two pain before it starts.
 
 ---
 
-## Task 1 — The model reflects the schema (import mode)
+## Words you'll meet
 
-The supervisor: *"Power BI is only as good as its model. Import the star schema and prove the relationships behave."*
-
-**What you'll practice:** the Import-mode model — connecting to the DB (or importing reassembled CSVs — pick and say why), naming tables, and *validating* relationships, not just clicking them.
-
-Steps:
-1. Get the data into Power BI: connect (Import mode) to the DB **or** import your `work/` reassembled CSVs. State the trade-off you just made (live-connects vs import freshness).
-2. Check the auto-detected relationships: rename to `Dim_*`/`Fact_*` for readability, delete bogus ones, add the *intentional* ones on the keys you know from the dictionary.
-3. Prove cardinality: `fact_interactions` → `dim_accounts` is many-to-one; `dim_accounts` → `dim_clients` is many-to-one. Verify in the relationships pane and note any many-to-many (there shouldn't be any by design here).
-4. Sanity count on the MODEL (not SQL): row counts in the Data view vs the DB counts you already know. If they differ, find why *before* building anything.
-
-**Guiding questions:**
-- Why does a *fact-to-fact* relationship (e.g., anything through `ptp_id`) not belong in this model — what breaks in DAX filter propagation when facts join facts?
-- Import mode means the data is a *snapshot* — when is that the right call vs DirectQuery? (Freshness vs performance latency.)
-
-**Deliverable:** `work/attempt_1.pbix` + screenshot of the relationships pane with your cardinalities annotated.
+| Term | Plain meaning |
+|---|---|
+| **Import mode** | Data is copied INTO the .pbix at refresh; fast, in-memory — this project's standard |
+| **Star schema** | Fact tables (events) related to dimension tables (things), one-to-many from dim to fact |
+| **Measure** | A calculation computed AT QUERY TIME (`DIVIDE`, `CALCULATE`) — never a pasted column |
+| **Date table** | The calendar dimension marked as THE date table so time intelligence works |
+| **Slicer** | The filter dropdown/panel a manager plays with |
 
 ---
 
-## Task 2 — The first measure: RPC% (and measure vs column)
+## Task 1 — The model mirrors the schema
+📥 **Inbox:** From MIS Manager · Day 1 · "before any visuals"
 
-The supervisor: *"Build RPC% by channel so the number is a measure — say why it must be a measure, and what a calculated column would '-do' to it."*
+> "Connect to the collections database, Import mode, and bring in the star: our five core dimensions and the interaction fact. Relationships should look like the database's own keys — if Power BI guessed something weird, fix it and tell me what it guessed."
 
-**What you'll practice:** the measure-vs-column distinction — the single most important DAX decision — plus implicit vs explicit measures.
+**Your job:**
+1. Import `dim_employees`, `dim_clients`, `dim_products`, `dim_accounts`, `dim_calendar`, `fact_interactions`.
+2. Verify each relationship is dim(1) → fact(*), single direction.
+3. Hide every key column from report view.
 
-Steps:
-1. Create an **explicit measure** inside the interactions table: RPC% = ratio of sums (the denominator from `_reference/kpi_glossary.md`, exactly as you proved it).
-2. Add a card visual with period/channel context; verify the number against your SQL/Excel RPC% for the same slice.
-3. Now create a *calculated column* that stores per-row `rpc_flag` as 1/0 — and show why a sum/mean over that column yields a **different population** statement than your measure (state the reason in a static text/comment on the page).
-4. Format it as a percent, sorted, on a clean one-channel-years page.
-
-**Guiding questions:**
-- A measure is computed *in filter context at render*; a column is computed *once at load*. Which one re-answers when a slicer changes? That's the whole difference in one line.
-- Why does the visual show the *denominator's* your-chosen meaning only if the measure encodes it? What happens if you average a column of already-computed daily rates (the glossary trap, now in DAX)?
-
-**Deliverable:** `work/attempt_2.pbix` + screenshot: clean page with the measure card + your measure-vs-column note.
+**Done when:**
+- [ ] Six tables imported, relationships exactly as the SQL keys define
+- [ ] No key columns visible to report authors
+- [ ] Screenshot of Model view in `work/`
 
 ---
 
-## Task 3 — One honest page: the story board
+## Task 2 — First measures: RPC% that can't lie
+📥 **Inbox:** From Ops Lead · Tue 9:30 · "the number everyone quotes"
 
-The supervisor: *"Give me a first real page: RPC% trend, a channel breakdown, a top-10 accounts bar, and the snapshot delinquency profile. All on one screen, readable standing up."*
+> "I need RPC% as a real measure — not a calculated column. It must survive being sliced by team, channel, month, whatever. And divide-by-zero months must show blank, not infinity."
 
-**What you'll practice:** layout as communication — visual *choice* per claim (nobody plots a histogram for a rate), sorting, labels, and restraint (five-not-fifty, from Excel advanced).
+**Your job:**
+1. Base measures in a dedicated empty table: Total Interactions, Connected Calls, RPC Count.
+2. `RPC %` built with the safe-divide pattern.
+3. Format as percentage, one decimal; write a description on every measure.
 
-Steps:
-1. Line visual: RPC% over months (the trend claim — the monthly series you've proven three ways).
-2. Bar visual: channel volumes (categorical totals) — pick total (not rate) to match the claim.
-3. Bar visual: top-10 accounts by arrears (from the latest snapshot) — *state which snapshot month the page is as-of* in a clear label.
-4. Matrix/table: delinquency buckets × counts (the profile).
-5. One title, one as-of note, one page-claims sentence in a text box. No second debris.
-
-**Guiding questions:**
-- Which of the four visuals is an *as-of-snapshot* claim and which is a *flow* claim — and why must the as-of note be on the page, not in your head?
-- If the channel bar uses total calls attempted, does the RPC% trend's denominator match? Cross-visual definitional alignment = the check.
-
-**Deliverable:** `work/attempt_3.pbix` + screenshot: the one-page story with as-of note.
+**Done when:**
+- [ ] Four measures, all in `_Measures` table
+- [ ] Descriptions filled; % formatting applied
+- [ ] Blank shows for a slice with zero connects (you tested one)
 
 ---
 
-## Task 4 — Everyone can filter, few can slice-restate
+## Task 3 — One honest page
+📥 **Inbox:** From Operations Manager · Thu 3:00 PM · "Monday leadership sync"
 
-The supervisor: *"Add a slicer for team, month, and product type. Then prove the whole page *re-answers* — not just dims, but the measures too."*
+> "One page: interactions trend by month, RPC% by team, a couple of KPI cards on top. Nothing clever. If I can't explain each visual in one sentence, it doesn't ship."
 
-**What you'll practice:** slicers + filter context in action, and the *restate-check*: does every visual honor the slicer (or is one secretly ignoring it)?
+**Your job:**
+1. Cards: interactions, connected calls, RPC count.
+2. Line/column: monthly interactions trend.
+3. Bar: RPC% by team, sorted worst-first (that's the point of the meeting).
 
-Steps:
-1. Add three slicers: team, month, product type.
-2. Verify the "re-answer" claim: pick a team+month+product and your four visuals must move *together* — including the top-10 accounts (which must now be top-10 *within the slice*).
-3. Check for a *broken* visual: find one that ignores a slicer and fix it (a measure or a visual-level filter is holding it hostage).
-4. Add a trailing "all" option where meaningful (a team slicer that can't show "everyone" is a footgun — justify its absence if you leave it out).
-
-**Guiding questions:**
-- Which slicer changes *filter context* for every measure, and which just changes what rows are plotted? (Answer: all of them — if a visual disagrees, that's the bug.)
-- Why does the top-10 visual "reset" under a slicer need effort, while cards don't? (The distinction between row-level and measure-context filtering.)
-
-**Deliverable:** `work/attempt_4.pbix` + screenshot of the page under a nontrivial slice + your note on which visual initially broke and why.
+**Done when:**
+- [ ] Three visuals, no chartjunk, consistent colors
+- [ ] Every visual has a one-sentence title saying WHAT it shows
+- [ ] Screenshot saved; page passes the read-aloud test
 
 ---
 
-### Finish
+## Task 4 — Formatting is not decoration
+📥 **Inbox:** From MIS Manager · Fri 11:00 · "the director opened it on a projector"
 
-Attempt all four, then read `basic/results.md`. Write one line per task on what you saw as a *reader* of your own page.
+> "Numbers rendered at default size are unreadable past row two. Standardize: one font story, thousands separators, aligned card labels, and titles that state the grain ('Monthly', 'by Team'). Ship me the polished page."
 
-**Move up when:** the model, the measure is explicit, and the page answers — and you can say in one sentence why that RPC% must be a measure, not a column.
+**Your job:**
+1. Set explicit display units + decimals everywhere.
+2. Consistent title format across all three visuals.
+3. Align visuals to a grid; export a screenshot at presentation size.
+
+**Done when:**
+- [ ] No default-size text anywhere
+- [ ] Titles carry grain info
+- [ ] Projector-legible screenshot saved
+
+---
+
+## Task 5 — Mark the date table (or time intelligence will bite)
+📥 **Inbox:** From MIS Manager · Mon 10:00 · "gate check before medium level"
+
+> "Confirm the calendar dimension is marked as the model's date table, spans our full data range including the pre-month buffer, and that auto date/time is OFF. Then prove month sorting works: month names must order January→December, not alphabetically."
+
+**Your job:**
+1. Turn off Auto date/time for the file.
+2. Mark `dim_calendar` as date table on its `date` column.
+3. Add a month sort column usage: month_name sorted by month_num.
+
+**Done when:**
+- [ ] Auto date/time disabled (options screenshot)
+- [ ] Date table marked
+- [ ] A matrix shows months in calendar order
+
+---
+
+## Task 6 — Slicer hygiene
+📥 **Inbox:** From Ops Lead · Wed 2:00 PM · "managers keep breaking the page"
+
+> "Add year/month/team slicers. Single-select for month — someone always multi-picks and screenshots nonsense. And make sure slicing one visual doesn't nuke the cards people use as headline numbers."
+
+**Your job:**
+1. Three slicers wired correctly; month set to single-select.
+2. Review edit-interactions: decide deliberately which visuals cross-filter.
+3. Document the choice in the page footer note.
+
+**Done when:**
+- [ ] Month slicer cannot multi-select
+- [ ] Interaction choices deliberate (screenshot of settings)
+- [ ] Footer note explains the behavior to future users
+
+---
+
+## Finish
+
+Six artifacts in `work/`. Your model now matches production's shape and your first measures are defensible. [`../medium/tasks.md`](../medium/tasks.md) makes them move through time.

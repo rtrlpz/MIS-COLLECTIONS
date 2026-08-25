@@ -1,84 +1,167 @@
-# Power BI — Advanced — Results (Guidance)
+# Power BI Advanced — Results (worked solutions)
 
+Senior-level patterns — rebuild, then diff behavior under slicers and identities. No outputs; your screenshots and logs are the evidence.
+
+---
+
+## Task 1 — SVG sparkline card
+
+```dax
+RPC Trend Sparkline =
+VAR Months =
+    ADDCOLUMNS (
+        VALUES ( dim_calendar[month_num] ),
+        "v", [RPC %]
+    )
+VAR MaxV = MAXX ( Months, [v] )
+VAR BarW = 18
+VAR Gap = 4
+VAR Bars =
+    CONCATENATEX (
+        FILTER ( Months, NOT ISBLANK ( [v] ) ),
+        VAR i  = RANKX ( Months, [month_num], , ASC ) - 1
+        VAR h  = ROUND ( DIVIDE ( [v], MaxV ) * 28, 0 )
+        VAR x  = i * ( BarW + Gap )
+        RETURN
+            "<rect x='" & x & "' y='" & ( 30 - h )
+            & "' width='" & BarW & "' height='" & h
+            & "' fill='#262A76'/>"
+        , "" )
+RETURN
+IF (
+    COUNTROWS ( Months ) >= 2 && LEN ( Bars ) > 0,
+    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='"
+        & ( COUNTROWS(Months) * (BarW + Gap) ) & "' height='32'><rect width='100%' height='100%' fill='white'/>"
+        & Bars & "</svg>"
+)
 ```
-learning/
-├── _reference/            ← datasets.md, kpi_glossary.md, data_dictionary.md
-├── sql/  python/  notebooks/  excel/  git-cli/
-├── powerbi/
-│   ├── README.md
-│   └── advanced/          ← YOU ARE HERE
-│       ├── tasks.md
-│       ├── results.md     ← current file
-│       └── work/
-└── README.md
+
+Set: Measure tools → Data category → **Image URL**. Place in a card visual (or HTML-capable custom visual if policy allows — this pattern needs none).
+
+**Why each part:** `CONCATENATEX` builds the SVG body one `<rect>` per month; bar height scales against the max so the picture is relative, which is what trends mean. The `IF(COUNTROWS>=2)` guard keeps single-month contexts blank instead of a broken image.
+
+**Verify yourself:** slice to one team then another — bars re-rank shape. Slice to a single month → blank (by design). Change a month's RPC% in SQL? Not possible here — instead cross-check two adjacent bars' relative heights against the medium-level monthly chart.
+
+**Traps & alternatives:** SVG text needs single quotes inside the URL — mixing quote styles is the classic render-blank bug. Keep the palette hex from the theme so cards match Task 4's standard.
+
+---
+
+## Task 2 — Row-level security via the supervisor map
+
+Model:
+1. Import `v_rls_supervisor_map` as `RLS Map`. Power Query: add column `Email = Text.Lower([supervisor_id]) & "@collections.test"` (convention documented in the standard doc).
+2. Relationship: `RLS Map[agent_id]` → `dim_employees[agent_id]`, single direction dim→dim is fine; enable **Apply security filter in both directions** on it so filters flow from map into employees and onward into facts.
+
+Role creation (Modeling → Manage Roles):
+
+```dax
+-- Role: Supervisor
+-- Filter on 'RLS Map':
+[Email] = USERPRINCIPALNAME ()
 ```
 
-**How to use this file:** attempt → commit → read one section. Guidance only — reasoning paths, steps-with-why, verification strategy, traps. No full DAX, no computed values.
+Testing: View As → Other user → `sup01@collections.test`, role Supervisor. Walk every page INCLUDING drillthrough; screenshot each.
+
+**Why each part:** mapping-table RLS survives staff changes — grant access by adding a row, not editing roles. Both-direction filter application is required because facts relate to `dim_employees`, not to the map.
+
+**Verify yourself:** test log rows: identity × page × visible-teams expectation × pass/fail. Negative test matters most: sup01 must see ZERO rows of Team 5's agents anywhere, including the roll-rate matrix and drillthrough detail pages.
+
+**Traps & alternatives:** hardcoding `[team_name] = "Team 3"` in roles breaks on reorgs and fails audits. LOOKUPVALUE-based dynamic RLS on `USERPRINCIPALNAME()` directly against `dim_employees` also works when email lives there — we route through the shipped view because that's the project's contract.
 
 ---
 
-## Task 1 — Measure library, CSV-first
+## Task 3 — Honest trend lines
 
-**Thinking path:**
-- The project's 252-measure CSV exists because a library that big needs *portability* over the PBIX's binary: diff-able text, reviewable by eyeball, enforceable conventions (naming/folders/definition), and a path to automated checks. Your 12-measure `measures.csv` is the mini-version of that sociology.
-- The conventions that scale (steal them from the reference): name = *family_metric_horizon* (`Contact_RPC%`, `Contact_RPC%_MoM`); folder = family (Contact / Promise / Recovery / Time Intelligence); every measure carries a definition + denominator + the "people misread this because…" note. The "definition bug vs naming bug" question resolves *in the CSV*: a name that lies about its denominator is both — the CSV makes the mismatch *readable* rather than buried in a formula body.
-- Materialization: a small script reads `measures.csv` and emits the DAX-ready artifacts (the real project uses `import_measures.cs` in Tabular Editor — your script is the analog, on a smaller scale).
+Built-in: select line chart → Analytics pane → Trend line → Exponential smoothing. Document in the page note: it smooths seasonality away and extrapolates forward — assumptions belong on-screen per governance.
 
-**Verification strategy:**
-- Reviewer blind-test: hand a stranger `measures.csv`; can they reconstruct each measure's meaning without the PBIX? That's the whole point — the CSV is the review surface.
-- A lint-style pass: every column of every row populated, every folder exists, names unique. If you had 252, an empty note column would be the lint failure.
+DAX-controlled linear trend:
 
-**Traps & worth knowing:**
-- Duplicate measure bodies under two names drift in secret (folder applies, body diverges) — the CSV's *unique-name + commented-denominator* discipline is what prevents the drift.
-- Authoring "in the PBIX then exporting late" defeats the purpose: the CSV must be written *first*, imported, and divergences (`measure exists in PBIX but not CSV` or vice versa) treated as drift to resolve, not to ignore.
+```dax
+RPC Linear Trend =
+VAR Known =
+    FILTER (
+        ALLSELECTED ( dim_calendar[date] ),
+        NOT ISBLANK ( CALCULATE ( [RPC %] ) )
+    )
+VAR SlopeIntercept =
+    LINESTX ( Known, CALCULATE ( [RPC %] ), dim_calendar[date] )
+VAR Slope    = SELECTCOLUMNS ( SlopeIntercept, [Slope] )
+VAR Intercept= SELECTCOLUMNS ( SlopeIntercept, [Intercept] )
+VAR CurrentDate = MAX ( dim_calendar[date] )
+RETURN DIVIDE ( SUMX ( Known, Intercept + Slope * ( CurrentDate - MINX ( Known, dim_calendar[date] ) ) ),
+                COUNTROWS ( Known ) )
+```
 
----
+Simpler equivalent many models ship:
 
-## Task 2 — Mini Calculation Group
+```dax
+RPC Trend Line =
+VAR Known = FILTER ( ALLSELECTED ( dim_calendar[month_num] ), NOT ISBLANK ( [RPC %] ) )
+VAR sx = SUMX ( Known, dim_calendar[month_num] )
+VAR sy = SUMX ( Known, [RPC %] )
+VAR sxx = SUMX ( Known, dim_calendar[month_num] ^ 2 )
+VAR sxy = SUMX ( Known, dim_calendar[month_num] * [RPC %] )
+VAR n   = COUNTROWS ( Known )
+VAR slope = DIVIDE ( n * sxy - sx * sy, n * sxx - sx ^ 2 )
+VAR intercept = DIVIDE ( sy - slope * sx, n )
+RETURN intercept + slope * MAX ( dim_calendar[month_num] )
+```
 
-**Thinking path:**
-- A Calculation Group is a *parameterized* measure template: its items (Current / Previous / YoY) each carry an expression that wraps the referenced base measure (the `SELECTEDMEASURE()`-class callback — read the wording in `calculation_group_ti.json`). Applying a CG item as a slicer rewrites the context for any measure that supports it — one template, N measures.
-- Why it collapses a library: without a CG, each base × each horizon = a *new named measure* (2 bases × 3 horizons = 6, × every future base = linear growth). With a CG: 2 bases + 1 CG with 3 items — new bases tomorrow cost zero extra measures. That counting (6 vs 2+1) is the hand-math proof (`cg_math.md`).
-- Two-active-CGs rule: an active CG's item expression is applied; two CGs at once conflict unless one is inert — the format-string an item carries is what the *visual calls* use as a label, so item naming doubles as display taxonomy.
+Plot both measures plus actuals as lines on the same chart.
 
-**Verification strategy:**
-- One visual × CG slicer: flip Current → Previous → YoY; the numbers match the same slice by your proven SQL/Python values (a YoY RPC% = your earlier-computed same-horizon comparison).
-- `cg_math.md`: 2 base + 1 CG×3 items = N measures you *didn't* need to author — write the arithmetic down.
+**Why each part:** least-squares over the SELECTED window only (`ALLSELECTED`) — slicing to H2 retrends honestly within that scope. The analytics pane is faster but opaque; shipping both with a note is the transparency standard.
 
-**Traps & worth knowing:**
-- Power BI Desktop's full CG authoring historically requires Tabular Editor (the project's `calculation_group_ti.json` + `create_calc_group.cs` are the production route) — if Desktop's UI restricts you, author the JSON/script route exactly like the project and import; that *is* the professional path, not a workaround.
-- An item that forgets the base-measure callback renders every measure its own expression — the "all visuals same number" failure; always start the item body from the callback reference.
+**Verify yourself:** backtest comment — hide the last month from Known conceptually by slicing to earlier months, read each method's implied next value, compare to what actually happened; write one sentence on trust. Direction of slopes must agree between methods; magnitude may not.
 
----
-
-## Task 3 — RLS
-
-**Thinking path:**
-- RLS = a security role with a row rule; the rule uses a *user function* (`USERNAME()`-class) matched to a mapping table (supervisor ↔ agent), linking `dim_employees` so a login sees only their row-set's agents. The `rls_supervisor_map`-style pattern is exactly this in production.
-- The *row-level* honesty: RLS filters rows — so a portfolio total on a secured page re-aggregates to the supervisor's slice (intended), while a *cross-team* total silently shrinks unless its visual is outside the secured scope. The policy decision ("supervisor sees own agents' detail, portfolio totals only from an unsecured summary") is a *design* decision to state, not a default.
-- Effort model: adding a supervisor = adding a row to the mapping (a table change), not a new rule (a model change). That's the scaling argument for the map pattern over hardcoded rules.
-
-**Verification strategy:**
-- Impersonate as supervisor A: agent-level visuals show only A's agents; counts differ from the unsecured view. That delta is the proof — print both.
-- A secured *summary* visual that must stay unsecured (e.g., the portfolio headline) — verify it shows *global* numbers under impersonation, or consciously accept the re-aggregation.
-
-**Traps & worth knowing:**
-- A role with no mapping row for a real supervisor = visibly empty brain for that login; test each actual login id in "View as".
-- RLS protects *someone's* slice only if the fact tables filter through the secured dimension — a fact whose join chain bypasses `dim_employees` leaks. Test a payment's-worth visual under impersonation, not just the interactions page.
+**Traps & alternatives:** LINESTX returns a TABLE — wrap columns out via SELECTCOLUMNS (as shown). Never let a trend measure silently include blank months: the `FILTER(NOT ISBLANK)` guard is the honesty clause.
 
 ---
 
-## Task 4 — Final audit
+## Task 4 — Report governance: theme + template + standard
 
-**Thinking path:**
-- End-of-track audit = an *evidence file* (your proven outputs exported to `Truth`) imported into the model, and a Verification page computing, per metric, | live measure value − expected | within a stated tolerance → PASS/FAIL. The pattern: a `Truth` table keyed the same as the visual's slice (`RELATED`-class lookup), a delta, a pass bool; the page renders the whole audit at a glance.
-- Stronger-proof question: a live view query is *current truth* (strong vs a moving target — views can evolve); an evidence CSV is *audited snapshot* (frozen & reproducible — STABLE). For a sign-off you want *stable*: the Evidence is the better anchor — it can't secretly recompute its own definition under the audit's feet.
-- Tolerance policy writes first: rates in a percent of absolute terms, counts exact or tight; state it *before* any check (a FAIL after the fact isn't an audit, it's a post-mortem). A "my tolerance was too tight" FAIL is a real FAIL of *policy* — relax policy deliberately with a note, never in silence.
+Theme (`collections_theme.json`, based on project palette #262A76):
 
-**Verification strategy:**
-- Cold-read the Verification page: every headline metric has a row; FAILs have root-cause lines (definition gap → a targeted adjustment, filter window → re-slice, formatting → fix format); zero unexplained FAILs before "ship".
-- The dashboard's cover numbers == the `Truth` rows — the five cover numbers and the audit agree, because the *proof* is the same file.
+```json
+{
+  "name": "Collections MIS Theme",
+  "dataColors": ["#262A76", "#1A60B0", "#00B050", "#FFC000", "#FF0000", "#7F7F7F"],
+  "background": "#FFFFFF",
+  "foreground": "#262A76",
+  "tableAccent": "#262A76",
+  "visualStyles": {
+    "*": { "*": {
+      "title": [{ "fontSize": 12, "bold": true, "fontColor": "#262A76" }],
+      "labels": [{ "fontSize": 10 }]
+    }},
+    "card": { "*": { "labels": [{ "fontSize": 24 }] } }
+  }
+}
+```
 
-**Traps & worth knowing:**
-- Delta on formatted cells (display `%` vs stored ratio) — same trap as Excel advanced; delta on *raw* values, format at display.
-- A Verification table that never updates when the model changes says your `Truth` import isn't refreshed — the audit is only as alive as its evidence file; keep the refresh step in your regeneration pipeline.
+Template PBIX checklist (bake in once):
+- `_Measures` table exists and is EMPTY by convention (measures never live on fact tables)
+- All key columns hidden; `dim_calendar` marked as date table; auto date/time OFF
+- Exemplar measures included meeting the naming standard: `[<Metric>]`, `[<Metric> PM]`, `[<Metric> Color]`
+- Every measure has a description; RAG bounds referenced from `Dim_Targets`, never inline literals beyond the color hexes
+
+Standard doc skeleton (≤1 page): measure naming pattern · description mandatory · thresholds live in Dim_Targets · RAG hexes fixed (#00B050/#FFC000/#FF0000) · every page footer states filter behavior · drillthrough tested per release.
+
+**Verify yourself:** apply theme to a messy test page — fonts/colors snap everywhere without manual edits. Hand the standard to a colleague cold: if they ask a question the doc should have answered, the doc isn't done.
+
+---
+
+## Task 5 — Model performance hygiene
+
+Checklist (becomes the reusable doc):
+
+1. File options → Data Load → Auto date/time OFF (before importing anything).
+2. Power Query on each fact: remove columns no measure, relationship, or axis uses (e.g., free-text descriptions); set data types explicitly at source step.
+3. Dimensions: hide keys; verify no unused attributes linger in report view.
+4. Refresh: Import scheduled via gateway/service — document cadence matching MIS deadlines (the JD's automation requirement).
+5. Re-measure after changes: file size before vs after; subjective slicer latency note.
+
+Typical wins on this model: auto date/time artifacts removal is often the single biggest shrink; dropping unused wide-text columns from the 1.3M-row fact follows.
+
+**Verify yourself:** before/after numbers recorded in `work/performance_notes.md`. Spot-check list executed: headline cards, one matrix, drillthrough, RLS View-As — nothing user-facing changed.
+
+**Traps & alternatives:** don't prune a column just because today's report ignores it — prune against the DASHBOARD SPEC (blueprint), not current visuals; note borderline calls in the doc. Performance work without a written before/after is opinion, not governance.

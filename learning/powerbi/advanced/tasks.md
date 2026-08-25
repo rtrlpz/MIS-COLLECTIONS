@@ -1,112 +1,102 @@
-# Power BI — Advanced — Tasks
+# Power BI Advanced — Your Inbox (level 3 of 3)
 
 ```
-learning/
-├── _reference/            ← READ FIRST (datasets.md, kpi_glossary.md, data_dictionary.md)
-├── sql/  python/  notebooks/  excel/  git-cli/
-├── powerbi/
-│   ├── README.md
-│   └── advanced/          ← YOU ARE HERE
-│       ├── tasks.md       ← current file
-│       ├── results.md     ← guidance, peek AFTER attempting
-│       └── work/          ← your .pbix + screenshots + .csv live here
-└── README.md
+You are here: learning/powerbi/advanced/
+Assumed:      medium/ complete — TI measures, RAG-by-measure, drillthrough all warm
+Solutions:    advanced/results.md — after a serious attempt; then REBUILD and DIFF
+Theme:        the senior layer — custom visuals in DAX, security, forecasting,
+              governance, and model performance
 ```
 
-**Up from powerbi medium:** CALCULATE, time intelligence, measure-library discipline, multi-page navigation. Advanced builds the **project-grade stack**: measure library authored "CSV-first", a mini Calculation Group, row-level security, and the final cross-track audit of the whole dashboard.
-
-**Setup:** Power BI Desktop + DB. Reference the project's own stack for the pattern: `dashboards/dax/collections_dax_v2.csv` (the 252-measure source of truth), `dashboards/dax/calculation_group_ti.json`, `docs/dashboards/dashboard_blueprint.md`. Save each as `learning/powerbi/advanced/work/attempt_*.pbix` + artifacts.
-
-**Discipline:** attempt → commit → read as a viewer → read `results.md`. Every number on every page was *proven* earlier in the track — Power BI is the last mile, not a recompute.
-
-> **The advanced rule (house rule):** divergence from the proven number is a *finding*; a dashboard with an unexplained divergence is an unshipped dashboard.
+**What this level gives you.** The capabilities that separate a report builder from the MIS analyst who owns the platform: DAX-drawn visuals, row-level security that survives an audit, honest trend lines, and the standards doc that keeps the next ten reports consistent.
 
 ---
 
-## Task 1 — The measure library, CSV-first
+## Task 1 — SVG indicator cards drawn in DAX
+📥 **Inbox:** From Head of MIS · Tue 10:00 · "make the exec page feel designed"
 
-The supervisor: *"252 measures live as a CSV, the PBIX imports them. Prove you can *author* to that standard: a mini library of 12 measures, documented in a CSV, then materialized in your model."*
+> "Our KPI cards are flat numbers. I've seen dashboards where the trend sparkline is DRAWN BY A MEASURE — no extra visuals, scales with filters. Build one for monthly RPC%: mini bars per month inside a single card visual."
 
-**What you'll practice:** the project's source-of-truth discipline — measures **authored and documented outside the PBIX** (a CSV + manifest), imported into the model; the PBIX is a *consumer*, not the *author*.
+**Your job:**
+1. Write a measure returning an SVG data URL: one bar per month, height ∝ RPC%.
+2. Set the measure's Data category to Image URL; drop it into a card/image-capable visual.
+3. Keep it blank-safe when fewer than two months are in context.
 
-Steps:
-1. Study the pattern in `dashboards/dax/collections_dax_v2.csv`: structure, naming, folders, expression style. Write down the three conventions that would scale (name ← family+metric+horizon; folder = family; every measure has a definition/denominator).
-2. Author a **mini `measures.csv`** (12 measures, your own family set: Contact / Promise / Recovery / Time Intelligence-adjacent), columns: name, table, folder, expression, note (denominator + why — the reference style).
-3. Create an import path: a tiny script (reuse your Python) that reads your `measures.csv` and outputs measures ready for a Tabular-Editor-style bulk import (your project has `dashboards/scripts/import_measures.cs` as the real analog — yours can be a CSV→.txt/dax script). Materialize the 12 in the model.
-4. Sanity: a stranger reading `measures.csv` can reconstruct each measure's *meaning* without the PBIX open.
-
-**Guiding questions:**
-- What does "CSV is source of truth" buy that "authoring in the PBIX" can't (diff-ability, review, CI-adjacent checks, portability)? Which of those matters most for a 252-measure library?
-- A measure whose *name* implies a denominator it doesn't use — is that a naming bug or a definition bug? Where does the CSV make that answer *enforceable*?
-
-**Deliverable:** `work/measures.csv` (12 measures, documented) + `work/attempt_1.pbix` (measures materialized) + a one-page `work/measure_conventions.md`.
+**Done when:**
+- [ ] Sparkline renders and CHANGES with slicers
+- [ ] No external images or custom visuals installed
+- [ ] Code commented well enough that a colleague can change bar count
 
 ---
 
-## Task 2 — A mini Calculation Group
+## Task 2 — Row-level security supervisors can't peek past
+📥 **Inbox:** From Security Officer · Wed 9:00 · "go-live blocker, non-negotiable"
 
-The supervisor: *"The project replaces a pile of legacy measures with ONE Calculation Group (`_Time Intelligence`). Build a mini one: Current / Previous Month / Year-over-Year as items over any base measure."*
+> "Each supervisor sees ONLY their teams' data. The project ships `v_rls_supervisor_map` for exactly this. Design the role(s), wire the mapping, TEST as each supervisor identity, and hand me a one-page test log. If any supervisor can see another team's agents anywhere in the model — including drillthrough — it fails."
 
-**What you'll practice:** the Calculation Group *concept* — a column-like selector that injects time context into any measure via an implicit `CALCULATE` — and why a CG collapses dozens of copies into one.
+**Your job:**
+1. Import the mapping view; add an email convention column (e.g., supervisor_id → sup01@collections.test).
+2. Create role(s) with filter expressions; ensure filters flow to EVERY fact-bearing path.
+3. View As each test identity; document results per page.
 
-Steps:
-1. Read `dashboards/dax/calculation_group_ti.json` for the pattern (items, expressions, column name). Understand what an item *is* (a template expression that wraps the measure reference).
-2. Define a mini CG `_Time Intelligence` with **3 items**: Current Period, Previous Period, Year-over-Year (each = a `CALCULATE`-driven template over the referenced base measure, with `SELECTEDMEASURE()`-class mechanics — the reference's vocabulary).
-3. Apply it as a slicer against your base measures (e.g. RPC%, PTP%) and show the same visual flipping Current/Previous/YoY without any measure copy.
-4. Prove the replacement claim in miniature: count the measures you'd have needed WITHOUT the CG vs the number WITH it (2 base measures ×3 horizons = 6 vs 2 + 1 CG with 3 items).
-
-**Guiding questions:**
-- How is a CG *different* from a measure that already has time-intel baked in (a `PY RPC%`)? What does the CG add when a stakeholder wants a *new* horizon on a *new* base measure tomorrow?
-- What breaks if two CGs are active at once — and what's the rule about the "format string" an item carries?
-
-**Deliverable:** `work/attempt_2.pbix` (mini CG working as a slicer) + screenshot of the same 2 base measures × 3 horizons under one CG + a hand count in `work/cg_math.md`.
+**Done when:**
+- [ ] Role expressions use the mapping table, not hardcoded names
+- [ ] View-As screenshots for ≥2 identities across all pages
+- [ ] Test log covers drillthrough + hidden pages
 
 ---
 
-## Task 3 — The door only opens for your team (RLS)
+## Task 3 — Honest trend lines & forecasts
+📥 **Inbox:** From Portfolio Manager · Thu 1:00 · "is RPC% really improving or is it noise?"
 
-The supervisor: *"The real deployment ships RLS by supervisor: a manager logs in, sees exactly their agents. Model it — role, rule, test."*
+> "Add a trend line to the monthly RPC% chart — either the built-in analytics pane done RIGHT (explain its assumptions) or a DAX regression line you fully control. Then tell me what January's forecast would have said, and how much you'd trust it."
 
-**What you'll practice:** row-level security — a role with a `supervisor→agent` mapping rule, tested from an impersonation login — the `rls_supervisor_map`-style pattern in your own model.
+**Your job:**
+1. Implement BOTH: analytics-pane exponential smoothing AND a DAX linear-trend measure.
+2. Compare their stories on the same chart.
+3. Written verdict: which goes in the exec pack and why.
 
-Steps:
-1. Build (or import) a small `SupervisorMap` table: supervisor_id ↔ agent_id (from `dim_employees`' self-referencing supervisor structure — the dictionary documents the parent link).
-2. Create a security ROLE with a row rule joining the map: filters `dim_employees` so `agent_id` (in the row context) belongs to the *current user*'s supervisor row (`username()`-driven mapping).
-3. Test from "View as role" as a specific supervisor: the agent page + any agent-level visuals show ONLY their agents; counts differ from the unsecured view (that difference **is** the proof).
-4. Reflect: which visuals must NOT be RLS-scoped (portfolio-wide summary the supervisor is allowed to see) — and say the policy out loud in a note (who may exist which number).
-
-**Guiding questions:**
-- RLS filters rows; it cannot hide a *wrong aggregate* — so what happens to a portfolio total when a supervisor's role filters the fact table? (Either it re-aggregates to their slice — desired — or a "total" that crosses teams silently shrinks — a design decision.)
-- Security by *role* vs openness by default: what's the safe default for a stakeholder's dashboards, and where does RLS impose *effort* (adding a supervisor = a row in the map, not a new rule)?
-
-**Deliverable:** `work/attempt_3.pbix` (role + rule) + screenshots: unsecured total vs one-supervisor view, plus your RLS policy note.
+**Done when:**
+- [ ] Both lines coexist on the monthly chart
+- [ ] One-paragraph methodology note (assumptions + limits)
+- [ ] Forecast-vs-actual backtest comment
 
 ---
 
-## Task 4 — The final audit: one dashboard, one truth
+## Task 4 — Report governance: make the next ten reports consistent
+📥 **Inbox:** From Head of MIS · Mon 8:30 · "governance initiative phase 2 — yours"
 
-The supervisor: *"Ship it ONLY if it proves itself. A verification page that cross-checks dashboard numbers against the SQL/Python/Excel evidence — with PASS/FAIL and deltas. The dashboard ends as an auditable artifact."*
+> "Standardize: one theme file, one measure-naming convention, one rule for where measures live, descriptions mandatory. Deliver the theme JSON wired into a template PBIX plus a written standard a new analyst follows without asking questions."
 
-**What you'll practice:** the end-of-track audit — every headline visual compared in-model against the reference source (re-imported as a "truth" table from your work output, or against the view via query), PASS/FAIL + delta, and a root-cause for any FAIL (the advanced rule, now the final gate).
+**Your job:**
+1. Author/curate a theme JSON (project palette: primary #262A76 family) — fonts, data colors, card styles.
+2. Template PBIX: `_Measures` table, hidden keys, naming conventions baked into example measures.
+3. One-page standard doc: naming pattern, description requirement, RAG thresholds source-of-truth pointer.
 
-Steps:
-1. Produce a **truth table** outside the PBIX (reuse your Python/Excel outputs: per-team RPC%, monthly PTP%, top-10 arrears as-of, bucket profile) as CSV — the "evidence file".
-2. Import it into the model (a `Truth` table with `report:key + expected + tolerance`) and build a `Verification` page: each metric's LIVE dashboard value vs `Truth.expected` vs delta vs tolerance vs PASS/FAIL.
-
-   (Mechanism: the live value = your base measure; expected = `RELATED`-style lookup from the truth table keyed on the same slice values — the classic "checked artifact" pattern.)
-3. Drive every FAIL to green **or** to a documented root cause (definition gap, filter window, formatting — prove with a targeted adjustment, don't relax the tolerance to fake a pass).
-4. Final cold-read: reset all, stranger clicks through nav, the Verification page truthfully reports all-PASS (or zero unexplained FAILs), and the author's note (version, as-of date, the five cover numbers) sits on the cover.
-
-**Guiding questions:**
-- Verifying against a *copy* (your truth CSV) vs against the *live view* (query the DB directly): which is a stronger proof, and why does the copy sometimes be *more* honest (a view can evolve; an evidence file is an audited snapshot)?
-- A FAIL that is only "my tolerance was image-tight" — is that a real FAIL? State the tolerance policy the Verification page enforces, in words, *before* any check runs.
-
-**Deliverable:** `work/attempt_4.pbix` (with the Verification page) + `work/truth_evidence.csv` + `work/final_audit.md` (tolerance policy + PASS/FAIL outcome + any root-cause notes).
+**Done when:**
+- [ ] Theme applies cleanly to any page
+- [ ] Template contains exemplar measures meeting the standard
+- [ ] Standard doc ≤1 page and actually specific
 
 ---
 
-### Finish
+## Task 5 — Model performance: make refresh and slicing fast
+📥 **Inbox:** From MIS Manager · Fri 3:00 · "the file is getting heavy"
 
-Attempt all four, then read `advanced/results.md`. Close `final_audit.md` with a one-paragraph verdict a director would accept.
+> "Before this grows: disable everything Power BI silently generates that we don't need, prune unused columns from the big fact, document before/after size. I want the hygiene checklist we run on EVERY new model from now on."
 
-**Graduate when:** your dashboard *proves* itself (self-audit), restricts itself (RLS), self-documents (CSV-first library), and a stranger can verify the claim by clicking the Verification page — in under a minute.
+**Your job:**
+1. Kill auto date/time artifacts (file level); remove built-in date hierarchies.
+2. In Power Query: drop columns no measure/relationship uses from `fact_interactions`; correct data types at source.
+3. Measure .pbix size + a subjective slicer-speed note before/after; write the reusable checklist.
+
+**Done when:**
+- [ ] Before/after sizes recorded
+- [ ] Checklist doc exists and names every step
+- [ ] Nothing user-facing broke (visual spot-check list)
+
+---
+
+## Finish
+
+You now own the senior toolkit: DAX-drawn visuals, auditable security, defensible trends, enforceable standards, and models that stay fast. The production dashboard (Phase 9 of the main project) is this track at scale — go read its blueprint and recognize everything.

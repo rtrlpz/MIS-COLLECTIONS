@@ -39,8 +39,8 @@ SQL proves numbers, Python reshapes them, notebooks explain them, Excel ships th
 
 Each level folder has:
 
-- `tasks.md` — assignments written as supervisor requests
-- `results.md` — reasoning guidance; open **only after** attempting
+- `tasks.md` — your inbox: workplace requests with Done-When checklists (no code, no expected numbers)
+- `results.md` — full worked solutions with the complete DAX/model steps; open **only after** attempting, then rebuild the solution yourself
 - `work/` — your `.pbix` files + screenshots; git-ignored scratchpad
 
 Routine: read task → attempt in `work/` → **read the visual, not just the number** (a percentage that renders wrong lies convincingly) → then compare with `results.md`.
