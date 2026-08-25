@@ -1,84 +1,181 @@
-# Excel — Advanced — Results (Guidance)
+# Excel Advanced — Results (worked solutions)
 
+Two artifacts per task where relevant: python script sections and full VBA listings. VBA lives in `.bas` modules you IMPORT into the workbook's VBE (Alt+F11 → File → Import File) — openpyxl cannot author VBA, only preserve it.
+
+---
+
+## Task 1 — The MIS generator
+
+`generate_daily_mis.py` skeleton (assembling everything from basic+medium):
+
+```python
+"""generate_daily_mis.py — one-command Collections Daily MIS pack.
+Usage: python generate_daily_mis.py --input daily_extract.csv --out work/daily_mis.xlsx
+Input: CSV export of v_daily_mis (date, team_name, contacts, connects, rpcs, ...)
+"""
+import argparse
+from pathlib import Path
+import pandas as pd
+from openpyxl import Workbook
+# ... NamedStyles, build_cover(), build_data(), build_summary(),
+#     build_agent_lookup(), build_parameters(), build_changelog(),
+#     apply_print_setup(ws), attach_rag_rules(ws_s), save()
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--input", required=True)
+    ap.add_argument("--out", default="work/daily_mis.xlsx")
+    args = ap.parse_args()
+
+    df = pd.read_csv(args.input, parse_dates=["date"])
+    wb = Workbook()
+    build_cover(wb); build_data(wb, df); build_summary(wb, df)
+    build_agent_lookup(wb); build_parameters(wb); build_changelog(wb)
+    for ws in wb.worksheets:
+        apply_print_setup(ws)
+    wb.save(args.out)
+
+if __name__ == "__main__":
+    main()
 ```
-learning/
-├── _reference/            ← datasets.md, kpi_glossary.md, data_dictionary.md
-├── sql/  python/  notebooks/  powerbi/  git-cli/
-├── excel/
-│   ├── README.md
-│   └── advanced/          ← YOU ARE HERE
-│       ├── tasks.md
-│       ├── results.md     ← current file
-│       └── work/
-└── README.md
+
+**Why each part:** builder-per-sheet functions keep the 300-line generator reviewable; CLI args make it schedulable (Task 5 depends on this). Byte-stable reruns except timestamps = your regression test.
+
+**Verify yourself:** run twice; diff via unzip of the xlsx (it's a zip): only timestamp-bearing parts differ. Spot-check three Summary cells against SQL `v_daily_mis`.
+
+---
+
+## Task 2 — Refresh-on-open VBA
+
+Save as `work/RefreshOnOpen.bas`, import into the .xlsm's VBE:
+
+```vb
+' Module: modRefresh
+Option Explicit
+
+Private Sub Workbook_Open()   ' lives in ThisWorkbook, not a .bas module
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets("Cover")
+    On Error Resume Next
+    ws.Range("C8").Value = "Last refreshed: " & Format(Now, "yyyy-mm-dd hh:nn:ss")
+    Application.CalculateFullRebuild
+    On Error GoTo 0
+End Sub
 ```
 
-**How to use this file:** attempt → open → read one section. Guidance only — reasoning paths, steps-with-why, verification strategy, traps. No full code, no computed values.
+Note: `Workbook_Open` belongs in **ThisWorkbook**, not a standard module — the .bas you import is any helper code; event stubs are pasted into ThisWorkbook. Convert first: File → Save As → *Excel Macro-Enabled Workbook (.xlsm)*.
+
+**Why each part:** `CalculateFullRebuild` guarantees formula freshness on stale-looking opens; error-guard keeps a broken calc from blocking the file opening entirely.
+
+**Verify yourself:** close & reopen → timestamp changes to now; F9-recalc state visibly refreshed. Document honestly: users must click "Enable Content" — that prompt IS the security tradeoff; mention signing/cert options in your note.
 
 ---
 
-## Task 1 — Charts that earn their ink
+## Task 3 — One-button pack
 
-**Thinking path:**
-- The chart API (`BarChart`/`LineChart`, `Reference` for categories/values, titles, axis titles, legend) draws from the workbook's cell ranges, not from literal values — so a chart is a *derived object*, regenerated when data refreshes. That's the anchor-by-reference point: series from cells = the chart can never silently disagree with the sheet.
-- Claim-idiom match: a *categorical* comparison (channels) → bar; a *time sequence* claim → line. A bar chart of categorical data implying order, or a line over categories implying continuity, are both lies by idiom.
-- Growth-proof anchoring: a monthly series that gains a month next period will not auto-extend a `Reference`; design the data range to cover a generous span (or rebuild ranges on regeneration). Silent range-death is the #1 "chart died after refresh" incident.
+```vb
+' Module: modPackPipeline
+Option Explicit
 
-**Verification strategy:**
-- Edit an underlying data cell → the chart re-plots (openpyxl regeneration; in a viewer, a manual F9/refresh matches).
-- Label audit: title + axis titles + legend all present; a chart readable with the sheet hidden.
+Const DROP_PATH As String = "C:\collections\drops\"
+Const DATA_SHEET As String = "Data"
 
-**Traps & worth knowing:**
-- Chart engine differences between Excel and LibreOffice (Task 4's acceptance) — simple charts travel better than exotic ones.
-- A "screenshot of a chart" pasted as an image is not a chart — it's a fossil. Refuse it in deliverables.
+Public Sub RefreshPack()
+    Dim fDialog As FileDialog, csvPath As String
+    Dim latest As String, f As String
+    latest = Dir(DROP_PATH & "daily_*.csv")
+    Do While latest <> ""
+        If f = "" Or FileDateTime(DROP_PATH & latest) > FileDateTime(DROP_PATH & f) Then f = latest
+        latest = Dir()
+    Loop
+    If f = "" Then
+        MsgBox "No daily_*.csv found in " & DROP_PATH, vbExclamation, "Refresh Pack"
+        Exit Sub
+    End If
+    csvPath = DROP_PATH & f
+
+    Application.ScreenUpdating = False
+    LoadCsvIntoData csvPath
+    ThisWorkbook.Application.CalculateFullRebuild
+
+    Dim outPdf As String
+    outPdf = ThisWorkbook.Path & "\daily_mis_" & Format(Date, "yyyy-mm-dd") & ".pdf"
+    ThisWorkbook.Worksheets("Daily").ExportAsFixedFormat Type:=xlTypePDF, Filename:=outPdf
+    ThisWorkbook.Worksheets("Summary").ExportAsFixedFormat Type:=xlTypePDF, Filename:=Replace(outPdf, ".pdf", "_summary.pdf")
+    Application.ScreenUpdating = True
+    MsgBox "Pack refreshed and exported:" & vbCrLf & outPdf, vbInformation
+End Sub
+
+Private Sub LoadCsvIntoData(ByVal csvPath As String)
+    Dim wsD As Worksheet, qt As QueryTable
+    Set wsD = ThisWorkbook.Worksheets(DATA_SHEET)
+    wsD.Range("A4").CurrentRegion.Offset(1).ClearContents   ' keep headers
+    Set qt = wsD.QueryTables.Add( _
+        Connection:="TEXT;" & csvPath, _
+        Destination:=wsD.Range("A5"))
+    With qt
+        .TextFileParseType = xlDelimited
+        .TextFileCommaDelimiter = True
+        .RefreshStyle = xlOverwriteCells
+        .Refresh BackgroundQuery:=False
+    End With
+    qt.SavePassword = False
+End Sub
+```
+
+Cover button: Insert → Shapes → rectangle → Assign Macro → `RefreshPack`.
+
+**Why each part:** newest-file pick means the analyst never renames anything at 8:40; ClearContents keeps header row + table structure so medium-level formulas survive; PDF names embed the DATE (the JD deliverable pattern). Failure path exits BEFORE touching sheets.
+
+**Verify yourself:** drop two CSVs with different timestamps — correct one loads. Remove all CSVs — message box, no partial write. Formulas on Summary intact after refresh (spot-check).
 
 ---
 
-## Task 2 — The dashboard cover
+## Task 4 — Generating .xlsm safely from python
 
-**Thinking path:**
-- Five-not-fifty is a *decision* filter: a number earns the cover if a change in it **moves an ops decision** that day (RPC%, PTP%, cure, utilization, one portfolio state view). The "so what" line under the worst number is the pivot between "reporting" and "decision support".
-- The period selector is a single defining cell; every headline is a *formula* that reads off it (via the pack's data sheet, indirectly). A sheet that hardcodes a period silently falls out of sync — same producer/consumer law from medium, now at the *whole-pack* scale.
-- RAG treatment from the documented targets: a cover that lands all-green is a boring good day; the amber/red cell is the one the exec asks about first — annotate it.
+The honest flow (documented in your script header):
 
-**Verification strategy:**
-- Change the period selector → all five headline cells move together; none stays stale (the pack-wide live check).
-- The cover reads in ≤10 seconds: title, period, five big numbers, legend/target line, one "so what".
+```text
+1. Build template ONCE manually: pack.xlsm containing the VBA project
+   (ThisWorkbook stub + imported .bas modules).
+2. Generator flow:
+   - openpyxl.load_workbook("pack_template.xlsm", keep_vba=True)
+   - rebuild/refresh sheet CONTENTS (values, styles, tables)
+   - wb.save("daily_mis.xlsm")
+3. LIMITS (write these down):
+   - You cannot CREATE or EDIT VBA from python — only preserve it.
+   - Sheet-level code (event handlers on renamed/deleted sheets) can orphan.
+   - Keep sheet NAMES stable so ThisWorkbook/module references survive.
+```
 
-**Traps & worth knowing:**
-- Merged multi-row title blocks can break a clean selection-copy; keep the skyline cells simple and individually selectable.
-- A formula chain too deep (period → 4 hops → headline) becomes un-debuggable; cap hops and put the chain in a named range for auditability.
+```python
+wb = load_workbook("work/pack_template.xlsm", keep_vba=True)
+rebuild_data(wb["Data"], df_daily)          # values/styles only — same sheet names
+wb.save("work/daily_mis.xlsm")
+```
 
----
-
-## Task 3 — The self-auditing pack
-
-**Thinking path:**
-- The checks tab builds the audit table: | metric | workbook | view | delta | tolerance | PASS/FAIL |. The view values come from the DB (`v_daily_mis` etc.) — the same cross-track audit you've been running in SQL/Python, now *materialized inside the deliverable*.
-- Tolerance is a *contract*: rates get a percentage tolerance, counts exact-or-tight; printed per row, every row. A bare PASS without a stated tolerance is theater; a FAIL with a root-cause line is an audit.
-- A FAIL's root cause is the real product: definitional (denominator), filter (channel/status), or formatting (a `0.35` displayed as `35%` won't read as equal to an integer-pct view with naive delta). Diagnose, don't silence.
-
-**Verification strategy:**
-- Every headline cell has a Checks row; every row sums to a verdict; the verdict column reads top-to-bottom.
-- Re-running the pack (fresh DB pull) leaves the same verdicts — the audit is *reproducible*, not editorial.
-
-**Traps & worth knowing:**
-- Comparing a formatted cell (display) vs its raw value (reality) is a classic delta surprise — always delta on raw values, present the formatted display separately.
-- A view whose filter (month window) differs from your workbook's period is a *definition mismatch*, not a bug — still a root-cause line.
+**Verify yourself:** open generated file → Alt+F11 shows modules intact → Workbook_Open fires → button works. Break test deliberately: rename Data sheet in a copy → observe what orphans; document.
 
 ---
 
-## Task 4 — Validation, polish, hardened
+## Task 5 — Scheduling + governance wrap-up
 
-**Thinking path:**
-- Data validation (a dropdown of the 12 real month-values) bounds *inputs*; an error dialog that explains itself is a UX nicety that prevents week-of-lost-period mistakes. Restrict *stable selectors*, not free-text notes (restriction is ergonomics, not straitjacketing).
-- The red-triangle sweep: reopen and find every `#REF!`, `#DIV/0!`, `#N/A`, or stale style clash; fix or justify in a note. A pack promising self-audit can't ship with diagnostic cannons still smoking.
-- Two-reader acceptance (Excel + LibreOffice) tests *format dialect* (some conditional-formatting or chart features render differently), *font fallbacks*, and chart parity. Tolerate cosmetic differences you can name (e.g., a CF rule shading) — but *not* semantic ones (a formula that computes differently is a pack bug).
+Task Scheduler run-of-show (documented in `work/scheduling.md`):
 
-**Verification strategy:**
-- Open in both readers: no formula shows `#VALUE!`/`#NAME?` (a function one reader lacks or names differently is the #1 cross-dialect casualty), chart categories match, RAG still colors.
-- Re-run the hard fixes (validation rule, dried-up formulas) through the generator — resetting is part of the pipeline, not an exception.
+```text
+Trigger : Weekly  weekdays 08:15
+Action  : "C:\...\mis-collections\python.exe"
+          args: generate_daily_mis.py --input C:\collections\drops\<latest handled by script>
+          Start in: C:\Users\you\MIS-COLLECTIONS
+Failure : email via task history + fallback manual run
+Then    : duty analyst opens daily_mis.xlsm → Enable Content → RefreshPack → mail PDF
+```
 
-**Traps & worth knowing:**
-- Font fallback silently swaps a font a reader lacks — a file designed around a company-font can render off-brand elsewhere; weigh the trade-off consciously.
-- Validation added only in the *writer* run won't survive a pandas `to_excel` overwrite of the same range — re-apply validation in the regeneration script, not by hand.
+Final checklist doc (`work/pack_governance_checklist.md`):
+- [ ] RAG thresholds live ONLY on Parameters (strategy-editable)
+- [ ] reconcile step ran (python track reconcile.py PASS) before send
+- [ ] ChangeLog row exists for every change since last send
+- [ ] Macro policy stated on Cover (signed/enable-click)
+- [ ] PDF filename carries report date; archive folder per month
+
+**Verify yourself:** dry-run one full morning: scheduler fires (or manual invoke), button pressed, PDF attached, log rows written. That rehearsal IS the deliverable.

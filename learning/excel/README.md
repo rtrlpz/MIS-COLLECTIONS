@@ -47,8 +47,8 @@ Two habits this project cares about:
 
 Each level folder has:
 
-- `tasks.md` — assignments written as supervisor requests
-- `results.md` — reasoning guidance; open **only after** attempting
+- `tasks.md` — your inbox: workplace requests with Done-When checklists (no code, no expected numbers)
+- `results.md` — full worked solutions: complete openpyxl scripts AND VBA modules; open **only after** attempting, then run/rebuild yourself
 - `work/` — your scripts and `.xlsx` files; git-ignored scratchpad
 
 Routine: read task → attempt in `work/` → **open the workbook in Excel/LibreOffice and look at it as a reader** → then compare with `results.md`. A spreadsheet you never opened is an untested claim.

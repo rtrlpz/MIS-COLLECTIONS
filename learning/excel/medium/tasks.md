@@ -1,128 +1,87 @@
-# Excel — Medium — Tasks
+# Excel Medium — Your Inbox (level 2 of 3)
 
 ```
-learning/
-├── _reference/            ← READ FIRST (datasets.md, kpi_glossary.md, data_dictionary.md)
-├── sql/  python/  notebooks/  powerbi/  git-cli/
-├── excel/
-│   ├── README.md
-│   └── medium/            ← YOU ARE HERE
-│       ├── tasks.md       ← current file
-│       ├── results.md     ← guidance, peek AFTER attempting
-│       └── work/          ← your .py + .xlsx files live here
-└── README.md
+You are here: learning/excel/medium/
+Assumed:      basic/ complete — shell script, NamedStyles, print setup all warm
+Solutions:    medium/results.md — full openpyxl scripts; run, OPEN, and diff against your attempt
+Theme:        self-updating packs — formula-driven RAG, refreshable data, dashboard sheet,
+              protection, and the change log that keeps versions honest
 ```
-
-**Up from excel basic:** workbook anatomy, pandas→Excel, styled sheets, print setup. Medium assembles the real thing: **the daily MIS workbook** — the file format a collections dept actually opens every morning.
-
-**Setup:** `excel/README.md`. Save as `learning/excel/medium/work/attempt_*.xlsx`.
-
-**Discipline:** attempt → open as a reader → read `results.md`.
 
 ---
 
 ## Task 1 — One producer, many consumers
+📥 **Inbox:** From MIS Manager · Mon 9:00 · "stop emailing six different files"
 
-The supervisor: *"Ops wants per-team today, the manager wants per-product, the c-suite wants monthly. Same source, three slices. Show me you built the pipeline once, not three times."*
+> "Restructure: a `Data` sheet holds the raw daily table (from your loader), consumer sheets reference it via structured formulas. When June's numbers correct themselves, every downstream sheet updates without touching them."
 
-**What you'll practice:** the data-pipeline-before-workbook discipline — compute frames once (reusing your Python skills), tune only the *presentation* per sheet.
-
-Steps:
-1. From the reassembled year (or DB — pick and state), build ONE function that returns: daily per-team, time per-product, and monthly timeseries frames — three *views* of one dataset (not three loads).
-2. Emit the three as three sheets with *distinct* layouts (daily table / product table / monthly line-ready table) — but share header style and number formats (consistent visual language = a single producer).
-3. Add a `README` tab documenting the single source + the three views' purposes.
-4. Note in the README which cells (if any) are *formulas* vs *values* and why.
-
-**Guiding questions:**
-- What breaks if each sheet recomputes its own aggregates from disk — beyond speed (consistency of filters, one definition)?
-- When would you *deliberately* show a number on two sheets with different formatting — and why is that *not* duplication?
-
-**Deliverable:** `work/attempt_1.xlsx` — 3-slice workbook from one pipeline + README tab.
+**Done when:**
+- [ ] Single Data sheet is the only place raw values live
+- [ ] Consumer sheets use cell references/table refs (no copy-paste values)
+- [ ] Edit one Data cell → consumers recalc
 
 ---
 
-## Task 2 — Live formulas: the MIS's vital organs
+## Task 2 — Live formulas: monthly rollup organs
+📥 **Inbox:** From Operations Manager · Tue 2:00 · "the summary tab"
 
-The supervisor: *"The daily sheet must *compute* on open — rates as formulas, not numbers pasted from pandas. A manager may tweak a headcount and the sheet must update."*
+> "Summary sheet with SUMIFS-driven monthly totals per KPI from the Data sheet, plus month-over-month delta column. All FORMULAS in cells — python writes structure once, Excel keeps it alive."
 
-**What you'll practice:** writing Excel formulas via openpyxl — `=...` strings as cell values — and the discipline of *where* formulas live (aggregate cells, not the raw data body).
-
-Steps:
-1. Build the daily MIS core: rows = teams, columns = calls, connects, RPCs, RPC%, PTP count, PTP%, KP count, KP% (define from the glossary; reuse your proven SQL/Python definitions).
-2. Write RPC%, PTP%, KP% as **formula cells** (`=B2/C2` style) — with proper parentheses and percent format — not computed pandas floats.
-3. Protect the structure: keep raw counts as values (from pandas), formulas only in derived cells. State why a body-of-1000-cells full of formulas is a liability.
-4. Test the "manager tweak" claim: edit a headcount/count cell in a viewer, watch the rate cell move.
-
-**Guiding questions:**
-- If a rate formula divides by zero (no connects for a team), what displays — and is `#DIV/0!` the honest answer or a footgun the workbook designer should pre-empt (e.g., an `IFERROR` policy, stated)?
-- Why are raw bodies *values* but derived cells *formulas*? What happens to a MIS built the other way around?
-
-**Deliverable:** `work/attempt_2.xlsx` — daily MIS sheet where every rate is a live formula, edited-and-reopened to prove the refresh.
+**Done when:**
+- [ ] SUMIFS/SUMPRODUCT rollup by month working
+- [ ] Delta column flags direction (▲▼ text or ±)
+- [ ] Editing one daily value moves the month + delta
 
 ---
 
-## Task 3 — RAG at scale: conditionally coloring the truth
+## Task 3 — RAG at scale: formula-driven conditional formatting
+📥 **Inbox:** From Site Director · Thu 4:00 PM · "ten-second read"
 
-The supervisor: *"Color is a language: green/red per target. Apply RAG to the daily rates — and make it *conditional*, so a reader swapping in next week's data gets the same verdicts."*
+> "RPC% and KP% columns get RAG backgrounds from THRESHOLD FORMULAS (not manual fills). Thresholds live on Parameters so strategy can tune them without asking you."
 
-**What you'll practice:** conditional formatting (CF) — the openpyxl `rule` API — as opposed to hand-painting cells (which dies the moment data changes).
-
-Steps:
-1. Read the project's RAG thresholds from `_reference/kpi_glossary.md` (there are documented goals/targets and colors — reuse them).
-2. Apply **conditional formatting** to each rate column: green/amber/red based on the documented thresholds (use the documented hex colors, not your eyeball).
-3. Prove the "swaps in new data" claim: the formatting is *rules*, so changing an input value flips the verdict without touching styles.
-4. Add a tiny legend cell/sheet documenting "green = meets target, amber = short, red = far short" — CF with no legend is a private language.
-
-**Guiding questions:**
-- CF vs manual `PatternFill` on computation: what does each do the day the data changes? (The whole lesson lives here.)
-- Thresholds with a *crossover* (e.g., higher-is-better for rates but lower-is-better for AHT) — how do you express "direction" in a rule without explaining in words?
-
-**Deliverable:** `work/attempt_3.xlsx` — daily MIS with target-driven conditional RAG + legend sheet.
+**Done when:**
+- [ ] Conditional formatting rules reference Parameter cells
+- [ ] Green #00B050 / amber #FFC000 / red #FF0000
+- [ ] Moving a threshold repaints instantly
 
 ---
 
 ## Task 4 — The printed daily: freeze, fit, repeat
+📥 **Inbox:** From Ops Lead · Fri 8:30 · "print run at 8:45 sharp"
 
-The supervisor: *"Ops prints this at 7am. Freeze the headers when scrolling, fit it wide, repeat the header on every page, and keep the legend visible."*
+> "Full pack polish: freeze panes everywhere sensible, print areas set per sheet, fit-to-width, headers repeat. Then export the Daily sheet to PDF programmatically — the 8:45 email attaches it."
 
-**What you'll practice:** combining freeze panes, print titles, fit-to-width, and print areas into one *deliverable print layout* — the "seven o'clock file" test.
-
-Steps:
-1. Freeze the header row(s) and team column so scroll pain is zero.
-2. Set landscape + fit-to-width so the printed page is one page wide.
-3. Repeat headers (`print_title_rows`) and set a print area that stops at the legend.
-4. Print preview like a manager: does page 2 start with *headers*, not orphan columns? Iterate.
-
-**Guiding questions:**
-- Freeze panes == what a reader experiences scrolling, print titles == what a reader experiences printing — which are the same coordinate problem and how do they differ?
-- If the legend must survive on page 1, do you put it in the print area or in the page *footer*? Trade-offs?
-
-**Deliverable:** `work/attempt_4.xlsx` — the printable daily MIS (freeze + fit + repeat + legend placement), print-preview-verified.
+**Done when:**
+- [ ] Every sheet's page setup deliberate
+- [ ] PDF exported by script (openpyxl can't — say which tool did)
+- [ ] Print preview screenshots saved
 
 ---
 
 ## Task 5 — Multi-sheet discipline: the small MIS pack
+📥 **Inbox:** From MIS Manager · Wed 10:00 · "the weekly shape of things"
 
-The supervisor: *"Roll Tasks 1–4 into ONE workbook: cover, daily core with live rates, RAG panes, printable version. No orphan files, one open = all the answers."*
+> "Formalize the pack: Cover (title/date/owner), Daily, Summary, AgentLookup, Parameters, ChangeLog. Sheet order fixed, tab colors coded (data=blue, governance=gray). A stranger navigates it unaided."
 
-**What you'll practice:** the multi-sheet assembly — order, naming, navigation (a link/README map), and keeping sheet-specific print setups without duplicating computation.
-
-Steps:
-1. Compose the workbook: `Cover` → `README` → `Daily Core` (Task 2) → `RAG` (Task 3) → `Print` (Task 4) — the navigation order of a daily reader.
-2. Make every sheet *refer* to the same computed frames (the single-producer rule from Task 1 — no recompute per sheet).
-3. Give each sheet its own print setup (the Print sheet is printable by design; the RAG sheet need not be).
-4. Add a one-line navigation note on Cover: "Start here, then Daily Core" — a reader should never ask how the file works.
-
-**Guiding questions:**
-- Sheet order vs reader order: is the physical tab order the reading order? What happens when a sheet is provided by someone else's habit (e.g., data tab first)?
-- A workbook that shares one *computed frame* across sheets vs one that recomputes per sheet — where does drift between tabs come from in the second design?
-
-**Deliverable:** `work/attempt_5.xlsx` — the integrated MIS pack, one open = all answers, README navigation.
+**Done when:**
+- [ ] Six sheets in order with color coding
+- [ ] Cover states owner + generation timestamp (formula off a cell, not typed)
+- [ ] Navigation note on Cover explaining each tab in one line
 
 ---
 
-### Finish
+## Task 6 — The change log that saves careers
+📥 **Inbox:** From Head of MIS · Fri 3:00 · "audit found three 'versions' of last month's pack"
 
-Attempt all five, then read `medium/results.md`. Add one note per task on what a *reader* experienced when you opened the file that a *writer* couldn't see.
+> "ChangeLog sheet: Date · Author · What changed · Why · Cell range affected. Pre-populate this workbook's history honestly, including mistakes. Going forward NO edit ships without a row here."
 
-**Move up when:** you can ship a daily MIS workbook — live rates, target-driven RAG, printable — without a second thought, and you *successfully* defended a live-vs-static choice in words.
+**Done when:**
+- [ ] Log sheet with ≥3 real entries (including one fix)
+- [ ] Convention documented on Cover
+- [ ] You actually used it for this task's own edits
+
+---
+
+## Finish
+
+The pack now maintains itself and its own history. Advanced level automates the boring parts away — including with VBA: [`../advanced/tasks.md`](../advanced/tasks.md).

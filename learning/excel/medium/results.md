@@ -1,102 +1,141 @@
-# Excel — Medium — Results (Guidance)
+# Excel Medium — Results (worked solutions)
 
-```
-learning/
-├── _reference/            ← datasets.md, kpi_glossary.md, data_dictionary.md
-├── sql/  python/  notebooks/  powerbi/  git-cli/
-├── excel/
-│   ├── README.md
-│   └── medium/            ← YOU ARE HERE
-│       ├── tasks.md
-│       ├── results.md     ← current file
-│       └── work/
-└── README.md
-```
-
-**How to use this file:** attempt → open → read one section. Guidance only — reasoning paths, steps-with-why, verification strategy, traps. No full code, no computed values.
+Extend your basic script into `daily_mis_pack.py`. Run → OPEN → poke cells → confirm recalc.
 
 ---
 
 ## Task 1 — One producer, many consumers
 
-**Thinking path:**
-- The producer/consumer split is the engineering lesson: a single well-factored computation pipeline (reusing your Python) returns the three views; the workbook then styles each differently. Duplication of *presentation* is fine in Excel; duplication of *computation* is where inconsistent numbers come from.
-- Consistent visual language across sheets (shared header style, shared percent format) says "one author, one source" to the reader — the opposite of a franken-file.
-- The README tab documents source + purposes + which cells are formulas vs values — the operating manual (same role as Cover/README in basic Task 1).
+Layout contract: sheet `Data` = flat table starting A4 (headers) with columns Date · Team · Contacts · Connects · RPCs · Promises · Payments. Everything else references it.
 
-**Verification strategy:**
-- Three sheets agree on any overlapping figure (per-team daily *sums to* the per-product totals within a team-agnostic slice — the partition identity again).
-- Re-open after regeneration: the three views still trace to one source cell/doc line.
+```python
+from openpyxl.worksheet.table import Table, TableStyleInfo
 
-**Traps & worth knowing:**
-- Same number, two processes = real drift risk. When you catch yourself pasting from a *second* computation, that's the smell to fix at the producer, not the consumer.
-- A view you *want* to format differently (e.g., monthly as % vs count) isn't duplication — state the choice in README so future-you doesn't "fix" it.
+ws_d = wb.create_sheet("Data")
+ws_d.append(["Date", "Team", "Contacts", "Connects", "RPCs", "Promises", "Payments"])
+for _, r in data_df.iterrows():          # data_df: daily × team aggregation
+    ws_d.append(list(r))
+tbl = Table(displayName="tblDaily", ref=f"A4:G{4+len(data_df)}")
+tbl.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True)
+ws_d.add_table(tbl)
+```
 
----
+**Why each part:** a real Excel TABLE gives structured references (`tblDaily[RPCs]`) that survive row growth — consumer formulas never need range surgery when next month adds rows.
 
-## Task 2 — Live formulas
-
-**Thinking path:**
-- Formula-string cells (`=B2/C2`) are openpyxl's way to write live cells. The MIS design rule: raw counts = *values* (pandas, proven); derived rates = *formulas* (live). A body of thousands of volatile formulas is slow AND fragile — one wrong drag in a viewer and a column of `#REF!` propagates.
-- Divide-by-zero: a team with zero connects yields `#DIV/0!`. That *is* the honest datum, but a 7am MIS with error glyphs is a distraction — an explicit `IFERROR` policy (`""` blank vs a dash) stated in the README is the professional pre-empt. Decide it deliberately (the view pipeline already shows how the house treats sparse channels).
-- Test the claim: open, edit a count cell, watch the rate cell move. If it doesn't, you wrote a value, not a formula.
-
-**Verification strategy:**
-- Spot the same rate computed as formula vs the proven value from SQL/Python basic — agree.
-- Re-derive one formula result by hand in a comment (the "does my formula make sense" pass).
-
-**Traps & worth knowing:**
-- Formulas reference cells by *address*, so inserting a column can silently shift semantics — lock ranges deliberately (`$B2`, `$B$2`).
-- A pasted `0.35` with `0.0%` format is *not* a formula — the format lies for values; only a real `=…` is live.
+**Verify yourself:** add a dummy row under the table in Excel; it auto-joins the table and every SUMIFS downstream moves. Delete the dummy; re-verify.
 
 ---
 
-## Task 3 — RAG at scale
+## Task 2 — Live rollup organs
 
-**Thinking path:**
-- Conditional formatting (the `rule` API — e.g. a *cell-is/**between/above* rule in a spec, or an equivalent openpyxl rule) evaluates against cell *values at display time*. Handpainted fills are static — the moment data changes, the verdict is stale. CF is the only truthful color at scale.
-- Thresholds come from the reference (documented goals for PTP%, KP%, RPC%, utilization, ACW/AHT; colors green `00B050`, amber `FFC000`, red `FF0000`) — reuse, don't re-improvise.
-- Direction: higher-is-better (rates) vs lower-is-better (AHT/ACW) — CF rules are value-bounded only; state the direction in the legend, or encode via operator choice per column.
-- A legend cell/sheet is the language key — without it, color is cryptography.
+```python
+ws_s = wb.create_sheet("Summary")
+ws_s["A1"] = "Monthly rollup"; ws_s["A1"].style = title
+hdrs = ["Month", "Contacts", "Connects", "RPCs", "RPC %", "Δ vs prior month"]
+# months listed down col A as real dates (first of month), then:
+for r, mrow in enumerate(month_rows, start=5):
+    ws_s.cell(row=r, column=2,
+        value=f'=SUMIFS(tblDaily[Contacts],tblDaily[Date],">="&A{r},tblDaily[Date],"<"&EDATE(A{r},1))')
+    # ...repeat per KPI column...
+    ws_s.cell(row=r, column=5,
+        value=f'=IFERROR(D{r}/C{r},"")')                      # RPC %
+    if r > 5:
+        ws_s.cell(row=r, column=6,
+            value=f'=TEXT(D{r}-D{r-1},"+0;-0;±0")')
+```
 
-**Verification strategy:**
-- Edit an input (push a rate under its threshold) → the CF verdict flips without touching styles. That demo IS the test.
-- Legend thresholds match the reference *to the digit*.
+**Why each part:** SUMIFS bounded by `EDATE` month windows reads naturally AND handles partial months. The Δ uses TEXT's "+0;-0;±0" format for sign-aware display without helper columns.
 
-**Traps & worth knowing:**
-- Applying CF to a range that later grows leaves new cells ungoverned — extend rules to a reasonable superset row range deliberately.
-- Two rules on one range conflict silently; keep one rule per column-family and verify by eyeball on 3 boundary rows.
-
----
-
-## Task 4 — Printed daily
-
-**Thinking path:**
-- Freeze panes = the *scroll* experience; print titles = the *page* experience; same coordinate insight, two outputs. `freeze_panes` at the header+key-column corner, `print_title_rows` for repeat.
-- Fit-to-width (landscape + up to one page wide) is the daily sheet's body shape — a *tall* table, not a squash-to-one-page artifact. Print area stops at the legend so a trailing empty column never bleeds.
-- Legend placement: inside print area (scroll-safe, costs page 1 real estate) vs page footer (always visible, static) — trade widths; pick and defend.
-
-**Verification strategy:**
-- **Print preview**, iterated: page 2 begins with headers and the ramp of data, no orphan columns, legend either in footer or page 1.
-- Scrolling test: header + team column stay under your thumb.
-
-**Traps & worth knowing:**
-- `print_title_rows` and `print_area` are separate; forgetting either yields the classic "page 2 is naked columns" print.
-- A wide sheet auto-fit via scaling can shrink the rate text to unreadability — the *layout* (fewer columns, wrapped headers) is the lever, not font foreshortening.
+**Verify yourself:** nudge one Data value ±100 in its month → month total and delta move; check against a hand count.
 
 ---
 
-## Task 5 — Multi-sheet discipline
+## Task 3 — Formula-driven RAG
 
-**Thinking path:**
-- Composition: `Cover → README → Daily Core → RAG → Print`. Sheet order = reading order for *this* file. Shared computation frames mean sheets *reference* the same data — cross-sheet drift is eliminated by construction, not by discipline.
-- Per-sheet print setup is part of the spec: the Print sheet is meant to be printed; RAG is an on-screen analytic — don't force one global page setup.
-- The Cover navigation line ("Start at Daily Core") is the reader contract; a file with no orientation line expects the reader to reverse-engineer tab order.
+Parameters first:
 
-**Verification strategy:**
-- Change one raw count in an input location → Daily Core rates, RAG verdicts, and Print sheet all update in one open (single-producer proof, in workbook form).
-- A stranger opens the file and, following the Cover line, reaches Daily Core without asking how it works.
+```python
+ws_p.cell(row=1, column=4, value="RAG thresholds"); 
+ws_p["D2"]="RPC% low amber"; ws_p["E2"]=35
+ws_p["D3"]="RPC% green";      ws_p["E3"]=45
+```
 
-**Traps & worth knowing:**
-- "Data tab first" is a file-author habit, not a reader need — the *reader* opens the file to *answer*, so put the answer sheet first and data deeper.
-- Hidden helper sheets (a scratch computations tab) should be named obviously (`!Helpers`) — hiding state without signaling it is the notebook-hidden-cell trap in workbook form.
+Conditional formatting via openpyxl:
+
+```python
+from openpyxl.formatting.rule import CellIsRule, FormulaRule
+
+rng = f"F5:F{4+len(data_df)}"     # RPC % column on Summary
+ws_s.conditional_formatting.add(rng, CellIsRule(
+    operator="greaterThanOrEqual", formula=["$E$3"],
+    fill=PatternFill("solid", fgColor="00B050")))
+ws_s.conditional_formatting.add(rng, CellIsRule(
+    operator="between",
+    formula=[f"$E$2", "$E$3"],
+    fill=PatternFill("solid", fgColor="FFC000")))
+ws_s.conditional_formatting.add(rng, CellIsRule(
+    operator="lessThan", formula=["$E$2"],
+    fill=PatternFill("solid", fgColor="FF0000")))
+```
+
+For share-of-total style rules use FormulaRule with relative refs (`=F5/$F$4>=0.8`).
+
+**Why each part:** rules point at `$E$2/$E$3` — strategy tunes thresholds ON the Parameters sheet; zero code changes, instant repaint. Hexes match the project RAG standard.
+
+**Verify yourself:** set E3 to 90 → nearly everything reds/greens shift; restore. Screenshot before/after saved.
+
+---
+
+## Task 4 — Print polish + PDF export
+
+openpyxl sets page setup (as basic Task 4); PDF needs an engine — documented options:
+
+```python
+# Option A (Windows + Excel installed): COM automation
+from win32com import client as win32_client   # pywin32
+excel = win32_client.Dispatch("Excel.Application")
+wbx = excel.Workbooks.Open(str(OUT.resolve()))
+ws_print = wbx.Worksheets("Daily")
+ws_print.ExportAsFixedFormat(0, str(OUT.with_name("daily_mis.pdf")))  # 0 = PDF
+wbx.Close(False); excel.Quit()
+```
+
+Document Option B for LibreOffice shops: `soffice --headless --convert-to pdf daily_mis.xlsx`.
+
+**Why each part:** openpyxl deliberately doesn't render/print; delegating to a real engine keeps fidelity. COM route also demonstrates the automation seam VBA later replaces cleanly.
+
+**Verify yourself:** PDF opens, header repeats on page breaks, one page wide.
+
+---
+
+## Task 5 — Pack structure
+
+Sheet order: Cover · Daily · Summary · AgentLookup · Parameters · ChangeLog. Tab colors: `ws.sheet_properties.tabColor = "262A76"` (data tabs), `"808080"` (governance tabs). Cover:
+
+```python
+ws_c["B6"] = "Owner:";   ws_c["C6"] = "MIS Analyst — Collections"
+ws_c["B7"] = "Generated:"; ws_c["C7"] = '="Snapshot "&TEXT(Data!A5,"yyyy-mm-dd")&" · refreshed "&TEXT(NOW(),"yyyy-mm-dd hh:mm")'
+```
+
+Navigation lines: one sentence per tab on the Cover.
+
+**Verify yourself:** stranger test — colleague finds the current RPC% in <30 seconds using only the Cover text.
+
+---
+
+## Task 6 — Change log
+
+ChangeLog headers: Date · Author · Sheet/Range · What changed · Why.
+
+```python
+ws_log.append(["2025-08-25", "Analyst", "Summary!F5:F16",
+               "Added MoM delta column", "Ops asked direction-at-a-glance"])
+ws_log.append(["2025-08-25", "Analyst", "Parameters!E2:E3",
+               "Raised RPC% amber floor 33→35", "Strategy recalibration memo 2025-08"])
+ws_log.append(["2025-08-26", "Analyst", "Daily!B9",
+               "Fixed June-09 double count", "Caught by reconcile vs v_daily_mis — my paste error"])
+```
+
+**Why each part:** the third entry is the important one — logging MISTAKES is what makes the log trustworthy. Convention note goes on the Cover: "No edit ships without a ChangeLog row."
+
+**Verify yourself:** you actually added these rows while doing Tasks 1–5 — retro-fabricated logs defeat themselves.
