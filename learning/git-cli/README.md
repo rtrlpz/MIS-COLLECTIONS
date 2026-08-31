@@ -18,7 +18,7 @@ This is deliberately the smallest module. Git is a craft that protects everythin
 
 ## Practice where you already are
 
-This whole lab lives inside a real git repository (`MIS-COLLECTIONS`). That's convenient:
+This whole lab lives inside a real git repository (`mis-collections`). That's convenient:
 
 - The guides (`tasks.md`, `results.md`, READMEs) are **tracked** files — real history.
 - Your `work/` attempts are **git-ignored** by design — personal scratch, never committed.

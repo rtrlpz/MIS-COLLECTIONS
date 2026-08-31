@@ -4,7 +4,9 @@
 // ============================================================
 
 // === CONFIGURATION ===
-var tsvPath = @"C:/Users/Leand/Desktop/Portafolio-Projects/MIS-COLLECTIONS/dashboards/dax/measures.tsv"; // 252 measures (v3.0)
+// Resolve TSV path relative to this script: <repo>/dashboards/dax/measures.tsv
+var scriptDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+var tsvPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(scriptDir, "..", "dax", "measures.tsv"));
 
 // Helper class to map format strings
 public static class MeasureHelper

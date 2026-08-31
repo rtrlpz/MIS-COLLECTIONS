@@ -1,4 +1,4 @@
-# MIS-COLLECTIONS — Project Context
+# mis-collections — Project Context
 
 ## Project Overview
 Simulated bank collections analytics portfolio project. Generates synthetic data for ~80 agents, ~10,000 clients, ~15,480 accounts across Credit Cards, Personal Loans, and Mortgages (Jan–Dec 2025). Models the full collections lifecycle: dialer interactions, RPC tracking, promise-to-pay management, payment/cure events, and agent utilization.
@@ -17,7 +17,7 @@ Simulated bank collections analytics portfolio project. Generates synthetic data
 
 ## Directory Structure
 ```
-MIS-COLLECTIONS/
+mis-collections/
 ├── .env                           # DB credentials (git-ignored) — at root, was database/.env
 ├── AGENTS.md                      # Short AI-agent project context (UPDATED with file map)
 ├── docs/CONTEXT.md                # THIS FILE — single-source project overview
@@ -388,9 +388,9 @@ All 17 SQL files verified with valid content — none empty.
 - **P3/P4 regenerated & verified + Hybrid C suite (Aug 25, 2026)**: Full gate green (84 passed = 81 fast + 3 slow). Spot-checks: strategy split 58.9/26.2/14.9 with RPC-by-arm 37.7/32.2/28.0 (multipliers bite), recoveries 323 rows/$39,949, installments 27.9% of kept plans, 6 Jul-1 SCD2 transfers, portfolio_cure_rate 56→76%, Exited=413. Test bugs fixed: re-entry invariant sorted months alphabetically (garbage windows since Phase 6; chronological band 10.4–14.3%), metric ranges now read conftest METRIC_RANGES, conftest import under package layout. Docs synced to post-regen state. See CHANGELOG 1.6.0.
 
 ## Quick Reference
-- **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`
+- **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\mis-collections`
 - **Conda env**: `mis-collections`
-- **DB connection**: host=localhost, port=5433, user=[REDACTED], password=[REDACTED], db=MSI_CollectionsDB
+- **DB connection**: host=localhost, port=5433, user=[REDACTED], password=[REDACTED], db=MIS_CollectionsDB
 - **Pipeline command**: `./run_pipeline.bat` (from project root in CMD) — ~157s end-to-end (12 months)
 - **Run tests (fast)**: `python -m pytest test/ -v -m "not slow"` — 81 tests
 - **Run tests (full gate)**: `python -m pytest test/ -v` — 84 tests (adds canonical 12-mo baseline, seed reproducibility, ETL idempotency)

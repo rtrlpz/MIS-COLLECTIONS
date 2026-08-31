@@ -1,14 +1,14 @@
-# MIS-COLLECTIONS — Collections Analytics Portfolio
+# mis-collections — Collections Analytics Portfolio
 
 **Stack:** Python 3, PostgreSQL 15 (Docker), SQL, Power BI, openpyxl
-**Root:** `C:\Users\Leand\Desktop\Portafolio-Projects\MIS-COLLECTIONS`
+**Root:** `C:\Users\Leand\Desktop\Portafolio-Projects\mis-collections`
 **Conda env:** `mis-collections`
 
 ## Commands
 - Generate data: `python data_sources/data_generator_v7.py`
-- Start DB: `docker-compose -f database/docker-compose.yml up -d`
-- Run pipeline: `./run_pipeline.bat` (Windows CMD)
-- Run migrations: `bash database/migrate.sh`
+- Start DB: `docker compose --env-file .env -f database/docker-compose.yml up -d`
+- Run pipeline: `./run_pipeline.sh` (Linux/macOS) or `./run_pipeline.bat` (Windows CMD)
+- Run migrations: `bash migrate.sh` (or `bash migrate.sh --fresh` for full rebuild)
 - Run tests (fast): `python -m pytest test/ -v -m "not slow"`
 - Run all tests: `python -m pytest test/ -v`
 
@@ -108,7 +108,7 @@
 | `dashboards/theme/Tema 1.json` | Power BI theme (blue primary #262A76, Calibri) |
 
 ## Key Facts
-- DB: localhost:5433, user=[REDACTED], password=[REDACTED], db=MSI_CollectionsDB
+- DB: localhost:5433, user=[REDACTED], password=[REDACTED], db=MIS_CollectionsDB
 - Star schema: 8 dim tables (Employees/Clients/Products/Accounts/Calendar/DelinquencyBucket/Strategy/EmployeeHistory), 7 fact tables (Interactions/PTP/Payments/AgentTime/EOMSnapshot/Writeoffs/Recoveries) = 15 base tables + etl_load_log; 16 KPI views (15 in 002 incl. v_promise_timeline/v_monthend_portfolio/v_writeoff_recovery/v_dpd_migration_matrix/v_weekly_agent_summary/v_rls_supervisor_map, + v_agent_scorecards in 004)
 - Dim_Employees: unified table (8 supervisors + 80 agents), self-ref FK, denormalized team/region/skills
 - Dim_Accounts: includes denormalized `product_type` (avoids snowflake join to Dim_Products)

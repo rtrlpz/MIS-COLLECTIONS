@@ -24,7 +24,7 @@ SQL proves numbers, Python reshapes them, notebooks explain them, Excel ships th
 ## Setup
 
 1. **Power BI Desktop** (free, Windows — you're covered).
-2. Connect Import-mode to `MSI_CollectionsDB`, or load the reassembled CSVs — tasks tell you which and ask you to justify.
+2. Connect Import-mode to `MIS_CollectionsDB`, or load the reassembled CSVs — tasks tell you which and ask you to justify.
 3. `.pbix` files are binary (git can't show differences): save as `learning/powerbi/<level>/work/attempt_*.pbix` plus a **screenshot of each page** into the same folder.
 
 ## What each level covers

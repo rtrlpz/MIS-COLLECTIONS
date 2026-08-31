@@ -166,7 +166,7 @@ Task Scheduler run-of-show (documented in `work/scheduling.md`):
 Trigger : Weekly  weekdays 08:15
 Action  : "C:\...\mis-collections\python.exe"
           args: generate_daily_mis.py --input C:\collections\drops\<latest handled by script>
-          Start in: C:\Users\you\MIS-COLLECTIONS
+          Start in: C:\Users\you\mis-collections
 Failure : email via task history + fallback manual run
 Then    : duty analyst opens daily_mis.xlsm → Enable Content → RefreshPack → mail PDF
 ```

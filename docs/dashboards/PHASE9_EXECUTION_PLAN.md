@@ -42,7 +42,7 @@ Parity sources per page:
 
 ## M1 — Model import (you, ~30 min)
 
-1. Get Data → PostgreSQL → `localhost:5433` · `MSI_CollectionsDB` · **Import mode**.
+1. Get Data → PostgreSQL → `localhost:5433` · `MIS_CollectionsDB` · **Import mode**.
 2. Select exactly the 15 tables in the import manifest (no views unless the manifest says so).
 3. Model view: every relationship dim(1)→fact(*), single direction; fix anything auto-guessed.
 4. Hide all key columns; mark `Dim_Calendar` as date table; turn OFF Auto date/time.

@@ -84,7 +84,7 @@ flowchart LR
         CSV[raw/ CSVs<br/>15 tables, ~1.9M rows]
     end
     subgraph Database
-        PG[(PostgreSQL 15<br/>MSI_CollectionsDB)]
+        PG[(PostgreSQL 15<br/>MIS_CollectionsDB)]
         MIG[migrations/<br/>6 SQL files]
         SEED[seeds/<br/>products + calendar]
     end

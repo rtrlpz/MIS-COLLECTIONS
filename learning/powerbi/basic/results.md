@@ -7,7 +7,7 @@ Rebuild each solution in your own attempt file — muscle memory is the delivera
 ## Task 1 — The model mirrors the schema
 
 **Model steps:**
-1. Get Data → PostgreSQL database → `localhost:5433`, database `MSI_CollectionsDB`, Import mode, Database credentials from `.env` (never saved into the file's data source cloud settings).
+1. Get Data → PostgreSQL database → `localhost:5433`, database `MIS_CollectionsDB`, Import mode, Database credentials from `.env` (never saved into the file's data source cloud settings).
 2. Select only the six tables named in the task (navigator checkboxes) — resist importing everything on day one.
 3. Model view: confirm Power BI auto-detected one-to-many from each dim key to `fact_interactions`. Fix any many-to-many or "guessed" relationship by deleting it and dragging the correct key pair:
    - `dim_employees[agent_id]` → `fact_interactions[agent_id]`

@@ -2,11 +2,13 @@
 
 ## Docker Issues
 
-### Docker Desktop not running
+### Docker daemon not running
 ```
-[ERROR] Docker is not running. Please start Docker Desktop first.
+permission denied while trying to connect to the docker API
 ```
-**Fix:** Start Docker Desktop from Start Menu / Applications, wait for the whale icon, then re-run.
+**Fix (Linux):** Start Docker daemon: `sudo systemctl start docker` (or `systemctl --user start docker` for rootless). Verify with `docker ps`.
+
+**Fix (Windows/macOS):** Start Docker Desktop from Start Menu / Applications, wait for the whale icon, then re-run.
 
 ### Port 5433 already in use
 ```
@@ -15,14 +17,14 @@ Error starting userland proxy: listen tcp4 0.0.0.0:5433: bind: address already i
 **Fix:** Change `POSTGRES_PORT` in `.env` to an available port (e.g., `5434`).
 
 ### Container won't start
-```
-docker-compose -f database/docker-compose.yml up -d
+```bash
+docker compose --env-file .env -f database/docker-compose.yml up -d
 ```
 Check logs:
 ```bash
 docker logs postgres_collections
 ```
-Common causes: corrupt data volume → delete `database/data/` and retry.
+Common causes: corrupt data volume → delete `database/data/` and retry (or `docker compose down -v`).
 
 ## PostgreSQL Connection Errors
 
@@ -33,29 +35,36 @@ Common causes: corrupt data volume → delete `database/data/` and retry.
 4. Verify credentials in `.env` match `database/docker-compose.yml`
 
 ### password authentication failed
-**Fix:** Check `POSTGRES_USER` / `POSTGRES_PASSWORD` in `.env`. These must match what was set when the container was first created. If credentials changed, delete the volume: `docker-compose -f database/docker-compose.yml down -v && docker-compose -f database/docker-compose.yml up -d`
+**Fix:** Check `POSTGRES_USER` / `POSTGRES_PASSWORD` in `.env`. These must match what was set when the container was first created (default: `rtrlpz`). If credentials changed, delete the volume:
+```bash
+docker compose -f database/docker-compose.yml down -v && docker compose --env-file .env -f database/docker-compose.yml up -d
+```
 
 ## Pipeline Issues
 
-### run_pipeline.bat fails — "conda not found"
-**Fix:** Edit `run_pipeline.bat` line 5 to point to your conda python:
+### run_pipeline.bat fails — "conda not found" / "python not found"
+**Fix (Windows):** Edit `run_pipeline.bat` line 6 to point to your Python:
 ```
 set CONDA_PYTHON=C:\Users\<you>\.conda\envs\mis-collections\python.exe
 ```
+**Fix (uv users):** Ensure `.venv` exists and `uv run python` works.
 
-### bash database/migrate.sh fails
-```
-database/migrate.sh: line X: psql: command not found
-```
-**Fix:** Run migrations manually:
+### run_pipeline.sh fails — "docker compose not found"
+**Fix:** Install Docker Compose v2 (`docker compose` — space, not hyphen). On Linux: `apt install docker-compose-plugin` or use Docker Desktop.
+
+### bash migrate.sh fails — "psql: command not found"
+**Fix:** Run migrations via Docker (no host psql needed):
 ```bash
-docker exec -i postgres_collections psql -U postgres -d MSI_CollectionsDB < database/migrations/001_create_tables.sql
-docker exec -i postgres_collections psql -U postgres -d MSI_CollectionsDB < database/migrations/002_kpi_views.sql
+bash migrate.sh
+# Or manually:
+docker exec -i postgres_collections psql -U rtrlpz -d MIS_CollectionsDB < database/migrations/001_create_tables.sql
+docker exec -i postgres_collections psql -U rtrlpz -d MIS_CollectionsDB < database/migrations/002_kpi_views.sql
 # ... repeat for each migration file in order
 ```
 
 ### Migration order dependencies
-Migrations must run in order: `001` → `006`. Running `002` before `001` will fail because tables don't exist yet.
+Migrations must run in order: `001` → `010`. Running `002` before `001` will fail because tables don't exist yet.
+Use `bash migrate.sh --fresh` for a clean rebuild, or `bash migrate.sh` (idempotent) on existing DB.
 
 ## Generator Issues
 
@@ -74,7 +83,7 @@ Check `data_sources/logs/generator.log` for errors. Common cause: disk space or 
 ## ETL Issues
 
 ### ETL fails — table doesn't exist
-**Fix:** Run migrations first: `bash database/migrate.sh`
+**Fix:** Run migrations first: `bash migrate.sh`
 
 ### ETL fails — CSV not found
 **Fix:** Run generator first: `python data_sources/data_generator_v7.py`
@@ -85,18 +94,24 @@ The incremental mode uses checksums to detect changes. If a CSV changed, delete 
 DELETE FROM etl_load_log WHERE table_name = 'fact_interactions';
 ```
 
+### dim_employee_history load error: null value in column "valid_to"
+**Fix:** The schema now allows NULL `valid_to` for current records. If you have an older DB, run:
+```bash
+docker exec postgres_collections psql -U rtrlpz -d MIS_CollectionsDB -c "ALTER TABLE dim_employee_history ALTER COLUMN valid_to DROP NOT NULL;"
+```
+
 ## Test Issues
 
 ### Tests fail with "no database"
 **Fix:** Ensure PostgreSQL container is running (`docker ps`) and has data loaded.
 
 ### Tests fail with "relation does not exist"
-**Fix:** Run migrations to create all tables and views.
+**Fix:** Run migrations to create all tables and views: `bash migrate.sh`
 
 ### pytest not found
 ```bash
-conda activate mis-collections
-pip install pytest
+uv pip install pytest
+# or: conda activate mis-collections && pip install pytest
 ```
 
 ## Power BI Issues
@@ -111,12 +126,13 @@ Verify the measure formula in `dashboards/dax/collections_dax_v2.csv` references
 
 ## Environment File
 
-A valid `.env` file at the project root is required:
+A valid `.env` file at the project root is required (copy from `.env.example`):
 ```
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_password
-POSTGRES_DB=MSI_CollectionsDB
+POSTGRES_USER=rtrlpz
+POSTGRES_PASSWORD=rtrlpz
+POSTGRES_DB=MIS_CollectionsDB
 POSTGRES_PORT=5433
+POSTGRES_HOST=localhost
 PGADMIN_DEFAULT_EMAIL=admin@admin.com
 PGADMIN_DEFAULT_PASSWORD=admin
 PGADMIN_PORT=8081

@@ -5,7 +5,7 @@ cd /d "%~dp0"
 :: Color codes: Green=0A, Red=0C, Yellow=0E, White=07
 set CONDA_PYTHON=%USERPROFILE%\.conda\envs\mis-collections\python.exe
 set PGUSER=rtrlpz
-set PGDB=MSI_CollectionsDB
+set PGDB=MIS_CollectionsDB
 set CONTAINER=postgres_collections
 color 07
 
@@ -31,7 +31,7 @@ echo [OK] Docker is running.
 color 07
 echo [2/6] Starting PostgreSQL container...
 for /f %%a in ('powershell -Command "[int](Get-Date -UFormat %%s)"') do set "step_start=%%a"
-docker-compose --env-file .env -f database/docker-compose.yml up -d >nul 2>&1
+docker compose --env-file .env -f database/docker-compose.yml up -d >nul 2>&1
 if errorlevel 1 (
     color 0C
     echo [ERROR] Failed to start Docker containers.

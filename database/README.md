@@ -29,7 +29,7 @@ bash database/migrate.sh
 |-------|-------|
 | Host | localhost |
 | Port | 5433 |
-| Database | MSI_CollectionsDB |
+| Database | MIS_CollectionsDB |
 | User | postgres |
 | Password | (set in `.env`) |
 | pgAdmin | http://localhost:8081 |

@@ -1,4 +1,4 @@
-# Data dictionary — MSI_CollectionsDB
+# Data dictionary — MIS_CollectionsDB
 
 All tables, columns, data types, constraints, and descriptions for the collections database.
 Data covers October 2025. Generated synthetically to simulate a real bank collections environment.

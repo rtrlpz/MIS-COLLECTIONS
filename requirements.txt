@@ -13,3 +13,6 @@ openpyxl==3.1.5
 
 # Environment Variables
 python-dotenv==1.1.0
+
+# PDF Generation (for dashboards/scripts/md_to_pdf.py)
+fpdf==1.7.2

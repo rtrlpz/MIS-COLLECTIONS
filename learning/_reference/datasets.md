@@ -13,7 +13,7 @@ This is the **shared data map** for the entire `learning/` environment. Every to
 
 | Entry point | What it holds | Used by |
 |---|---|---|
-| **PostgreSQL** `MSI_CollectionsDB` (localhost:5433) | 15 base tables (star schema, + `etl_load_log`), ~1.9M rows, 16 KPI views | SQL (all levels), Notebooks (medium+), Power BI (import) |
+| **PostgreSQL** `MIS_CollectionsDB` (localhost:5433) | 15 base tables (star schema, + `etl_load_log`), ~1.9M rows, 16 KPI views | SQL (all levels), Notebooks (medium+), Power BI (import) |
 | **Raw CSVs** `data_sources/raw/` | Same data, file-per-month layout, pre-DB | Python (all levels), Notebooks (basic), Excel (all levels) |
 
 The CSVs and the DB are the **same content**. The ETL (`etl/data_to_pg.py`) loads CSVs → DB. This is by design: SQL exercises run on the DB; Python exercises read the CSVs. Identical answers = proof you understood both paths.
@@ -105,11 +105,11 @@ docker-compose -f database/docker-compose.yml up -d   # start Postgres
 ./run_pipeline.bat                                     # generate + load data (if empty)
 ```
 
-Connection (from `.env` at project root): `host=localhost`, `port=5433`, `db=MSI_CollectionsDB`. **Never hardcode or share credentials** — read them from `.env`, or use a client that sources them (DBeaver / pgAdmin can import `.env`-style params).
+Connection (from `.env` at project root): `host=localhost`, `port=5433`, `db=MIS_CollectionsDB`. **Never hardcode or share credentials** — read them from `.env`, or use a client that sources them (DBeaver / pgAdmin can import `.env`-style params).
 
 One-line psql smoke test (fills values from your `.env`):
 ```bash
-PGPASSWORD=<password> psql -h localhost -p 5433 -U <user> -d MSI_CollectionsDB -c "SELECT COUNT(*) FROM fact_interactions;"
+PGPASSWORD=<password> psql -h localhost -p 5433 -U <user> -d MIS_CollectionsDB -c "SELECT COUNT(*) FROM fact_interactions;"
 ```
 Expect ~1.34M. If you see 0, data isn't loaded — run the pipeline first.
 

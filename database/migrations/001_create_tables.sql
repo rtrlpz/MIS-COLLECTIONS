@@ -27,7 +27,7 @@ DROP TABLE IF EXISTS dim_calendar CASCADE;
 -- Agents:      agent_id = EID-001..EID-080, employee_type = 'Agent'
 -- agents.supervisor_id → supervisors.agent_id (self-ref FK)
 -- GRAIN: one row per employee (agent or supervisor), Type-1 by design
-CREATE TABLE dim_employees (
+CREATE TABLE IF NOT EXISTS dim_employees (
     agent_id VARCHAR(15) PRIMARY KEY,
     agent_name VARCHAR(100) NOT NULL,
     employee_type VARCHAR(20) NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE dim_employees (
 
 -- I4: SCD Type-2 history of volatile org attributes (team/supervisor moves).
 -- One row per attribute version; base dim carries only the is_current state.
-CREATE TABLE dim_employee_history (
+CREATE TABLE IF NOT EXISTS dim_employee_history (
     hist_id VARCHAR(15) PRIMARY KEY,
     agent_id VARCHAR(15) NOT NULL,
     employee_type VARCHAR(20),
@@ -62,14 +62,14 @@ CREATE TABLE dim_employee_history (
     experience_tier VARCHAR(10),
     cost_per_hour DECIMAL(6,2),
     valid_from DATE NOT NULL,
-    valid_to   DATE NOT NULL,
+    valid_to   DATE,
     is_current BOOLEAN,
     CONSTRAINT fk_emp_hist_employee FOREIGN KEY (agent_id) REFERENCES dim_employees(agent_id)
 );
 
 -- I5: treatment arms (champion-challenger). Accounts are assigned one stable
 -- arm; the arm drives channel mix and contact-efficacy multipliers.
-CREATE TABLE dim_strategy (
+CREATE TABLE IF NOT EXISTS dim_strategy (
     strategy_id VARCHAR(15) PRIMARY KEY,
     strategy_name VARCHAR(50) NOT NULL,
     description TEXT,
@@ -80,7 +80,7 @@ CREATE TABLE dim_strategy (
 );
 
 -- GRAIN: one row per client
-CREATE TABLE dim_clients (
+CREATE TABLE IF NOT EXISTS dim_clients (
     client_id VARCHAR(15) PRIMARY KEY,
     full_name VARCHAR(100) NOT NULL,
     dob DATE,
@@ -90,7 +90,7 @@ CREATE TABLE dim_clients (
 );
 
 -- GRAIN: one row per product
-CREATE TABLE dim_products (
+CREATE TABLE IF NOT EXISTS dim_products (
     product_id VARCHAR(15) PRIMARY KEY,
     product_name VARCHAR(100) NOT NULL,
     product_type VARCHAR(50) NOT NULL,
@@ -101,7 +101,7 @@ CREATE TABLE dim_products (
 
 -- I2 (Kimball): delinquency buckets are an ordered dimension, not free text.
 -- sort_order encodes severity so consumers join instead of re-deriving CASE maps.
-CREATE TABLE dim_delinquency_bucket (
+CREATE TABLE IF NOT EXISTS dim_delinquency_bucket (
     bucket_key SMALLINT PRIMARY KEY,
     bucket_label VARCHAR(20) NOT NULL UNIQUE,
     sort_order SMALLINT NOT NULL,
@@ -110,7 +110,7 @@ CREATE TABLE dim_delinquency_bucket (
 );
 
 -- GRAIN: one row per calendar day (dimension built from nothing — gives month/quarter/payday attributes raw dates lack)
-CREATE TABLE dim_calendar (
+CREATE TABLE IF NOT EXISTS dim_calendar (
     date DATE PRIMARY KEY,
     year INT,
     quarter INT,
@@ -126,7 +126,7 @@ CREATE TABLE dim_calendar (
 );
 
 -- GRAIN: one row per account (product_type denormalized to avoid snowflake join)
-CREATE TABLE dim_accounts (
+CREATE TABLE IF NOT EXISTS dim_accounts (
     account_id VARCHAR(15) PRIMARY KEY,
     client_id VARCHAR(15) NOT NULL,
     product_id VARCHAR(15) NOT NULL,
@@ -146,7 +146,7 @@ CREATE TABLE dim_accounts (
 -- =========================================================================
 
 -- GRAIN: one row per agent-account contact episode per day (dial attempts folded into counts)
-CREATE TABLE fact_interactions (
+CREATE TABLE IF NOT EXISTS fact_interactions (
     interaction_id VARCHAR(15) PRIMARY KEY,
     interaction_date DATE NOT NULL,
     interaction_time TIME NOT NULL,
@@ -169,7 +169,7 @@ CREATE TABLE fact_interactions (
 );
 
 -- GRAIN: one row per promise-to-pay event; status mutated in place Pending→Kept/Broken
-CREATE TABLE fact_ptp_log (
+CREATE TABLE IF NOT EXISTS fact_ptp_log (
     ptp_id VARCHAR(15) PRIMARY KEY,
     ptp_date DATE NOT NULL,
     ptp_time TIME NOT NULL,
@@ -186,7 +186,7 @@ CREATE TABLE fact_ptp_log (
 );
 
 -- GRAIN: one row per payment event; self-cures carry NULL agent_id/ptp_id
-CREATE TABLE fact_payments (
+CREATE TABLE IF NOT EXISTS fact_payments (
     payment_id VARCHAR(15) PRIMARY KEY,
     payment_date DATE NOT NULL,
     payment_time TIME NOT NULL,
@@ -211,7 +211,7 @@ CREATE TABLE fact_payments (
 );
 
 -- GRAIN: one row per agent-day (daily periodic snapshot of workforce time)
-CREATE TABLE fact_agent_time_log (
+CREATE TABLE IF NOT EXISTS fact_agent_time_log (
     log_id VARCHAR(15) PRIMARY KEY,
     log_date DATE NOT NULL,
     agent_id VARCHAR(15) NOT NULL,
@@ -229,7 +229,7 @@ CREATE TABLE fact_agent_time_log (
 );
 
 -- GRAIN: one row per account per month-end (monthly periodic snapshot — the collections backbone). Balances are SEMI-ADDITIVE: sum across accounts within a month-end only, never across dates
-CREATE TABLE fact_eom_snapshot (
+CREATE TABLE IF NOT EXISTS fact_eom_snapshot (
     snapshot_date DATE NOT NULL,
     snapshot_month VARCHAR(20),
     account_id VARCHAR(15) NOT NULL,
@@ -253,7 +253,7 @@ CREATE TABLE fact_eom_snapshot (
 -- GRAIN: one row per write-off event; account exits the active book at this point
 -- N4: post-charge-off collections — the recovery-curve backbone
 -- GRAIN: one row per recovery event against a written-off account
-CREATE TABLE fact_recoveries (
+CREATE TABLE IF NOT EXISTS fact_recoveries (
     recovery_id VARCHAR(15) PRIMARY KEY,
     recovery_date DATE NOT NULL,
     account_id VARCHAR(15) NOT NULL,
@@ -265,7 +265,7 @@ CREATE TABLE fact_recoveries (
     CONSTRAINT fk_rec_date FOREIGN KEY (recovery_date) REFERENCES dim_calendar(date)
 );
 
-CREATE TABLE fact_writeoffs (
+CREATE TABLE IF NOT EXISTS fact_writeoffs (
     writeoff_id VARCHAR(15) PRIMARY KEY,
     writeoff_date DATE NOT NULL,
     account_id VARCHAR(15) NOT NULL,
