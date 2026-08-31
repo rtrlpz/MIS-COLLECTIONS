@@ -1,7 +1,7 @@
 # mis-collections — Collections Analytics Portfolio
 
 **Stack:** Python 3, PostgreSQL 15 (Docker), SQL, Power BI, openpyxl
-**Root:** `C:\Users\Leand\Desktop\Portafolio-Projects\mis-collections`
+**Root:** `/home/rtrlpz/projects-portfolio/mis-collections` (cross-platform: was `C:\Users\Leand\Desktop\Portafolio-Projects\mis-collections`)
 **Conda env:** `mis-collections`
 
 ## Commands
@@ -63,6 +63,8 @@
 | `dashboards/dax/generate_dax_reference.py` | Script to regenerate dax_measures_all.md from CSV |
 | `docs/dashboards/dax_measures_all.md` | Complete DAX reference (all 148 + 18 CG items as code blocks) |
 | `docs/dashboards/legacy/dax_measures_dictionary.md` | Legacy v1 docs |
+| `docs/dashboards/legacy/metrics_catalog_v1_may2026.md` | Archived May-2026 visual catalog (~93 placements, 5-page/74-DAX era, superseded by blueprint) |
+| `docs/dashboards/legacy/context_may24_notes.md` | Archived May-24 Power BI session notes (from deleted feature/powerbi-dashboard branch) |
 | `docs/dashboards/dashboard_blueprint.md` | **Page-by-page wireframe** (9 dashboards, 1920x1080 canvas, visual specs, field wells, DAX refs) |
 | `docs/dashboards/dashboard_blueprint.pdf` | **PDF export** of blueprint (printable) |
 | `docs/dashboards/PLAN_DASHBOARDS.pdf` | **PDF export** of 9-dashboard implementation plan |
@@ -92,13 +94,13 @@
 |---|---|
 | `docs/QUICKSTART.md` | 5-minute setup guide |
 | `docs/TROUBLESHOOTING.md` | Docker/ETL error resolution |
-| `docs/CHANGELOG.md` | Version history (0.1.0 → 1.6.0) |
+| `docs/CHANGELOG.md` | Version history (0.1.0 → 1.6.3) |
 | `docs/CONTEXT.md` | Full project context |
 | `docs/KPI_VIEWS.md` | 13 of 16 KPI views documented (gap noted at top of file) |
 | `docs/kpi_definitions.md` | 319-line KPI reference with formulas |
 | `docs/data_dictionary.md` | Full column-level dictionary (16 tables) |
 | `docs/executive_summary.md` | 1-page leadership summary |
-| `CHANGELOG.md` | Version history (0.1.0 → 1.6.0) |
+| `CHANGELOG.md` | Version history (0.1.0 → 1.6.0) — see `docs/CHANGELOG.md` (canonical path) |
 | `docs/README.md` | Documentation index (single entry point) |
 | `docs/dashboards/execution_guide.md` | 2,499-line enterprise build guide (13 sections) |
 | `docs/dashboards/mis_collections_build_plan.md` | 5-phase Power BI build plan |
@@ -167,7 +169,7 @@ If asked about a task/skill material at `learning/`, follow these contracts (see
 - **Calculation Group**: `_Time Intelligence` CG defined in `calculation_group_ti.json` — apply as slicer to any base measure. Creates via `create_calc_group.cs` in Tabular Editor.
 
 ## Next Phase
-> **Session note (2026-08-31):** Cross-platform consolidation landed. The previous `feature/linux-dev` branch was fast-forward merged into `main` and deleted — the project now works directly on `main` (`./run_pipeline.sh` Linux/macOS, `./run_pipeline.bat` Windows). Doc-consistency sweep applied (see CHANGELOG 1.6.1). **CI is deliberately skipped** (meaningful pytest runs need the full loaded-DB pipeline, ~20 min; the documented passing 84-test suite is the quality proof) — only revisit if automated regression catching becomes a priority.
+> **Session note (2026-08-31):** Retired the stale `feature/powerbi-dashboard` branch — it was **48 commits behind `main`** with only one unique commit (May 2026: root `CONTEXT.md` + 5-page-era Spanish visual catalog). Archived both under `docs/dashboards/legacy/` (`metrics_catalog_v1_may2026.md`, `context_may24_notes.md`, DB creds stripped) and deleted the remote branch; repo is single-branch `main`. Rewrote root `README.md` into an interview-ready showcase (CHANGELOG 1.6.3): agent count **88 (8 supervisors + 80 agents)**, `docs/CHANGELOG.md` path, `docker compose --env-file .env`, real tree, and a "What Makes This Stand Out" section (12-mo/~1.8M-row, SCD2/strategy arms, 84-test Hybrid-C, 148 DAX + TI CG with RLS, three-tier analysis, governance). Docs only. **CI remains deliberately skipped** (meaningful pytest needs the full loaded-DB pipeline, ~20 min; the documented 84-test suite is the quality proof).
 - Phase 9: Build Power BI dashboard (fresh PBIX, 9 pages, import mode, star schema, 148 DAX measures + TI calc group, RLS by supervisor) — **Blueprint ready** · guided execution plan saved at `docs/dashboards/PHASE9_EXECUTION_PLAN.md` (M0 prep pack builds when kickoff starts)
   - Import order: `_Outreach & Activity` → `_Promise & Recovery` → `_Portfolio Health` → `_Goals & Targets` → `_Composites & Strategy`; TI comes from `create_calc_group.cs` (legacy per-metric TI measures are retired — do NOT import them)
   - Run `create_calc_group.cs` in Tabular Editor after importing all measures

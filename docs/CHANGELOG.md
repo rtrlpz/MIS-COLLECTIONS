@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.6.3] — 2026-08-31
+
+### README full rewrite (interview-ready portfolio showcase)
+- Reworked root `README.md` into a stronger, accurate showcase while keeping the existing voice, badges, and mermaid lineage diagram.
+- **Accuracy fixes**: agent count 80 → **88 employees (8 supervisors + 80 agents)**; `CHANGELOG.md` path corrected to `docs/CHANGELOG.md`; docker command aligned to `docker compose --env-file .env`; real project tree in the structure section.
+- **Added differentiators** the old README didn't surface: 12-month / ~1.8M-row dataset; dimensional-model rigor (star schema, SCD2 org history, delinquency-bucket dim, champion–challenger strategy arms with lift, no fact-to-fact FK chains); 84-test Hybrid-C suite with slow data-quality gates; 148 DAX measures + 18-item TI Calc Group with RLS-by-supervisor design; 17-file three-tier SQL analysis layer + `learning/` lab; governance (versioned migrations, comments, dictionaries).
+- Added a **Status & Roadmap** section (Phase 9 in progress → Phase 10 Excel MIS → Phase 11 publishing) and the single-cross-platform-branch highlight.
+- Docs only — no code, schema, or data changes.
+
+## [1.6.2] — 2026-08-31
+
+### Retired the stale `feature/powerbi-dashboard` branch
+- **Branch audit**: the remote `origin/feature/powerbi-dashboard` (May 2026 fork) was **48 commits behind `main`** and **1 commit ahead**, with exactly **one** unique commit (`e2cd958`, 2026-05-24) not already on `main` — every other commit in its history had long since landed via the normal flow. Its lone unique content was a stale root-level `CONTEXT.md` snapshot + a Spanish-language visual catalog aligned to the old **5-page** dashboard structure (74-measure DAX era), superseded by the current 9-page `dashboard_blueprint.md` (148 measures + 18-item `_Time Intelligence` CG).
+- **Archived before deletion** (historical reference only, under `docs/dashboards/legacy/`):
+  - `metrics_catalog_v1_may2026.md` — full visual catalog (~93 placements, 9 visual types) with a header marking it superseded.
+  - `context_may24_notes.md` — the May 24 Power BI session notes (extracted; DB credentials stripped).
+- **Deleted** `origin/feature/powerbi-dashboard` after the archive landed on `main`. Repo is now single-branch `main` only (no orphan/stale branches).
+- Docs only — no code, schema, or data changes.
+
 ## [1.6.1] — 2026-08-31
 
 ### Cross-platform consolidation + doc-consistency sweep

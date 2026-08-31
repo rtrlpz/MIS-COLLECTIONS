@@ -214,13 +214,13 @@
 - [x] `PLAN_DASHBOARDS.md` — 9-dashboard implementation plan (generator G1-G9, schema, DAX coverage analysis)
 - [x] `QUICKSTART.md` — 5-minute setup (prerequisites + 3 commands)
 - [x] `TROUBLESHOOTING.md` — Docker errors, port conflicts, ETL failures, DB reset
-- [x] `CHANGELOG.md` — Version history (0.1.0 → 1.6.0)
+- [x] `CHANGELOG.md` — Version history (0.1.0 → 1.6.3)
 - [x] `docs/KPI_VIEWS.md` — 13 of 16 KPI views documented (3 added in P2/P4)
 
-- [ ] Readme status badges (Build, Tests, Last Updated)
-- [ ] Data lineage diagram (generator → CSV → ETL → PostgreSQL → views → BI)
+- [x] Readme status badges (Python, PostgreSQL, Tests, DAX, Data, Branch)
+- [x] Data lineage diagram (generator → CSV → ETL → PostgreSQL → views → BI; mermaid in README)
 
-*Doc sweep (2026-08-31): standardized DAX counts to 148 + 18-item CG, KPI views to 13 of 16, account count to ~15,480 across all docs; cross-platform branch consolidated onto `main` (see CHANGELOG 1.6.1). The two checklist items above remain pending.*
+*Doc sweep (2026-08-31): standardized DAX counts to 148 + 18-item CG, KPI views to 13 of 16, account count to ~15,480 across all docs; cross-platform branch consolidated onto `main` (see CHANGELOG 1.6.1); retired `feature/powerbi-dashboard` and archived its May-2026 artifacts under `docs/dashboards/legacy/`; rewrote README into an interview-ready showcase with badges + lineage diagram (CHANGELOG 1.6.2–1.6.3), closing the two previously-pending items here.*
 
 ---
 

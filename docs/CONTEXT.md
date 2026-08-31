@@ -1,10 +1,10 @@
 # mis-collections — Project Context
 
 ## Project Overview
-Simulated bank collections analytics portfolio project. Generates synthetic data for ~80 agents, ~10,000 clients, ~15,480 accounts across Credit Cards, Personal Loans, and Mortgages (Jan–Dec 2025). Models the full collections lifecycle: dialer interactions, RPC tracking, promise-to-pay management, payment/cure events, and agent utilization.
+Simulated bank collections analytics portfolio project. Generates synthetic data for 88 employees (8 supervisors + 80 agents), ~10,000 clients, ~15,480 accounts across Credit Cards, Personal Loans, and Mortgages (Jan–Dec 2025). Models the full collections lifecycle: dialer interactions, RPC tracking, promise-to-pay management, payment/cure events, and agent utilization.
 
 **Goal:** Portfolio piece demonstrating end-to-end data engineering + analytics for a Scotiabank-style collections department. 9 Power BI dashboards across Executive, Managerial, Supervision, and Analytical tiers.
-**Last updated:** 2026-08-31 (Session: cross-platform consolidation — merged Linux branch into `main`, doc-consistency sweep; previous: P3/P4 regen + Hybrid C suite)
+**Last updated:** 2026-08-31 (Session: retired stale `feature/powerbi-dashboard` branch — archived May-2026 planning artifacts, deleted branch, single-branch `main`; rewrote README into an interview-ready showcase; previous: cross-platform consolidation + doc sweep)
 
 ## Tech Stack
 - **Python 3.x** — Data generation (Faker), ETL ingestion (pandas, psycopg2)
@@ -360,6 +360,7 @@ All 17 SQL files verified with valid content — none empty.
 - `docs/PLAN_DASHBOARDS.md` — 9-dashboard implementation plan with DAX coverage analysis
 
 ## Session Notes
+- **Branch retirement + README rewrite (Aug 31, 2026)**: (1) `feature/powerbi-dashboard` was **48 commits behind `main` / 1 commit ahead** — its only unique commit (`e2cd958`, May 24) added a stale root `CONTEXT.md` + a 5-page-era Spanish visual catalog. Both archived under `docs/dashboards/legacy/` (`metrics_catalog_v1_may2026.md`, `context_may24_notes.md`; DB creds stripped) and the remote branch deleted. Repo is now single-branch `main`. (2) Rewrote root `README.md` into an interview-ready showcase (see CHANGELOG 1.6.3): agent count 80→88 (8 supervisors + 80 agents), `docs/CHANGELOG.md` path, `docker compose --env-file .env`, real project tree, plus a "What Makes This Stand Out" section surfacing the 12-mo/~1.8M-row dataset, SCD2/strategy-arm/champion-challenger realism, 84-test Hybrid-C suite, 148 DAX + TI CG with RLS design, three-tier analysis layer, and governance. Docs only.
 - **Schema star/snowflake fixes (Jul 2026)**: (1) Renamed `dim_employees.employee_name` → `agent_name` (DDL + generator + comments) — fixed critical mismatch where all 9 KPI views referenced `da.agent_name` but DDL defined `employee_name`. (2) Added `product_type VARCHAR(50)` to `dim_accounts` with CHECK constraint + index — denormalized from dim_products to eliminate snowflake join chain (fact → accounts → products). (3) Removed `fact_payments.ptp_id` FK constraint to `fact_ptp_log` — eliminates fact-to-fact chain (link is informational only, not needed for dimensional joins). (4) Updated CONTEXT.md: removed stale `Dim_Supervisors` reference (merged into `Dim_Employees`), updated dimension table count from 6→5.
 - **Weekend rule changed**: Payments now allowed on weekend dates (payment_date = date made, not processed). Interactions remain weekday-only.
 - **Generator changes**: 7 edits to `data_generator_v7.py` — removed `if is_wkday:` guards for payment processing and self-cures, removed `next_weekday()` function, changed interaction guard to weekday-only, updated docstring.
@@ -389,7 +390,7 @@ All 17 SQL files verified with valid content — none empty.
 - **P3/P4 regenerated & verified + Hybrid C suite (Aug 25, 2026)**: Full gate green (84 passed = 81 fast + 3 slow). Spot-checks: strategy split 58.9/26.2/14.9 with RPC-by-arm 37.7/32.2/28.0 (multipliers bite), recoveries 323 rows/$39,949, installments 27.9% of kept plans, 6 Jul-1 SCD2 transfers, portfolio_cure_rate 56→76%, Exited=413. Test bugs fixed: re-entry invariant sorted months alphabetically (garbage windows since Phase 6; chronological band 10.4–14.3%), metric ranges now read conftest METRIC_RANGES, conftest import under package layout. Docs synced to post-regen state. See CHANGELOG 1.6.0.
 
 ## Quick Reference
-- **Project root**: `C:\Users\Leand\Desktop\Portafolio-Projects\mis-collections`
+- **Project root**: `/home/rtrlpz/projects-portfolio/mis-collections` (cross-platform: was `C:\Users\Leand\Desktop\Portafolio-Projects\mis-collections`)
 - **Conda env**: `mis-collections`
 - **DB connection**: host=localhost, port=5433, user=[REDACTED], password=[REDACTED], db=MIS_CollectionsDB
 - **Pipeline command**: `./run_pipeline.bat` (from project root in CMD) — ~157s end-to-end (12 months)
