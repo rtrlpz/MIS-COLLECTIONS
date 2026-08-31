@@ -3,7 +3,7 @@
 > **ARCHIVED (2026-08-31).** Recovered from the deleted `feature/powerbi-dashboard` branch
 > (commit `e2cd958`, 2026-05-24). This is the May 24 Power BI session notes extracted from a
 > stale root-level `CONTEXT.md` snapshot. DAX counts (74 measures) and dashboard structure
-> (5-page) predate the current design — see `docs/dashboards/dashboard_blueprint.md`
+> (5-page) predate the current design — see `docs/powerbi/dashboard_blueprint.md`
 > (9 pages, 148 active measures + `_Time Intelligence` Calculation Group). Historical reference only.
 
 ---

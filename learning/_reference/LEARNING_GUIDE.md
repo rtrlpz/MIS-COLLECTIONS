@@ -93,7 +93,7 @@ basic+medium cover ~90% of the nine pages. The gap becomes a live lesson (guided
 not a blocker. Rhythm per page: build from blueprint field wells → run that page's
 parity query → reconcile to zero.
 
-Plan of record: `docs/dashboards/PHASE9_EXECUTION_PLAN.md`.
+Plan of record: `docs/powerbi/PHASE9_EXECUTION_PLAN.md`.
 
 ---
 

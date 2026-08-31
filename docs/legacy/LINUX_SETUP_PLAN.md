@@ -1,5 +1,8 @@
 # Linux Setup & Bootstrap Plan — mis-collections
 
+> **ARCHIVED (2026-08-31).** Retired dated working/session note (Linux bootstrap + audit log, Phase A status)
+> in favor of the single durable cross-platform guide `docs/DUAL_OS_SETUP.md`. Historical reference only.
+
 ## Status After Phase A (Completed)
 
 - ✅ `/etc/group` confirms `docker:x:973:rtrlpz` — membership applied

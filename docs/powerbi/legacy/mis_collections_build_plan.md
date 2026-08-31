@@ -1,5 +1,8 @@
 # MSI Collections — Dashboards & Reports Build Plan
 
+> **ARCHIVED (2026-08-31).** Superseded planning doc (5-phase build plan dated 2026-07-21). Current actionable
+> build guide is `docs/powerbi/PHASE9_EXECUTION_PLAN.md` (Phase 9) + `docs/powerbi/dashboard_blueprint.md`
+> (9-page wireframes) + `docs/PLAN_DASHBOARDS.md` (high-level plan). Historical reference only.
 > **Author:** MIS Manager, Scotiabank Collections
 > **Status:** Planning Phase
 > **Target:** 1 Power BI Dashboard (9 pages) + 1 Excel Daily MIS Workbook

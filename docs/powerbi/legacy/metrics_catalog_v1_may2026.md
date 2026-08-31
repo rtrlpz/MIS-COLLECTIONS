@@ -3,7 +3,7 @@
 > **ARCHIVED (2026-08-31).** Superseded planning artifact recovered from the deleted
 > `feature/powerbi-dashboard` branch (commit `e2cd958`, 2026-05-24). This catalog was
 > built around the **old 5-page dashboard structure** and an early **74-measure** DAX set.
-> Current dashboard design is the **9-page wireframe** in `docs/dashboards/dashboard_blueprint.md`
+> Current dashboard design is the **9-page wireframe** in `docs/powerbi/dashboard_blueprint.md`
 > (148 active measures + `_Time Intelligence` Calculation Group). Kept for historical reference
 > only — do not treat the page numbers, DAX counts, or targets below as current.
 

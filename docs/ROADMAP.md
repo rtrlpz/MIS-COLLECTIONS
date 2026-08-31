@@ -204,13 +204,13 @@
 - [x] `docs/executive_summary.md` — One-page leadership summary
 - [x] `docs/kpi_definitions.md` — 319-line comprehensive KPI reference
 - [x] `docs/data_dictionary.md` — Full data dictionary (16 tables, current schema)
-- [x] `docs/execution_guide.md` — Granular task instructions (historical snapshot noted)
+- [x] `docs/powerbi/legacy/execution_guide.md` — Granular task instructions (historical snapshot noted)
 - [x] `data_sources/schema/dictionary.md` — Column-level docs for all tables
-- [x] `docs/dashboards/reference_guide.html` — DAX + dashboard blueprint reference
-- [x] `docs/dashboards/legacy/dax_measures_dictionary.md` — 73 DAX measures (v1 backup)
-- [x] `docs/dashboards/mis_collections_build_plan.md` — 396-line build plan for Phases 8–9
+- [x] `docs/powerbi/legacy/reference_guide.html` — DAX + dashboard blueprint reference
+- [x] `docs/powerbi/legacy/dax_measures_dictionary.md` — 73 DAX measures (v1 backup)
+- [x] `docs/powerbi/legacy/mis_collections_build_plan.md` — 396-line build plan for Phases 8–9
 - [x] `dashboards/dax/collections_dax_v2.csv` — **148 active measures** (5 measure tables, source of truth; v3.2)
-- [x] `docs/dashboards/dax_measures_dictionary_v2.md` — Full documentation with formulas, formats, dependencies (v2.2, legacy)
+- [x] `docs/powerbi/legacy/dax_measures_dictionary_v2.md` — Full documentation with formulas, formats, dependencies (v2.2, legacy)
 - [x] `PLAN_DASHBOARDS.md` — 9-dashboard implementation plan (generator G1-G9, schema, DAX coverage analysis)
 - [x] `QUICKSTART.md` — 5-minute setup (prerequisites + 3 commands)
 - [x] `TROUBLESHOOTING.md` — Docker errors, port conflicts, ETL failures, DB reset
@@ -220,7 +220,7 @@
 - [x] Readme status badges (Python, PostgreSQL, Tests, DAX, Data, Branch)
 - [x] Data lineage diagram (generator → CSV → ETL → PostgreSQL → views → BI; mermaid in README)
 
-*Doc sweep (2026-08-31): standardized DAX counts to 148 + 18-item CG, KPI views to 13 of 16, account count to ~15,480 across all docs; cross-platform branch consolidated onto `main` (see CHANGELOG 1.6.1); retired `feature/powerbi-dashboard` and archived its May-2026 artifacts under `docs/dashboards/legacy/`; rewrote README into an interview-ready showcase with badges + lineage diagram (CHANGELOG 1.6.2–1.6.3), closing the two previously-pending items here.*
+*Doc sweep (2026-08-31): standardized DAX counts to 148 + 18-item CG, KPI views to 13 of 16, account count to ~15,480 across all docs; cross-platform branch consolidated onto `main` (see CHANGELOG 1.6.1); retired `feature/powerbi-dashboard` and archived its May-2026 artifacts under `docs/powerbi/legacy/`; rewrote README into an interview-ready showcase with badges + lineage diagram (CHANGELOG 1.6.2–1.6.3), closing the two previously-pending items here. *(CHANGELOG 1.6.4) Reorganized docs: `docs/dashboards/` renamed to `docs/powerbi/` (disambiguates from the root `dashboards/` asset folder); retired stale Power BI docs (execution_guide, reference_guide.html, DAX dictionaries, build plans) to `docs/powerbi/legacy/` keeping only blueprint + dax_measures_all + PHASE9 plan as live; consolidated setup docs (DUAL_OS only) and retired LINUX_SETUP_PLAN + WSL2_BACKEND_SETUP to `docs/legacy/`; removed dangling PDF references (PDFs regenerated via md_to_pdf.py).*
 
 ---
 
@@ -268,18 +268,17 @@
 ## PHASE 9 — BI / Reporting 🔵 Blueprint Ready (9 Dashboards)
 
 ### Build Plan Complete
-- [x] `docs/dashboards/mis_collections_build_plan.md` — 5-phase build plan
+- [x] `docs/powerbi/legacy/mis_collections_build_plan.md` — 5-phase build plan
 - [x] Architecture defined: single .pbix, 9 pages, 3 Excel sheets
 - [x] **DAX v3.2 complete**: **148 active measures** (5 measure tables) + `_Time Intelligence` calculation group (18 items) — `dashboards/dax/collections_dax_v2.csv` (source of truth); 118 legacy TI measures retired to `dashboards/dax/legacy/time_intelligence_legacy.csv`
 - [x] `dashboards/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
-- [x] `docs/dashboards/dax_measures_dictionary_v2.md` — v2.2 documentation (legacy)
-- [x] `docs/dashboards/dax_measures_all.md` — Complete DAX reference (all measures as code blocks)
+- [x] `docs/powerbi/legacy/dax_measures_dictionary_v2.md` — v2.2 documentation (legacy)
+- [x] `docs/powerbi/dax_measures_all.md` — Complete DAX reference (all measures as code blocks)
 - [x] 2 calculated tables: `Dim_Targets` (7 goal definitions), `Color Reference` (RAG hex codes)
 - [x] Legacy v1 files preserved as backups (`collections_dax.csv`, `legacy/dax_measures_dictionary.md`)
 - [x] `PLAN_DASHBOARDS.md` — Full implementation plan with DAX coverage analysis per dashboard
-- [x] **`docs/dashboards/dashboard_blueprint.md`** — Page-by-page wireframes (1920x1080 canvas), visual specs, field wells, formatting
-- [x] **`docs/dashboards/dashboard_blueprint.pdf`** — Printable PDF export of blueprint
-- [x] **`docs/dashboards/PLAN_DASHBOARDS.pdf`** — Printable PDF export of implementation plan, DAX references
+- [x] **`docs/powerbi/dashboard_blueprint.md`** — Page-by-page wireframes (1920x1080 canvas), visual specs, field wells, formatting
+- [x] Printable PDF exports — regenerated on demand via `dashboards/scripts/md_to_pdf.py` (not committed)
 
 ### Dashboard Pages (9 consolidated from original 10)
 - [ ] Page 1 — Executive Collections (merged with Scorecard: operational + risk + cost per account) — **95% DAX ready**

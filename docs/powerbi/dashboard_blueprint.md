@@ -1,7 +1,7 @@
 # DASHBOARD BLUEPRINT — 9 Pages, Power BI
 
 **Purpose:** Page-by-page wireframe, visual specs, field wells, formatting, and DAX references for building all 9 dashboards from scratch.
-**DAX source of truth:** `docs/dashboards/dax_measures_all.md` (148 active measures, 5 measure tables + _Time Intelligence CG)
+**DAX source of truth:** `docs/powerbi/dax_measures_all.md` (148 active measures, 5 measure tables + _Time Intelligence CG)
 **CSV import source:** `dashboards/dax/collections_dax_v2.csv`
 
 ---
@@ -1067,4 +1067,4 @@ Dim_Products[product_id]    1 → *  Dim_Accounts[product_id]
 ---
 
 > **End of Blueprint.**
-> For DAX formulas, refer to `docs/dashboards/dax_measures_all.md` (148 active measures + TI CG).
+> For DAX formulas, refer to `docs/powerbi/dax_measures_all.md` (148 active measures + TI CG).

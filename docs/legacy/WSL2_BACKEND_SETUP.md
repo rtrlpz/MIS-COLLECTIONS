@@ -1,5 +1,9 @@
 # WSL2 Backend Setup for Cross-Platform Development
 
+> **ARCHIVED (2026-08-31).** Retired alternative cross-OS architecture (single Postgres in WSL2 accessible from
+> both Windows and Linux) in favor of the primary `docs/DUAL_OS_SETUP.md` pattern (DB on Ubuntu, Windows connects
+> via LAN IP). Historical reference only.
+
 ## Objective
 Enable a single PostgreSQL instance (running in WSL2 via Docker Desktop) accessible from both Windows and Linux environments for the mis-collections project.
 

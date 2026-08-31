@@ -185,8 +185,8 @@ Detailed setup: [`docs/QUICKSTART.md`](docs/QUICKSTART.md)
 | [`docs/KPI_VIEWS.md`](docs/KPI_VIEWS.md) | View documentation (13 of 16 views; rest documented inline in SQL) |
 | [`docs/kpi_definitions.md`](docs/kpi_definitions.md) | KPI formulas and definitions |
 | [`docs/data_dictionary.md`](docs/data_dictionary.md) | Column-level dictionary (16 tables) |
-| [`docs/dashboards/execution_guide.md`](docs/dashboards/execution_guide.md) | Enterprise build guide |
-| [`docs/dashboards/dashboard_blueprint.md`](docs/dashboards/dashboard_blueprint.md) | 9-dashboard page-by-page wireframes |
+| [`docs/powerbi/dashboard_blueprint.md`](docs/powerbi/dashboard_blueprint.md) | 9-dashboard page-by-page wireframes |
+| [`docs/powerbi/PHASE9_EXECUTION_PLAN.md`](docs/powerbi/PHASE9_EXECUTION_PLAN.md) | Actionable Phase 9 Power BI build plan |
 | [`docs/CONTEXT.md`](docs/CONTEXT.md) | Full project context |
 | [`docs/README.md`](docs/README.md) | Documentation index |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Version history |

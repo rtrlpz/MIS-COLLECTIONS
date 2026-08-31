@@ -47,8 +47,8 @@
 - `dashboards/dax/collections_dax_v2.csv` — 148 measures (source of truth, v3.2)
 - `dashboards/dax/legacy/time_intelligence_legacy.csv` — 118 retired TI measures (reference only)
 - `dashboards/dax/calculation_group_ti.json` — `_Time Intelligence` CG definition (18 items)
-- `docs/dashboards/dax_measures_all.md` — Complete DAX reference (148 + 18 CG items as code blocks)
-- `docs/dashboards/dax_measures_dictionary_v2.md` — v2.2 legacy documentation (tables, formats, dependencies)
+- `docs/powerbi/dax_measures_all.md` — Complete DAX reference (148 + 18 CG items as code blocks)
+- `docs/powerbi/legacy/dax_measures_dictionary_v2.md` — v2.2 legacy documentation (tables, formats, dependencies; archived)
 - `dashboards/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
 
 ---

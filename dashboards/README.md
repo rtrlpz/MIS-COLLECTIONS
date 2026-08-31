@@ -1,6 +1,6 @@
 # Dashboards Layer
 
-Power BI + DAX artifacts for the MIS Collections project. For dashboard documentation (blueprint, execution guide, DAX reference) see `../docs/dashboards/`.
+Power BI + DAX artifacts for the MIS Collections project. For dashboard documentation (blueprint, execution guide, DAX reference) see `../docs/powerbi/`.
 
 ## Contents
 

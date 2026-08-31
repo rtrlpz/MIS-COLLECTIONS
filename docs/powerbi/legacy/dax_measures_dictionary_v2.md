@@ -1,5 +1,9 @@
 # Power BI DAX Measures Dictionary v2
 
+> **ARCHIVED (2026-08-31).** STALE — describes a "242 total / 87 base" measure set that predates the v3.2
+> consolidation. Contradicts the current `dax_measures_all.md` (148 active measures + 18-item `_Time Intelligence`
+> Calculation Group, auto-generated from the CSV). Historical reference only.
+
 **Version:** 2.2
 **Schema:** v7 Star Schema (Fact_Interactions, Fact_PTP_Log, Fact_Payments, Fact_Agent_Time_Log, Fact_EOM_Snapshot, Fact_Writeoffs)
 **Total Measures:** 87 base + 120 targets/comparisons + 106 new time intelligence + 22 dashboard-specific = **242 total** (136 base + 106 dashboard)

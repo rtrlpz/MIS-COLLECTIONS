@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.6.4] — 2026-08-31
+
+### Docs reorganization — `docs/powerbi/`, stale-doc retirement, setup-doc consolidation
+- **Renamed `docs/dashboards/` → `docs/powerbi/`** (git mv, history preserved). Disambiguates the documentation folder from the root `dashboards/` asset folder (DAX source, theme, scripts, PBIX). Aligns with the `learning/powerbi/` convention.
+- **Retired stale/superseded Power BI docs** to `docs/powerbi/legacy/` — kept for history, no longer presented as current:
+  - `reference_guide.html` — STALE: based on an old "10 tables / 3 months / 40+ measures / three measure tables" era; no current-era concepts (148 + TI Calc Group, strategy arms, SCD2, recoveries, delinquency-bucket dim).
+  - `execution_guide.md` — self-flagged HISTORICAL SNAPSHOT (v1.0, pre-P3/P4) with stale counts.
+  - `dax_measures_dictionary_v2.md` — contradicted current state ("242 total / 87 base" vs 148 active).
+  - `mis_collections_build_plan.md` — superseded by `PHASE9_EXECUTION_PLAN.md` + `dashboard_blueprint.md` + `docs/PLAN_DASHBOARDS.md`.
+  - Live `docs/powerbi/` now holds only current docs: `dashboard_blueprint.md`, `dax_measures_all.md`, `PHASE9_EXECUTION_PLAN.md`.
+- **Consolidated setup docs**: `DUAL_OS_SETUP.md` (Ubuntu data factory + Windows Power BI) is now the single durable cross-platform guide. Retired `LINUX_SETUP_PLAN.md` (dated working/audit log) and `WSL2_BACKEND_SETUP.md` (alternative single-WSL2-DB architecture) to `docs/legacy/`.
+- **Removed dangling PDF references** (`dashboard_blueprint.pdf`, `PLAN_DASHBOARDS.pdf`) — no PDFs were ever committed; they regenerate on demand via `dashboards/scripts/md_to_pdf.py`.
+- **Updated all cross-references** to `docs/powerbi/` across README, AGENTS, CONTEXT, ROADMAP, docs/README, and internal links.
+- Docs only — no code, schema, or data changes.
+
 ## [1.6.3] — 2026-08-31
 
 ### README full rewrite (interview-ready portfolio showcase)
