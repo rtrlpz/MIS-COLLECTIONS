@@ -81,15 +81,15 @@ A standard 4-tier data architecture: synthetic data with real-world friction →
 flowchart LR
     subgraph Generation
         G[data_generator_v7.py<br/>config.py]
-        CSV[raw/ CSVs<br/>15 tables, ~1.9M rows]
+        CSV[raw/ CSVs<br/>16 tables, ~1.9M rows]
     end
     subgraph Database
         PG[(PostgreSQL 15<br/>MIS_CollectionsDB)]
-        MIG[migrations/<br/>6 SQL files]
+        MIG[migrations/<br/>10 SQL files]
         SEED[seeds/<br/>products + calendar]
     end
     subgraph Views
-        V[12 KPI Views<br/>v_contact_metrics<br/>v_promise_metrics<br/>v_recovery_metrics<br/>v_daily_mis<br/>v_monthly_summary<br/>...]
+        V[16 KPI Views<br/>v_contact_metrics<br/>v_promise_metrics<br/>v_recovery_metrics<br/>v_daily_mis<br/>v_monthly_summary<br/>...]
         A[17 Analysis Queries<br/>agent / team / portfolio]
     end
     subgraph BI
@@ -125,13 +125,13 @@ flowchart LR
 ## Project Structure
 
 ```
-MIS-CollectionsDB/
+mis-collections/
 ├── data_sources/          # Python data generators
 ├── database/              # Docker config & SQL schema
 ├── etl/                   # ETL pipeline
-├── sql_analysis/          # Ad-hoc analysis & KPI views
+├── analysis/              # Ad-hoc analysis & KPI views
 ├── dashboards/            # Power BI (.pbix) files
-├── excel_reports/         # MIS reporting templates
+├── reports/               # MIS reporting templates
 ├── docs/                  # Data dictionaries & documentation
 ├── test/                  # pytest test suite
 ```
@@ -147,8 +147,9 @@ docker-compose -f database/docker-compose.yml up -d
 # 2. Generate synthetic data
 python data_sources/data_generator_v7.py
 
-# 3. Run the full ETL pipeline
-./run_pipeline.bat
+# 3. Run the full pipeline (use the script for your OS)
+./run_pipeline.sh      # Linux / macOS
+./run_pipeline.bat     # Windows CMD
 ```
 
 Detailed setup: [`docs/QUICKSTART.md`](docs/QUICKSTART.md)
@@ -169,7 +170,6 @@ Detailed setup: [`docs/QUICKSTART.md`](docs/QUICKSTART.md)
 | [`docs/README.md`](docs/README.md) | Documentation index |
 | [`CHANGELOG.md`](docs/CHANGELOG.md) | Version history |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Phase completion tracking |
-| [`CONTEXT.md`](CONTEXT.md) | Full project context |
 
 ## Future Work
 
