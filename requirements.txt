@@ -16,3 +16,11 @@ python-dotenv==1.1.0
 
 # PDF Generation (for dashboards/scripts/md_to_pdf.py)
 fpdf==1.7.2
+
+# pytest
+iniconfig==2.3.0
+packaging==26.3
+pluggy==1.6.0
+pygments==2.21.0
+pytest==9.1.1
+
