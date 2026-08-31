@@ -4,7 +4,7 @@
 Simulated bank collections analytics portfolio project. Generates synthetic data for ~80 agents, ~10,000 clients, ~15,480 accounts across Credit Cards, Personal Loans, and Mortgages (Jan–Dec 2025). Models the full collections lifecycle: dialer interactions, RPC tracking, promise-to-pay management, payment/cure events, and agent utilization.
 
 **Goal:** Portfolio piece demonstrating end-to-end data engineering + analytics for a Scotiabank-style collections department. 9 Power BI dashboards across Executive, Managerial, Supervision, and Analytical tiers.
-**Last updated:** 2026-08-25 (Session: P3/P4 regenerated & verified; Hybrid C test suite; docs synced to post-regen state)
+**Last updated:** 2026-08-31 (Session: cross-platform consolidation — merged Linux branch into `main`, doc-consistency sweep; previous: P3/P4 regen + Hybrid C suite)
 
 ## Tech Stack
 - **Python 3.x** — Data generation (Faker), ETL ingestion (pandas, psycopg2)
@@ -160,6 +160,7 @@ mis-collections/
 - CSVs in `data_sources/raw/` are generated, never manually edited
 - All documentation in Markdown or HTML
 - Test files use pytest with fixtures in `conftest.py`
+- **Cross-platform single branch**: work directly on `main`; use `./run_pipeline.sh` (Linux/macOS) or `./run_pipeline.bat` (Windows CMD). The former `feature/linux-dev` branch was merged and deleted (Aug 2026).
 
 ## Commands
 ```bash

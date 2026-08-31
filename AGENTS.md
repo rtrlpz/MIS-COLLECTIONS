@@ -167,6 +167,7 @@ If asked about a task/skill material at `learning/`, follow these contracts (see
 - **Calculation Group**: `_Time Intelligence` CG defined in `calculation_group_ti.json` — apply as slicer to any base measure. Creates via `create_calc_group.cs` in Tabular Editor.
 
 ## Next Phase
+> **Session note (2026-08-31):** Cross-platform consolidation landed. The previous `feature/linux-dev` branch was fast-forward merged into `main` and deleted — the project now works directly on `main` (`./run_pipeline.sh` Linux/macOS, `./run_pipeline.bat` Windows). Doc-consistency sweep applied (see CHANGELOG 1.6.1). **CI is deliberately skipped** (meaningful pytest runs need the full loaded-DB pipeline, ~20 min; the documented passing 84-test suite is the quality proof) — only revisit if automated regression catching becomes a priority.
 - Phase 9: Build Power BI dashboard (fresh PBIX, 9 pages, import mode, star schema, 148 DAX measures + TI calc group, RLS by supervisor) — **Blueprint ready** · guided execution plan saved at `docs/dashboards/PHASE9_EXECUTION_PLAN.md` (M0 prep pack builds when kickoff starts)
   - Import order: `_Outreach & Activity` → `_Promise & Recovery` → `_Portfolio Health` → `_Goals & Targets` → `_Composites & Strategy`; TI comes from `create_calc_group.cs` (legacy per-metric TI measures are retired — do NOT import them)
   - Run `create_calc_group.cs` in Tabular Editor after importing all measures

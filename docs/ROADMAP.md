@@ -220,6 +220,8 @@
 - [ ] Readme status badges (Build, Tests, Last Updated)
 - [ ] Data lineage diagram (generator → CSV → ETL → PostgreSQL → views → BI)
 
+*Doc sweep (2026-08-31): standardized DAX counts to 148 + 18-item CG, KPI views to 13 of 16, account count to ~15,480 across all docs; cross-platform branch consolidated onto `main` (see CHANGELOG 1.6.1). The two checklist items above remain pending.*
+
 ---
 
 ## PHASE 8.5 — Generator + Schema Enhancements ✅ COMPLETE

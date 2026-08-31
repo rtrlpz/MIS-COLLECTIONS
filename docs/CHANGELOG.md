@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.6.1] — 2026-08-31
+
+### Cross-platform consolidation + doc-consistency sweep
+- **Branch strategy change**: the Linux working branch (`feature/linux-dev`) was fast-forward merged into `main` and deleted (local + remote). The project is now cross-platform and works directly on `main` — `./run_pipeline.sh` on Linux/macOS, `./run_pipeline.bat` on Windows. No separate Linux branch going forward.
+- **Doc-consistency sweep** (fixes stale counts/schema claims across docs):
+  - DAX measure counts standardized to **148 active measures (5 tables) + 18-item `_Time Intelligence` Calculation Group** everywhere (was inconsistent 252/256/258 across `execution_guide.md`, `dashboards/README.md`, `learning/powerbi/README.md`, `CONTEXT.md`).
+  - KPI view counts clarified to **13 of 16 documented** (was 12/13); `database/README.md` now notes `v_agent_scorecards` is the 16th view across 002–004.
+  - Account count corrected from **~20,000 → ~15,480** in root `README.md` (matches generator/conftest).
+  - `CONTEXT.md` `execution_guide` reference corrected "2,499-word" → "2,499-line".
+- **Repo housekeeping**:
+  - `LINUX_SETUP_PLAN.md` moved to `docs/` (git rename, history preserved) + added `docs/WSL2_BACKEND_SETUP.md`.
+  - `.vscode/` added to `.gitignore`; `.vscode/settings.json` untracked (local editor config, not project docs).
+  - Removed empty `.github/WORKFLOW/deploy.yml` placeholder (0-byte, non-standard path, no CI logic).
+- **CI deliberately skipped**: a meaningful pytest CI run requires the full loaded Postgres pipeline (12-month generation + ETL + ~20 min), and the project's migration scripts assume the local docker-compose workflow. The documented, passing 84-test suite (`test/README.md`) serves as the quality proof. Revisit only if automated regression catching becomes a priority.
+- No code, schema, or data changes in this release — docs and branching only.
+
 ## [1.6.0] — 2026-08-25
 
 ### P3/P4 — REGENERATED & VERIFIED
