@@ -92,13 +92,13 @@
 |---|---|
 | `docs/QUICKSTART.md` | 5-minute setup guide |
 | `docs/TROUBLESHOOTING.md` | Docker/ETL error resolution |
-| `docs/CHANGELOG.md` | Version history (0.1.0 → 1.0.0) |
+| `docs/CHANGELOG.md` | Version history (0.1.0 → 1.6.0) |
 | `docs/CONTEXT.md` | Full project context |
 | `docs/KPI_VIEWS.md` | 13 of 16 KPI views documented (gap noted at top of file) |
 | `docs/kpi_definitions.md` | 319-line KPI reference with formulas |
-| `docs/data_dictionary.md` | Full column-level dictionary |
+| `docs/data_dictionary.md` | Full column-level dictionary (16 tables) |
 | `docs/executive_summary.md` | 1-page leadership summary |
-| `CHANGELOG.md` | Version history (0.1.0 → 1.0.0) |
+| `CHANGELOG.md` | Version history (0.1.0 → 1.6.0) |
 | `docs/README.md` | Documentation index (single entry point) |
 | `docs/dashboards/execution_guide.md` | 2,499-line enterprise build guide (13 sections) |
 | `docs/dashboards/mis_collections_build_plan.md` | 5-phase Power BI build plan |
@@ -148,8 +148,9 @@ If asked about a task/skill material at `learning/`, follow these contracts (see
 - **Refactor (Aug 2026):** 7-phase rewrite per REFACTOR_PLAN.md (~95 JD-aligned tasks); phases land track-by-track with one commit each
 
 ## DAX v3.2 (148 active measures across 5 measure tables + 1 CG; 118 legacy TI retired)
-- **Base (148)**: `_Outreach & Activity` (22), `_Promise & Recovery` (30), `_Portfolio Health` (34), `_Goals & Targets` (31)
+- **Base measures (117)**: `_Outreach & Activity` (22), `_Promise & Recovery` (30), `_Portfolio Health` (34), `_Goals & Targets` (31)
 - **Composites (31)**: `_Composites & Strategy` — scores, tiers, efficiency, credit risk, vintage + P3 strategy-arm attribution
+- **Total: 148 active measures** (5 measure tables) + `_Time Intelligence` Calculation Group (18 items)
 - **v3.1 corrections (Aug 2026)**: Agent Quality Score realigned to v_agent_scorecards weights (RPC25/KP25/Cure20/Util15/AHT15, AHT inverted vs 300s); Portfolio Health Score → renamed Portfolio Goal Achievement Index (goal-relative normalization vs Dim_Targets — old version had dead cure weight from /3 scaling); Coaching Alert now DATEADD(-7,DAY) (iso_week−1 broke on year boundary); Dialer Abandon Rate → Dialer Non-RPC Share % (old name measured connected-non-RPC, not abandonment); Cure Rate by Vintage denominator no longer ALL(Dim_Calendar)
 - **v3.1 additions (Aug 2026, P3/P4 coverage)**: Cure Rate % base (parity with v_recovery_metrics); Strategy Arm Interactions/Mix %/Connect+RPC Lift vs Champion %; Recovered Amount/Recovery Events/Recovery Rate %/Net Write-off Position/Recoverable Outstanding (parity v_writeoff_recovery); Roll Rate Worsened/Improved % + Worst Active Bucket via Dim_Delinquency_Bucket severity (replaces hardcoded dpd_bucket labels); Portfolio Cure Rate % (mirrors v_monthend_portfolio: is_cured payments ÷ prior month-end Mora stock)
 - **Time Intelligence**: legacy 118 TI measures RETIRED to `dashboards/dax/legacy/time_intelligence_legacy.csv` (v3.2); the `_Time Intelligence` Calculation Group (18 items) is the single TI mechanism — apply as slicer

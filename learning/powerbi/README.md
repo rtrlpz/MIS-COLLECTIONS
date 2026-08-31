@@ -6,7 +6,7 @@ Master guide: learning/README.md
 Prerequisites: sql/basic (the model mirrors the database you already know)
 ```
 
-SQL proves numbers, Python reshapes them, notebooks explain them, Excel ships them. **Power BI makes them live**: filters, drill-down, automatic refresh, and row-level security so each supervisor sees only their own teams. This project has a real dashboard build to reference (9 pages, a 252-measure DAX library, time-intelligence calculation group, RLS by supervisor) — this track walks you up to that level.
+SQL proves numbers, Python reshapes them, notebooks explain them, Excel ships them. **Power BI makes them live**: filters, drill-down, automatic refresh, and row-level security so each supervisor sees only their own teams. This project has a real dashboard build to reference (9 pages, a 148-measure DAX library + 18-item time-intelligence calculation group, RLS by supervisor) — this track walks you up to that level.
 
 ## At work, you reach for Power BI when…
 

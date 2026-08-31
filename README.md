@@ -13,7 +13,7 @@ End-to-end collections analytics platform simulating a bank's full data infrastr
 
 ## Overview
 
-Simulated collections operations for a financial institution across **~80 agents**, **~10,000 clients**, and **~20,000 accounts** spanning three product lines — Credit Cards, Personal Loans, and Mortgages.
+Simulated collections operations for a financial institution across **~80 agents**, **~10,000 clients**, and **~15,480 accounts** spanning three product lines — Credit Cards, Personal Loans, and Mortgages.
 
 The dataset covers the complete collections lifecycle:
 

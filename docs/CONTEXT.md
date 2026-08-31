@@ -79,7 +79,7 @@ mis-collections/
 │   ├── README.md                  # Documentation index (single entry point)
 │   ├── CONTEXT.md ROADMAP.md CHANGELOG.md QUICKSTART.md TROUBLESHOOTING.md
 │   ├── kpi_definitions.md         # 319-line KPI reference with formulas
-│   ├── KPI_VIEWS.md               # All 12 KPI views documented
+│   ├── KPI_VIEWS.md               # 13 of 16 KPI views documented
 │   ├── data_dictionary.md         # Full column-level dictionary
 │   ├── executive_summary.md       # 1-page leadership summary
 │   ├── PLAN_DASHBOARDS.md         # 9-dashboard implementation plan
@@ -348,13 +348,13 @@ All 17 SQL files verified with valid content — none empty.
 - None currently. Weekend interaction bug fixed. Dim_Agents denormalized. Pipeline verified end-to-end. KPI views corrected: cure count uses `COUNT(DISTINCT account_id)` (no double-count), BB Conversion uses correct `kept_pct * ptp_pct / 100` formula.
 
 ## Key Documents
-- `docs/dashboards/execution_guide.md` — 2,499-word enterprise Power BI build guide (13 sections)
+- `docs/dashboards/execution_guide.md` — 2,499-line enterprise Power BI build guide (13 sections)
 - `docs/dashboards/mis_collections_build_plan.md` — 5-phase build plan for Phase C/D/E
 - `docs/dashboards/reference_guide.html` — 1,555-line DAX + dashboard blueprint
 - `dashboards/dax/dax_targets_and_comparisons.md` — Goals & Targets patterns
 - `dashboards/dax/collections_dax_v2.csv` — 148 measures (source of truth, 5 measure tables + CG)
 - `docs/dashboards/dax_measures_dictionary_v2.md` — v2.2 full documentation (formulas, formats, deps)
-- `docs/dashboards/dax_measures_all.md` — Complete DAX reference (all 258 as code blocks)
+- `docs/dashboards/dax_measures_all.md` — Complete DAX reference (all 148 + 18 CG items as code blocks)
 - `docs/kpi_definitions.md` — Business formulas and benchmarks for all KPIs
 - `docs/PLAN_DASHBOARDS.md` — 9-dashboard implementation plan with DAX coverage analysis
 

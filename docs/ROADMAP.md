@@ -1,8 +1,8 @@
 # Project Roadmap — Collections Analytics Portfolio
 
-> **Current Completeness: ~90%** | Last updated: 2026-07-21
+> **Current Completeness: ~90%** | Last updated: 2026-08-31
 >
-> Phases 1–7: **100% Complete** | Phase 8: **~65%** | Phase 8.5: **100% Complete** | Phase 9: **Blueprint Ready (9 dashboards)**
+> Phases 1–7: **100% Complete** | Phase 8: **~85%** | Phase 8.5: **100% Complete** | Phase 9: **Blueprint Ready (9 dashboards)**
 
 ---
 
@@ -34,7 +34,8 @@
 - [x] `data_sources/config.py` (centralized constants: CFG, PRODUCT_CFG)
 
 - [x] `data_sources/README.md`
-- [x] Output: ~506K interactions, ~31K PTP events, ~21K payments across 3 months
+- [x] Output (3 months): ~344K interactions, ~28K PTP events, ~23K payments
+- [x] Output (12 months): ~1.34M interactions, ~106K PTPs, ~121K payments, ~21K agent time, ~183K EOM snapshots, ~441 writeoffs, ~323 recoveries
 
 > **Enhancements post-v7**: See Phase 5 section for progressive severity, monitoring pool, and utilization cap.
 
@@ -60,7 +61,7 @@
 
 ## PHASE 3/5 — Database Schema & KPI Views ✅ COMPLETE
 
-### KPI Views (9 views in `002_kpi_views.sql`)
+### KPI Views (15 views in `002_kpi_views.sql` + 1 in `004_agents_scorecards.sql` = 16 total)
 - [x] `v_contact_metrics` — RPC, RPC%, RPC/OpHr, RPC Arrears (agent/day, team/day, month)
 - [x] `v_promise_metrics` — PTP count, PTP%, Kept/Broken count, KP% (agent/day, team/day, month)
 - [x] `v_recovery_metrics` — Cures, cured amount, cure rate, agent vs self-cure (4 granularities)
@@ -70,14 +71,22 @@
 - [x] `v_monthly_summary` — Month-level rollup (agent, team, portfolio granularities)
 - [x] `v_etl_load_summary` — Latest ETL load per table with data freshness
 - [x] `v_data_freshness` — Days since each fact table was last updated
+- [x] `v_dpd_migration_matrix` — DPD bucket transitions between months (P2)
+- [x] `v_weekly_agent_summary` — Weekly performance aggregation (P2)
+- [x] `v_rls_supervisor_map` — Supervisor↔agent mapping for RLS (P2)
+- [x] `v_promise_timeline` — Promise lifecycle with calendar roles (P2)
+- [x] `v_monthend_portfolio` — Month-end portfolio rollup (P4)
+- [x] `v_writeoff_recovery` — Recovery curve by write-off cohort (P4)
+- [x] `v_agent_scorecards` — Composite weighted score (004_agents_scorecards.sql)
 
 ### Database Hardening
 - [x] `003_constraints.sql` — 15 CHECK constraints (idempotent DO blocks)
 - [x] `004_agents_scorecards.sql` — `v_agent_scorecards` with composite weighted scoring
 - [x] `005_indexes.sql` — 27 indexes (16 FK/date + 5 single-column + 6 composite)
-- [x] `006_comments.sql` — 63 COMMENT ON statements for all 11 tables and columns
+- [x] `006_comments.sql` — 63 COMMENT ON statements for all 16 tables and columns
 - [x] `seeds/001_dim_products.sql` — 3 product seed rows (`ON CONFLICT DO NOTHING`)
-- [x] `seeds/002_dim_calendar.sql` — 122 calendar rows (Sep–Dec 2025)
+- [x] `seeds/002_dim_calendar.sql` — 396 calendar rows (Dec 2024 + full year 2025)
+- [x] `seeds/004_dim_calendar_extension.sql` — +90 rows (Jan–Mar 2026, total 486)
 - [x] **View formula fixes**: Cure count uses `COUNT(DISTINCT account_id)` instead of `SUM(is_cured)` — eliminates double-counting. BB Conversion uses `kept_pct * ptp_pct / 100` matching DAX `[PTP%] * [KP%]`. Removed misnamed "no-touch rate" from `v_productivity_metrics` comment.
 
 ---
@@ -182,33 +191,33 @@
 
 - [x] `run_pipeline.bat` (125 lines) — Docker check → start containers → wait for PostgreSQL → migrations → generate data → ETL → colored output → timing per stage
 - [x] COLOR bug fixed (trailing colons removed)
-- [x] Pipeline runs end-to-end in ~83 seconds
+- [x] Pipeline runs end-to-end in ~157s (12 months) / ~126s (3 months calibrated)
 - [x] `database/migrate.sh` (47 lines) — Runs all SQL migrations via `cat file.sql | docker exec -i psql`
 - [x] Exit codes per stage for error propagation
 
 ---
 
-## PHASE 8 — Documentation 🟡 ~60% Complete
+## PHASE 8 — Documentation 🟡 ~85% Complete
 
 - [x] `CONTEXT.md` — Single-source project overview for AI-assisted development
 - [x] `README.md` — Project overview & interview pitch
 - [x] `docs/executive_summary.md` — One-page leadership summary
 - [x] `docs/kpi_definitions.md` — 319-line comprehensive KPI reference
-- [x] `docs/data_dictionary.md` — Full data dictionary (10 tables)
-- [x] `docs/execution_guide.md` — Granular task instructions
+- [x] `docs/data_dictionary.md` — Full data dictionary (16 tables, current schema)
+- [x] `docs/execution_guide.md` — Granular task instructions (historical snapshot noted)
 - [x] `data_sources/schema/dictionary.md` — Column-level docs for all tables
 - [x] `docs/dashboards/reference_guide.html` — DAX + dashboard blueprint reference
 - [x] `docs/dashboards/legacy/dax_measures_dictionary.md` — 73 DAX measures (v1 backup)
 - [x] `docs/dashboards/mis_collections_build_plan.md` — 396-line build plan for Phases 8–9
-- [x] `dashboards/dax/collections_dax_v2.csv` — 87 DAX measures across 5 tables (source of truth)
-- [x] `docs/dashboards/dax_measures_dictionary_v2.md` — Full documentation with formulas, formats, dependencies
-- [x] `PLAN_DASHBOARDS.md` — 9-dashboard implementation plan (generator G1-G9, schema, DAX ~320 measures)
+- [x] `dashboards/dax/collections_dax_v2.csv` — **148 active measures** (5 measure tables, source of truth; v3.2)
+- [x] `docs/dashboards/dax_measures_dictionary_v2.md` — Full documentation with formulas, formats, dependencies (v2.2, legacy)
+- [x] `PLAN_DASHBOARDS.md` — 9-dashboard implementation plan (generator G1-G9, schema, DAX coverage analysis)
+- [x] `QUICKSTART.md` — 5-minute setup (prerequisites + 3 commands)
+- [x] `TROUBLESHOOTING.md` — Docker errors, port conflicts, ETL failures, DB reset
+- [x] `CHANGELOG.md` — Version history (0.1.0 → 1.6.0)
+- [x] `docs/KPI_VIEWS.md` — 13 of 16 KPI views documented (3 added in P2/P4)
 
-- [ ] `QUICKSTART.md` — 5-minute setup (prerequisites + 3 commands)
-- [ ] `TROUBLESHOOTING.md` — Docker errors, port conflicts, ETL failures, DB reset
-- [ ] `CHANGELOG.md` — Version history
 - [ ] Readme status badges (Build, Tests, Last Updated)
-- [ ] KPI view documentation (what each view calculates, source tables, example queries)
 - [ ] Data lineage diagram (generator → CSV → ETL → PostgreSQL → views → BI)
 
 ---
@@ -222,7 +231,7 @@
 - [x] G4 — `income_bracket`: Dim_Clients gets income_bracket (5 segments with weighted distribution)
 - [x] G5 — `channel`: Fact_Interactions gets channel (65% Dialer, 15% Manual, 10% FICO, 10% SMS)
 - [x] G6 — `write-offs`: New Fact_Writeoffs table (5% rate at 91+ DPD)
-- [x] G7 — `12 months`: Dim_Calendar expanded to 365 rows (Jan-Dec 2025)
+- [x] G7 — `12 months`: Dim_Calendar expanded to 396 rows (Dec 2024 + Jan–Dec 2025) + 90-row extension to Mar 2026 (total 486)
 - [x] G8 — `hire_date`: Dim_Supervisors gets hire_date (5-year span)
 - [x] G9 — `hire_date`: Dim_Agents gets hire_date + experience_tier (senior/mid/junior)
 
@@ -238,19 +247,19 @@
 - [x] +9 new config dictionaries (VINTAGE_CFG, AGENT_HIRE_CFG, CREDIT_LIMIT_CFG, etc.)
 - [x] Modified PRODUCT_CFG for credit_limit ranges
 - [x] Income bracket distribution added
+- [x] Monthly drift std (0.08), self-cure payday boost (2.5), utilization cap (0.95)
 
 ### Data Generation & Loading
 - [x] 12 months generated (Jan-Dec 2025)
 - [x] 1.8M rows loaded into PostgreSQL
-- [x] All tests passing (6 fast + 4 invariant)
+- [x] All tests passing (**84 total: 81 fast + 3 slow**, Hybrid C suite)
 
-### DAX Updates
-- [x] 256 measures across 13 tables (was 242)
-- [x] +84 time intelligence measures (WoW/DoD/YoY/OTC)
-- [x] +22 dashboard-specific measures (Executive, Agent, Dialer, Portfolio, Financial, Vintage, Roll Rate)
-- [x] +14 additional measures (Coaching Alert, AHT by Channel, Credit Limit, Utilization, Income Segment, Net Recovery, Cost to Collect, etc.)
-- [x] dax_measures_all.md generated (complete DAX reference with code blocks)
-- [x] dax_measures_dictionary_v2.md updated to v2.2
+### DAX Updates (v2.2 → v3.2 superseded)
+- [x] **v2.2 (legacy):** 256 measures across 13 tables with per-metric time intelligence
+- [x] **v3.2 (current):** 148 active measures (5 measure tables) + `_Time Intelligence` Calculation Group (18 items)
+- [x] 118 legacy TI measures retired to `dashboards/dax/legacy/time_intelligence_legacy.csv`
+- [x] `dax_measures_all.md` generated (complete DAX reference: 148 + 18 CG items as code blocks)
+- [x] `dax_measures_dictionary_v2.md` v2.2 preserved as legacy reference
 
 ---
 

@@ -64,3 +64,6 @@ learning/**/work/.*
 
 # Jupyter checkpoints
 **/.ipynb_checkpoints/
+
+# .vscode config
+.vscode/

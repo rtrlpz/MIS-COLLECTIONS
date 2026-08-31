@@ -6,7 +6,7 @@ Power BI + DAX artifacts for the MIS Collections project. For dashboard document
 
 | Folder | Purpose | Git status |
 |---|---|---|
-| `dax/` | DAX source of truth: `collections_dax_v2.csv` (252+ measures), `calculation_group_ti.json` (Time Intelligence CG), `dax_targets_and_comparisons.md`, generator script | tracked |
+| `dax/` | DAX source of truth: `collections_dax_v2.csv` (148 active measures + 18-item `_Time Intelligence` CG), `calculation_group_ti.json` (Time Intelligence CG), `dax_targets_and_comparisons.md`, generator script | tracked |
 | `theme/` | Power BI theme `Tema 1.json` (Scotia blue #262A76, Calibri) | tracked |
 | `scripts/` | Tabular Editor C# helpers + Python utilities (import_measures, create_calc_group, prefix_removal, csv_to_tsv, md_to_pdf) | tracked |
 | `pbix/` | Working dashboard: `collections_dashboard_v3.pbix` | ignored (*.pbix) |
