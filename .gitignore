@@ -57,11 +57,6 @@ __pycache__/
 # Local-only dashboards output (PBIX are *.pbix; keep models/ stale exports local)
 dashboards/pbix/
 
-# Learning environment — keep learner-produced work files local (.md trackers stay in git)
-learning/**/work/*
-learning/**/work/.*
-!learning/**/work/.gitkeep
-
 # Jupyter checkpoints
 **/.ipynb_checkpoints/
 
