@@ -97,16 +97,19 @@ FROM daily_counts;
 /* 
 Guiding questions: 
 1. What makes your date filter safe if this column becomes a timestamp next year? 
+   
    The filter uses a half-open date range: >= January 1 and < February 1.
    If interaction_date becomes a timestamp, it will include every record from
    January 1 at 00:00:00 through the end of January, without needing to specify
    the final time of day.
     
 2. After joining to get team names, does the total still match step 1? 
+  
    Confirm this by running the reconciliation query. If difference = 0, the
    sum of the team totals matches the overall January total.
 	
 3. If not, what leaked?
+   
    If the joined total is lower, some interaction records did not find a
    matching employee through agent_id, so the INNER JOIN removed them.
 

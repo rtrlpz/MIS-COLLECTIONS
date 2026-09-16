@@ -1,4 +1,4 @@
--- Task 1 — Take inventory of the database
+-- ## Task 1 — Take inventory of the database ## --
 
 /*
 Welcome aboard. 

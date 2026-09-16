@@ -68,6 +68,7 @@ across all channels rather than each individual channel split.
 
 Guiding questions: 
 1. Why 100.0 * instead of 100 *?
+	
 	100.0 makes the calculation use decimal arithmetic. In PostgreSQL, if both
 	values in a division are integers, SQL truncates the decimal portion.
 
@@ -76,6 +77,7 @@ Guiding questions:
 	because the query rounds the final percentage to two decimal places.
 
 2. Which official view already computes this — do your numbers match it exactly?
+	
 	v_contact_metrics computes connected calls, RPC count, RPC%. The Q1 totals
 	from the raw-table query match the view exactly: 205,524 connected calls, 
 	106,916 RPCs, and an overall RPC% of 52.02
