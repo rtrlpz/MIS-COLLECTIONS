@@ -96,6 +96,7 @@ FROM daily_counts;
 
 /* 
 Guiding questions: 
+
 1. What makes your date filter safe if this column becomes a timestamp next year? 
    
    The filter uses a half-open date range: >= January 1 and < February 1.

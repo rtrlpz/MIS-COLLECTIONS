@@ -109,6 +109,7 @@ ORDER BY tc.table_name, fact_key_column;
 
 /* 
 Guiding questions:
+
 1. Why are facts big and dims small? 
 	Fact tables capture day-to-day business activity, such as customer interactions, payments,
 	promises to pay, and month-end account snapshots. Because these events happen repeatedly over time,

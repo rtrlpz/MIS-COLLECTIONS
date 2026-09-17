@@ -67,6 +67,7 @@ The view does not include channel, so it validates the Q1 overall totals
 across all channels rather than each individual channel split.
 
 Guiding questions: 
+
 1. Why 100.0 * instead of 100 *?
 	
 	100.0 makes the calculation use decimal arithmetic. In PostgreSQL, if both
