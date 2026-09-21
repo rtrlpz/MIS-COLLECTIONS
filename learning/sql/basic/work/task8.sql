@@ -36,7 +36,6 @@ Guiding questions:
 
 1. Which date function gives you weekday without locale tricks? 
 
-	
 	EXTRACT(ISODOW FROM date_column) gives a stable ISO weekday number: 
 	Monday = 1 through Sunday = 7. It avoids locale-dependent day-name functions.
 
