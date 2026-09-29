@@ -62,3 +62,6 @@ dashboards/pbix/
 
 # .vscode config
 .vscode/
+
+# Learning data and scratch files
+learning/excel/basic/work/libre-office/data/**
