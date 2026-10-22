@@ -196,7 +196,7 @@ Rule:         a workbook you never opened is an untested claim.
 
 📥 **Inbox:** From Head of MIS · Mon 9:00 · "the flagship deliverable"
 
-> "Write `generate_daily_mis.py`: reads the daily KPI extract (CSV export of `v_daily_mis`), builds the FULL pack — Cover, Daily, Summary, AgentLookup, Parameters — with every style, formula, lookup, validation, and print setting applied. One command, zero manual steps."
+> "Write `daily_mis_auto.py`: reads the daily KPI extract (CSV export of `v_daily_mis`), builds the FULL pack — Cover, Daily, Summary, AgentLookup, Parameters — with every style, formula, lookup, validation, and print setting applied. One command, zero manual steps."
 
 **Your job:**
 1. Assemble everything from Tasks 1–7 into a single CLI script.

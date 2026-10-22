@@ -252,8 +252,8 @@ soffice --headless --convert-to pdf work/daily_mis.xlsx --outdir work/
 ## Task 8 — Full generator script
 
 ```python
-"""generate_daily_mis.py — one-command Collections Daily MIS pack.
-Usage: python generate_daily_mis.py --input daily_extract.csv --out work/daily_mis.xlsx
+"""daily_mis_auto.py — one-command Collections Daily MIS pack.
+Usage: python daily_mis_auto.py --input daily_extract.csv --out work/daily_mis.xlsx
 Combines all Phase A behaviors into a single CLI tool.
 """
 import argparse
