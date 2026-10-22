@@ -100,6 +100,27 @@ DELETE FROM etl_load_log WHERE table_name = 'fact_interactions';
 docker exec postgres_collections psql -U rtrlpz -d MIS_CollectionsDB -c "ALTER TABLE dim_employee_history ALTER COLUMN valid_to DROP NOT NULL;"
 ```
 
+## Python Environment Issues
+
+### pip install fails — "externally-managed-environment" / "No module named pip"
+```
+error: externally-managed-environment
+× This environment is externally managed
+```
+**Cause:** the project venv (`.venv/`) is created by `uv`, which ships **without `pip`**. A bare `pip install ...` therefore resolves to the *system* pip (`/usr/bin/pip`, Python 3.14), which is PEP 668 externally-managed and refuses to install. `.venv` itself is fine — `openpyxl==3.1.5` is already installed there per `requirements.txt`.
+
+**Fix — always install with uv:**
+```bash
+uv pip install --python .venv/bin/python openpyxl          # single package
+uv pip install -r requirements.txt                         # full pinned set (uv auto-discovers .venv)
+uv pip list --python .venv/bin/python                      # verify
+.venv/bin/python -c "import openpyxl; print(openpyxl.__version__)"
+```
+
+**Do NOT** run `sudo apt install python3-pip` + system `pip`, and never pass `--break-system-packages`: both install into the OS Python, which the generator/ETL/tests never import from.
+
+**After recreating the venv** (`uv venv --python 3.12 .venv`), re-run the `-r requirements.txt` step — that is when packages go missing.
+
 ## Test Issues
 
 ### Tests fail with "no database"
@@ -110,7 +131,7 @@ docker exec postgres_collections psql -U rtrlpz -d MIS_CollectionsDB -c "ALTER T
 
 ### pytest not found
 ```bash
-uv pip install pytest
+uv pip install --python .venv/bin/python pytest
 # or: conda activate mis-collections && pip install pytest
 ```
 
