@@ -58,7 +58,7 @@ The rule: **if you can't build it manually in Excel, you can't automate it corre
 > "The pivot table on the dashboard isn't updating when we add new rows. I need to understand why — and fix it. This is the kind of thing that wastes half a morning if you don't know how pivots work under the hood."
 
 **Your job:**
-1. Open `work/daily_mis_manual.xlsx`. Add a new row to the Data sheet below the table.
+1. Open `work/daily_mis_manual.xlsx`. Add a new row to the Daily sheet below the table.
 2. **Right-click the pivot → Refresh** → confirm the new row appears.
 3. **Check the pivot cache:** go to **PivotTable Analyze → Options → Data** → see the cache range.
 4. **Problem:** if the cache doesn't auto-expand, new rows are invisible to the pivot.
@@ -92,10 +92,10 @@ The rule: **if you can't build it manually in Excel, you can't automate it corre
 
 **Your job:**
 1. Assemble everything from basic/medium/Phase A into a single CLI script.
-2. Input: CSV path + output xlsx path.
+2. Input: CSV path + output xlsx path. The CSV is an export of `v_daily_mis` with `date, agent_id, team_name, total_calls, connected_calls, rpc_count, ptp_count, payment_count`.
 3. All behaviors intact: structured references (Excel Table), SUMIFS formulas, RAG conditional formatting, validation dropdowns, XLOOKUP formulas, print setup, Power Query-ready Data sheet layout.
 4. **Key test:** the generated workbook must be functionally identical to `work/daily_mis_manual.xlsx` — same formulas, same structure, same pivot-ready layout.
-5. Fresh run reproduces the workbook byte-stable except timestamps.
+5. Fresh run reproduces the same sheets, tables and formulas; xlsx zip timestamps will differ, so compare structure not bytes.
 6. Add reconciliation step (compare generated numbers against SQL `v_daily_mis`).
 
 **Done when:**
@@ -114,11 +114,9 @@ The rule: **if you can't build it manually in Excel, you can't automate it corre
 
 **Your job:**
 1. Save the generated .xlsx as .xlsm template.
-2. Add VBA module `modRefresh`:
-   - `Workbook_Open` event stamps Cover timestamp
-   - `Application.CalculateFullRebuild` forces recalc
-3. Save `.bas` module in `work/`.
-4. Note: `Workbook_Open` belongs in **ThisWorkbook**, not a `.bas` module. The `.bas` holds helper code.
+2. Add VBA module `modRefresh` with a public helper that stamps the Cover timestamp and calls `Application.CalculateFullRebuild`.
+3. Save the module as `work/modRefresh.bas`.
+4. Paste the `Workbook_Open` event stub into **ThisWorkbook** (it is an event, so it cannot live in a `.bas` module); it calls the module helper.
 5. Document macro security implications honestly — users must click "Enable Content."
 6. **Test:** close & reopen → timestamp changes to now; F9-recalc visibly refreshed.
 
@@ -155,7 +153,7 @@ The rule: **if you can't build it manually in Excel, you can't automate it corre
 
 📥 **Inbox:** From MIS Manager · Fri 11:00 · "the pipeline must produce the macro book"
 
-> "Extend the generator: after building the .xlsx, inject the VBA project so the OUTPUT is the .xlsm with your modules — document exactly how openpyxl's keep_vba path works and its limits (you cannot AUTHOR VBA from python; you preserve it)."
+> "Make the pipeline emit the macro-enabled pack: start from a one-time .xlsm template that already contains the VBA project, rebuild its sheet contents, and save — document exactly how openpyxl's keep_vba path works and its limits (you cannot AUTHOR VBA from python; you preserve it)."
 
 **Your job:**
 1. Document the flow:
@@ -184,7 +182,7 @@ The rule: **if you can't build it manually in Excel, you can't automate it corre
 **Your job:**
 1. **Task Scheduler documentation:**
    - Trigger: Weekdays 08:15
-   - Action: python.exe → `generate_daily_mis.py --input C:\collections\drops\daily_*.csv --out C:\collections\output\daily_mis.xlsx`
+   - Action: python.exe → `generate_daily_mis.py --latest C:\collections\drops --out C:\collections\output\daily_mis.xlsx` (Task Scheduler does not expand globs)
    - Start in: project directory
    - Failure: email via task history + fallback manual run
 2. **Run-of-show:** what's automatic vs human-judgment:

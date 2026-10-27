@@ -19,11 +19,15 @@
 4. Cell A6–A12: Navigation lines — one sentence per tab
 5. Sheet tab color: `808080` (governance)
 
+#### AgentLookup sheet:
+1. A1: `AgentID`, B1: `Name`; paste the agent roster (one row per `EID-*`).
+2. Keep it a plain range — lookups below point at `$A$2:$B$200`.
+
 #### Daily sheet:
-1. Paste the daily data. Headers in row 4.
-2. Add Agent ID column. **Type XLOOKUP by hand** in the name column:
+1. Paste the daily data (agent-day rows from `v_daily_mis`). Headers in row 4.
+2. Columns A4:J4 = Date | Agent ID | Team | Contacts | Connects | RPCs | Promises | Payments | Name (XLOOKUP) | Name (VLOOKUP). **Type XLOOKUP by hand** in I5:
    `=IFNA(XLOOKUP(A5,AgentLookup!$A$2:$A$100,AgentLookup!$B$2:$B$100,"—"),"")`
-3. **Data → Data Validation → List** on the team column → source = Parameters!$A$2:$A$100
+3. **Data → Data Validation → List** on the team column (C5:C...) → source = Parameters!$A$2:$A$100
 4. Freeze panes at A5
 5. Convert the data range to an **Excel Table** (Ctrl+T) — name it `tblDaily`
 
@@ -32,10 +36,10 @@
 2. **Type SUMIFS formulas** by hand for each KPI column
 3. RPC% in E5: `=IFERROR(D5/C5,"")`
 4. MoM delta in F6: `=TEXT(D6-D5,"+0;-0;±0")`
-5. **Conditional formatting** on E5:E16 (RPC%):
-   - Green: `=$E$3<=E5` → #00B050
-   - Amber: `=AND(E5>=$E$2,E5<$E$3)` → #FFC000
-   - Red: `=$E$2>E5` → #FF0000
+5. **Conditional formatting** on E5:E16 (RPC% is column E):
+   - Green: `=E5>=Parameters!$E$3` → #00B050
+   - Amber: `=AND(E5>=Parameters!$E$2,E5<Parameters!$E$3)` → #FFC000
+   - Red: `=E5<Parameters!$E$2` → #FF0000
    Thresholds in Parameters!E2:E3
 
 #### PivotDaily sheet:
@@ -91,71 +95,161 @@
 
 ```python
 """generate_daily_mis.py — one-command Collections Daily MIS pack.
-Reproduces the Phase A manual dashboard programmatically.
+
+Usage:
+  python generate_daily_mis.py --input daily_extract.csv --out work/daily_mis.xlsx
+  python generate_daily_mis.py --latest C:\\collections\\drops --out work/daily_mis.xlsx
+Input CSV is an export of v_daily_mis (one row per agent-day).
 """
 import argparse
 from pathlib import Path
+
 import pandas as pd
 from openpyxl import Workbook
-from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.formatting.rule import CellIsRule
+from openpyxl.styles import Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
-from openpyxl.styles import Font, Alignment, NamedStyle, PatternFill, Border, Side
-from openpyxl.formatting.rule import CellIsRule, FormulaRule
-from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.table import Table, TableStyleInfo
 
-def build_pack(input_csv: str, output_path: Path):
+REQUIRED = {"date", "agent_id", "team_name", "total_calls",
+            "connected_calls", "rpc_count", "ptp_count", "payment_count"}
+
+
+def pick_latest(folder: Path) -> Path:
+    files = sorted(folder.glob("daily_*.csv"), key=lambda f: f.stat().st_mtime)
+    if not files:
+        raise FileNotFoundError(f"no daily_*.csv in {folder}")
+    return files[-1]
+
+
+def build_pack(input_csv: Path, output_path: Path):
     df = pd.read_csv(input_csv, parse_dates=["date"])
-    wb = Workbook()
+    missing = REQUIRED - set(df.columns)
+    if missing:
+        raise ValueError(f"input is missing columns: {sorted(missing)}")
 
-    # Daily sheet with Excel Table
-    ws_d = wb.active
-    ws_d.title = "Daily"
-    ws_d.append(["Date", "Team", "Contacts", "Connects", "RPCs", "Promises", "Payments"])
-    for _, r in df.iterrows():
-        ws_d.append([r["date"].date(), r["team"], int(r["contacts"]), int(r["connects"]),
-                      int(r["rpcs"]), int(r["promises"]), int(r["payments"])])
-    tbl = Table(displayName="tblDaily", ref=f"A4:G{4+len(df)}")
+    wb = Workbook()
+    ws_c = wb.active
+    ws_c.title = "Cover"
+    ws_c["A1"] = "Collections Daily MIS"
+    ws_c["A1"].font = Font(size=16, bold=True, color="262A76")
+    ws_c["A3"], ws_c["B3"] = "Owner:", "MIS Analyst — Collections"
+    ws_c["A4"], ws_c["B4"] = "Generated:", '="Snapshot "&TEXT(TODAY(),"yyyy-mm-dd")&" · refreshed "&TEXT(NOW(),"yyyy-mm-dd hh:mm")'
+    for i, line in enumerate([
+            "Daily — agent-day extract from v_daily_mis",
+            "Summary — monthly SUMIFS rollup with RAG RPC%",
+            "AgentLookup — agent id to name",
+            "Parameters — RAG thresholds and team list",
+            "ChangeLog — dated record of every change"], start=6):
+        ws_c.cell(row=i, column=1, value=line)
+
+    ws_d = wb.create_sheet("Daily")
+    headers = ["Date", "Agent ID", "Team", "Contacts", "Connects",
+               "RPCs", "Promises", "Payments", "Name (XLOOKUP)", "Name (VLOOKUP)"]
+    for c, h in enumerate(headers, start=1):          # header row 4, table starts A4
+        ws_d.cell(row=4, column=c, value=h).font = Font(bold=True, color="FFFFFF")
+        ws_d.cell(row=4, column=c).fill = PatternFill("solid", fgColor="262A76")
+
+    for r, row in enumerate(df.itertuples(index=False), start=5):
+        ws_d.cell(row=r, column=1, value=row.date.to_pydatetime()).number_format = "yyyy-mm-dd"
+        ws_d.cell(row=r, column=2, value=row.agent_id)
+        ws_d.cell(row=r, column=3, value=row.team_name)
+        for c, value in enumerate([row.total_calls, row.connected_calls, row.rpc_count,
+                                   row.ptp_count, row.payment_count], start=4):
+            ws_d.cell(row=r, column=c, value=int(value)).number_format = "#,##0"
+        ws_d.cell(row=r, column=9, value=f'=IFNA(_xlfn.XLOOKUP(B{r},AgentLookup!$A$2:$A$200,AgentLookup!$B$2:$B$200),"—")')
+        ws_d.cell(row=r, column=10, value=f'=IFNA(VLOOKUP(B{r},AgentLookup!$A$2:$B$200,2,FALSE),"")')
+
+    last = 4 + len(df)
+    tbl = Table(displayName="tblDaily", ref=f"A4:J{last}")
     tbl.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True)
     ws_d.add_table(tbl)
+    ws_d.freeze_panes = "A5"
 
-    # Summary sheet with SUMIFS formulas
+    # AgentLookup
+    emps = pd.read_csv("data_sources/raw/shared/Dim_Employees.csv", dtype="string")
+    emps = emps[emps["employee_type"] == "Agent"]
+    ws_l = wb.create_sheet("AgentLookup")
+    ws_l.append(["AgentID", "Name"])
+    for row in emps[["agent_id", "agent_name"]].itertuples(index=False):
+        ws_l.append([row.agent_id, row.agent_name])
+
+    # Parameters: RAG thresholds in E2:E3, teams in A
+    ws_p = wb.create_sheet("Parameters")
+    ws_p["E1"] = "RAG thresholds"
+    ws_p["E2"] = 0.45
+    ws_p["E3"] = 0.50
+    ws_p["A1"] = "Teams"
+    teams = sorted(df["team_name"].dropna().unique())
+    for i, team in enumerate(teams, start=2):
+        ws_p.cell(row=i, column=1, value=team)
+
+    dv = DataValidation(type="list", formula1=f"=Parameters!$A$2:$A${len(teams) + 1}",
+                        allow_blank=True, showErrorMessage=True,
+                        errorTitle="Invalid team", error="Pick from the list.")
+    ws_d.add_data_validation(dv)
+    dv.add(f"C5:C{last}")
+
+    # Summary: one row per month, SUMIFS over the table
     ws_s = wb.create_sheet("Summary")
     ws_s["A1"] = "Monthly rollup"
-    ws_s.append(["Month", "Contacts", "Connects", "RPCs", "RPC %", "Δ vs prior month"])
-    for r, mrow in enumerate(month_rows, start=5):
-        ws_s.cell(row=r, column=2, value=f'=SUMIFS(tblDaily[Contacts],tblDaily[Date],">="&A{r},tblDaily[Date],"<"&EDATE(A{r},1))')
-        # ... repeat per KPI ...
-        ws_s.cell(row=r, column=5, value=f'=IFERROR(D{r}/C{r},"")')
-        if r > 5:
-            ws_s.cell(row=r, column=6, value=f'=TEXT(D{r}-D{r-1},"+0;-0;±0")')
+    ws_s["A1"].font = Font(size=16, bold=True, color="262A76")
+    for c, h in enumerate(["Month", "Contacts", "Connects", "RPCs", "RPC %",
+                           "Δ vs prior month"], start=1):
+        ws_s.cell(row=4, column=c, value=h).font = Font(bold=True, color="FFFFFF")
+        ws_s.cell(row=4, column=c).fill = PatternFill("solid", fgColor="262A76")
 
-    # RAG conditional formatting on Summary RPC% column
-    rng = f"F5:F{4+len(month_rows)}"
-    ws_s.conditional_formatting.add(rng, CellIsRule(operator="greaterThanOrEqual", formula=["$E$3"], fill=PatternFill("solid", fgColor="00B050")))
-    ws_s.conditional_formatting.add(rng, CellIsRule(operator="between", formula=["$E$2", "$E$3"], fill=PatternFill("solid", fgColor="FFC000")))
-    ws_s.conditional_formatting.add(rng, CellIsRule(operator="lessThan", formula=["$E$2"], fill=PatternFill("solid", fgColor="FF0000")))
+    months = pd.Series(df["date"].dt.to_period("M").unique()).sort_values()
+    for i, period in enumerate(months, start=5):
+        ws_s.cell(row=i, column=1, value=period.to_timestamp()).number_format = "yyyy-mm"
+        ws_s.cell(row=i, column=2, value=(f'=SUMIFS(tblDaily[Contacts],tblDaily[Date],">="&A{i},'
+                                          f'tblDaily[Date],"<"&EDATE(A{i},1))'))
+        ws_s.cell(row=i, column=3, value=(f'=SUMIFS(tblDaily[Connects],tblDaily[Date],">="&A{i},'
+                                          f'tblDaily[Date],"<"&EDATE(A{i},1))'))
+        ws_s.cell(row=i, column=4, value=(f'=SUMIFS(tblDaily[RPCs],tblDaily[Date],">="&A{i},'
+                                          f'tblDaily[Date],"<"&EDATE(A{i},1))'))
+        ws_s.cell(row=i, column=5, value=f'=IFERROR(D{i}/C{i},"")').number_format = "0.0%"
+        if i > 5:
+            ws_s.cell(row=i, column=6, value=f'=TEXT(D{i}-D{i-1},"+0;-0;±0")')
 
-    # AgentLookup, Parameters, ChangeLog sheets
-    # ... (as in Basic/Medium tasks) ...
+    rag = f"E5:E{4 + len(months)}"
+    ws_s.conditional_formatting.add(rag, CellIsRule(
+        operator="greaterThanOrEqual", formula=["Parameters!$E$3"],
+        fill=PatternFill("solid", fgColor="00B050")))
+    ws_s.conditional_formatting.add(rag, CellIsRule(
+        operator="between", formula=["Parameters!$E$2", "Parameters!$E$3"],
+        fill=PatternFill("solid", fgColor="FFC000")))
+    ws_s.conditional_formatting.add(rag, CellIsRule(
+        operator="lessThan", formula=["Parameters!$E$2"],
+        fill=PatternFill("solid", fgColor="FF0000")))
 
-    # Print setup
+    ch = wb.create_sheet("ChangeLog")
+    ch.append(["Date", "Author", "Sheet/Range", "What changed", "Why"])
+
     for ws in wb.worksheets:
         ws.page_setup.orientation = "landscape"
         ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0
         ws.sheet_properties.pageSetUpPr.fitToPage = True
         ws.print_title_rows = "4:4"
 
     wb.save(output_path)
 
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", required=True)
+    group = ap.add_mutually_exclusive_group(required=True)
+    group.add_argument("--input", help="one CSV file")
+    group.add_argument("--latest", help="folder containing daily_*.csv")
     ap.add_argument("--out", default="work/daily_mis.xlsx")
     args = ap.parse_args()
-    build_pack(args.input, Path(args.out))
+    src = Path(args.input) if args.input else pick_latest(Path(args.latest))
+    build_pack(src, Path(args.out))
 ```
 
-**Verify yourself:** run twice → diff via unzip → only timestamp parts differ. Compare Summary cells against SQL `v_daily_mis`.
+**Reconciliation:** reuse the `reconcile()` function from Excel Basic Task 9 — compare each month's Contacts/RPCs/Promises/Payments totals with `v_daily_mis` before sending.
+
+**Verify yourself:** run twice → compare sheet names, table refs and every formula (openpyxl read-back); Excel writes fresh zip timestamps, so byte equality is the wrong test. Compare Summary totals against SQL `v_daily_mis` for the same month.
 
 ---
 
@@ -164,16 +258,23 @@ if __name__ == "__main__":
 ### VBA module: `work/RefreshOnOpen.bas`
 
 ```vb
-' Module: modRefresh
+' Module: modRefresh (.bas) — helper only, callable from ThisWorkbook
 Option Explicit
 
-Private Sub Workbook_Open()
+Public Sub StampAndRecalculate()
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Worksheets("Cover")
     On Error Resume Next
     ws.Range("B4").Value = "Last refreshed: " & Format(Now, "yyyy-mm-dd hh:nn:ss")
     Application.CalculateFullRebuild
     On Error GoTo 0
+End Sub
+```
+
+**ThisWorkbook** (paste into the ThisWorkbook object, not a .bas module):
+```vb
+Private Sub Workbook_Open()
+    modRefresh.StampAndRecalculate
 End Sub
 ```
 
@@ -232,8 +333,8 @@ End Function
 Private Sub LoadCsvIntoData(ByVal csvPath As String)
     Dim wsD As Worksheet, qt As QueryTable
     Set wsD = ThisWorkbook.Worksheets(DATA_SHEET)
-    wsD.Range("A4").CurrentRegion.Offset(1).ClearContents
-    Set qt = wsD.QueryTables.Add(Connection:="TEXT;" & csvPath, Destination:=wsD.Range("A5"))
+    wsD.Range("A5:J100000").ClearContents   ' keep the header/table at A4'
+    Set qt = wsD.QueryTables.Add(Connection:="TEXT;" & csvPath, Destination:=wsD.Range("A4"))
     With qt
         .TextFileParseType = xlDelimited
         .TextFileCommaDelimiter = True
@@ -245,7 +346,7 @@ End Sub
 
 **Cover button:** Insert → Shapes → rectangle → Assign Macro → `RefreshPack`.
 
-**Why each part:** newest-file pick means the analyst never renames anything at 8:40; ClearContents keeps headers and table structure so formulas survive; PDF names embed the date.
+**Why each part:** newest-file pick means the analyst never renames anything at 8:40; clearing below the header keeps the table and formulas alive; PDF names embed the date. The QueryTable destination is A4 so the CSV header lands on the header row, not in the first data row.
 
 **Verify yourself:** drop two CSVs — correct one loads. Remove all CSVs — message box. Formulas on Summary intact after refresh.
 
@@ -270,8 +371,17 @@ End Sub
 ```python
 from openpyxl import load_workbook
 
+
+def rebuild_data(ws, df, first_row=5):
+    """Replace values below the header without touching styles or sheet names."""
+    if ws.max_row >= first_row:
+        ws.delete_rows(first_row, ws.max_row - first_row + 1)
+    for row in df.itertuples(index=False):
+        ws.append(list(row))
+
+
 wb = load_workbook("work/pack_template.xlsm", keep_vba=True)
-rebuild_data(wb["Data"], df_daily)   # values/styles only — same sheet names
+rebuild_data(wb["Data"], df_daily)   # values only — same sheet names
 wb.save("work/daily_mis.xlsm")
 ```
 
@@ -284,7 +394,7 @@ wb.save("work/daily_mis.xlsm")
 **Task Scheduler documentation (`work/scheduling.md`):**
 ```text
 Trigger : Weekdays 08:15
-Action  : "C:\...\python.exe" generate_daily_mis.py --input C:\collections\drops\daily_*.csv --out C:\collections\output\daily_mis.xlsx
+Action  : "C:\...\python.exe" generate_daily_mis.py --latest C:\collections\drops --out C:\collections\output\daily_mis.xlsx
 Start in: C:\Users\you\mis-collections
 Failure : email via task history + fallback manual run
 Then    : duty analyst opens daily_mis.xlsm → Enable Content → RefreshPack → mail PDF
