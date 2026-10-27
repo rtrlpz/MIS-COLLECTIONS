@@ -228,7 +228,7 @@ Attempt honestly → read that task's section in `results.md` → **run the solu
 
 **Guiding questions:** Which table will always lag the others, and why is that normal? Which two tables should move together day by day — and if they ever diverge, what does that suggest?
 
-**Data pointers:** all six fact tables' date columns; cross-check: `v_data_freshness`; `_reference/datasets.md` §4 (view inventory).
+**Data pointers:** all seven fact tables' date columns (including `fact_recoveries`); cross-check: `v_data_freshness` (which covers six — note the omission); `_reference/datasets.md` §4 (view inventory).
 
 **Done when:**
 - [ ] One query: per-fact max date + days-behind
