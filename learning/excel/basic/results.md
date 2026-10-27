@@ -38,7 +38,7 @@ ws["A1"] = "Collections Daily MIS"
 ws["A1"].font = Font(size=16, bold=True, color="262A76")
 
 headers = ["Date", "Contacts", "Connects", "RPCs", "Promises", "Payments"]
-for c, h in enumerate(headers, start=2):
+for c, h in enumerate(headers, start=1):
     cell = ws.cell(row=4, column=c, value=h)
     cell.font = Font(bold=True, color="FFFFFF")
     cell.alignment = Alignment(horizontal="center")
@@ -48,7 +48,7 @@ ws["A2"] = '="Report for "&TEXT(B2,"yyyy-mm-dd")'
 ws["A2"].font = Font(italic=True)
 
 ws.freeze_panes = "A5"
-for c in range(2, 8):
+for c in range(1, 7):
     ws.column_dimensions[get_column_letter(c)].width = 14
 
 wb.save(OUT)
@@ -80,19 +80,23 @@ ptp   = pd.read_csv("data_sources/raw/june_2025/Fact_PTP_Log.csv",
 pay   = pd.read_csv("data_sources/raw/june_2025/Fact_Payments.csv",
                      parse_dates=["payment_date"])
 
-daily = pd.DataFrame({"Date": sorted(inter["interaction_date"].dt.normalize().unique())})
-daily["Contacts"] = inter.groupby(inter["interaction_date"].dt.normalize()).size()
-daily["Connects"] = inter.groupby(inter["interaction_date"].dt.normalize())["calls_connected"].sum()
-daily["RPCs"]     = inter.groupby(inter["interaction_date"].dt.normalize())["rpc_flag"].sum()
+d = inter["interaction_date"].dt.normalize()
+daily = (inter.groupby(d)
+              .agg(Contacts=("interaction_id", "count"),
+                   Connects=("calls_connected", "sum"),
+                   RPCs=("rpc_flag", "sum")))
 daily["Promises"] = ptp.groupby(ptp["ptp_date"].dt.normalize()).size()
 daily["Payments"] = pay.groupby(pay["payment_date"].dt.normalize()).size()
-daily = daily.fillna(0).astype(int).reset_index()
+daily = (daily.fillna(0).astype(int)
+              .reset_index()
+              .rename(columns={"interaction_date": "Date"})
+              .sort_values("Date"))
 
 wb = load_workbook(OUT)
 ws = wb["Daily"]
 for r, row in daily.iterrows():
-    ws.cell(row=5 + r, column=2, value=row["Date"]).number_format = "yyyy-mm-dd"
-    for c, col in enumerate(["Contacts", "Connects", "RPCs", "Promises", "Payments"], start=3):
+    ws.cell(row=5 + r, column=1, value=row["Date"]).number_format = "yyyy-mm-dd"
+    for c, col in enumerate(["Contacts", "Connects", "RPCs", "Promises", "Payments"], start=2):
         cell = ws.cell(row=5 + r, column=c, value=int(row[col]))
         cell.number_format = "#,##0"
 wb.save(OUT)
@@ -122,20 +126,43 @@ wb.save(OUT)
 ### Automation equivalent (openpyxl writes the same formulas):
 ```python
 ws_lu = wb.create_sheet("AgentLookup")
-emps = pd.read_csv("data_sources/raw/shared/Dim_Employees.csv", dtype="string")[["agent_id","agent_name"]]
+emps = pd.read_csv("data_sources/raw/shared/Dim_Employees.csv", dtype="string")
+emps = emps[emps["employee_type"] == "Agent"][["agent_id", "agent_name", "team_name"]]
 ws_lu.append(["AgentID", "Name"])
 for _, r in emps.iterrows():
     ws_lu.append([r.agent_id, r.agent_name])
 n_rows = len(emps) + 1
 
-for r in range(5, 5 + len(daily)):
-    ws.cell(row=r, column=9,
-            value=f'=IFNA(XLOOKUP(A{r},AgentLookup!$A$2:$A${n_rows},AgentLookup!$B$2:$B${n_rows}),"—")')
-    ws.cell(row=r, column=10,
-            value=f'=IFNA(VLOOKUP(A{r},AgentLookup!$A$2:$B${n_rows},2,FALSE),"")')
+# One row per agent-day, from the same June extract
+ad = (inter.assign(day=inter["interaction_date"].dt.normalize())
+           .groupby(["day", "agent_id"])
+           .agg(Contacts=("interaction_id", "count"),
+                Connects=("calls_connected", "sum"),
+                RPCs=("rpc_flag", "sum"))
+           .reset_index()
+           .merge(emps[["agent_id", "team_name"]], on="agent_id", how="left"))
+p = ptp.assign(day=ptp["ptp_date"].dt.normalize()).groupby(["day", "agent_id"]).size().rename("Promises")
+q = pay.assign(day=pay["payment_date"].dt.normalize()).groupby(["day", "agent_id"]).size().rename("Payments")
+ad = ad.merge(p, on=["day", "agent_id"], how="left").merge(q, on=["day", "agent_id"], how="left")
+ad[["Promises", "Payments"]] = ad[["Promises", "Payments"]].fillna(0).astype(int)
+
+ws_ad = wb.create_sheet("AgentDaily")
+for col, h in enumerate(["Agent ID", "Team", "Agent Name (XLOOKUP)",
+                         "Agent Name (VLOOKUP)", "Promises", "Payments"], start=1):
+    ws_ad.cell(row=4, column=col, value=h).font = Font(bold=True)
+
+for i, row in enumerate(ad.itertuples(index=False), start=5):
+    ws_ad.cell(row=i, column=1, value=row.agent_id)
+    ws_ad.cell(row=i, column=2, value=row.team_name)
+    ws_ad.cell(row=i, column=3,
+               value=f'=IFNA(_xlfn.XLOOKUP(A{i},AgentLookup!$A$2:$A${n_rows},AgentLookup!$B$2:$B${n_rows}),"—")')
+    ws_ad.cell(row=i, column=4,
+               value=f'=IFNA(VLOOKUP(A{i},AgentLookup!$A$2:$B${n_rows},2,FALSE),"")')
+    ws_ad.cell(row=i, column=5, value=int(row.Promises))
+    ws_ad.cell(row=i, column=6, value=int(row.Payments))
 ```
 
-**Why each part:** the FORMULA lives in the cell — python never pre-fills names. `IFNA` turns misses into an em-dash. `XLOOKUP` is direction-safe; `VLOOKUP` requires the lookup column to be leftmost.
+**Why each part:** the FORMULA lives in the cell — python never pre-fills names. `IFNA` turns misses into an em-dash. `XLOOKUP` is direction-safe; `VLOOKUP` requires the lookup column to be leftmost. openpyxl must write the future function as `_xlfn.XLOOKUP`; LibreOffice may still show `#NAME?` for it — test the VLOOKUP path there.
 
 **Verify yourself:** change one ID to garbage → shows `—`. Change to valid other ID → name updates. Insert a column in AgentLookup → XLOOKUP survives, VLOOKUP breaks.
 
@@ -144,7 +171,7 @@ for r in range(5, 5 + len(daily)):
 ## Task 4 — Pivot Table basics (manual creation)
 
 ### Manual steps (do these in Excel — NO openpyxl pivot creation):
-1. On the Data sheet, select the entire data range (A4:G{last_row}).
+1. On the `AgentDaily` sheet, select the entire data range (A4:F{last_row}).
 2. Go to **Insert → PivotTable**. Choose "New Worksheet." Name the sheet `PivotDaily`.
 3. In the PivotTable Fields pane:
    - Drag `Team` to **Rows**
@@ -167,12 +194,12 @@ for r in range(5, 5 + len(daily)):
 
 ### Manual steps (do these in Excel):
 1. Create sheet `Parameters`. Column A: list valid team names (from CSV extract).
-2. Go to the Data sheet. Select the team cell range (e.g., J5:J100).
+2. Go to the `AgentDaily` sheet. Select the team cell range (e.g., B5:B100).
 3. **Data → Data Validation → List.**
 4. Source: `=Parameters!$A$2:$A$100`
 5. Check: "Show error message after invalid data is entered"
 6. Error Title: `Invalid team` | Error message: `Pick from the list.`
-7. **Try to type "Free Texxt"** in J5 → Excel refuses with your error message.
+7. **Try to type "Free Texxt"** in B5 → Excel refuses with your error message.
 8. Also set date validation on the report-date cell (B2): **Data → Data Validation → Date** → between `2024-01-01` and `2026-12-31`.
 
 **Note on free-type cells:** Notes/comment columns deliberately left unvalidated — document which and why.
@@ -192,7 +219,7 @@ dv = DataValidation(type="list",
                     allow_blank=True, showErrorMessage=True,
                     errorTitle="Invalid team", error="Pick from the list.")
 ws.add_data_validation(dv)
-dv.add("J5:J100")
+dv.add("B5:B100")
 ```
 
 **Verify yourself:** type "Free Texxt" in J5 → refused. Check that the Parameters list drives the dropdown (add a team to Parameters → it should appear in dropdowns without code changes).
@@ -206,7 +233,7 @@ dv.add("J5:J100")
 ## Task 6 — NamedStyles polish
 
 ```python
-from openpyxl.styles import NamedStyle, Border, Side, PatternFill
+from openpyxl.styles import Alignment, Border, Font, NamedStyle, PatternFill, Side
 
 title   = NamedStyle("title", font=Font(size=16, bold=True, color="262A76"))
 header  = NamedStyle("header", font=Font(bold=True, color="FFFFFF"),
@@ -219,6 +246,17 @@ grid    = NamedStyle("grid", border=Border(
              alignment=Alignment(horizontal="right"))
 date_st = NamedStyle("datecell", number_format="yyyy-mm-dd", border=grid.border)
 num_st  = NamedStyle("numcell", number_format="#,##0", border=grid.border)
+
+for st in (title, header, grid, date_st, num_st):
+    wb.add_named_style(st)
+
+ws["A1"].style = "title"
+for cell in ws[4]:
+    cell.style = "header"
+for row in ws.iter_rows(min_row=5, max_col=6):
+    for cell in row:
+        cell.style = "grid"
+wb.save(OUT)
 ```
 
 **Why:** NamedStyles are the workbook's design system — change `header` once, every sheet inherits. Two-color discipline: palette blue for identity, white space elsewhere. Borders do the separating.
@@ -230,7 +268,7 @@ num_st  = NamedStyle("numcell", number_format="#,##0", border=grid.border)
 ## Task 7 — Print setup + PDF
 
 ```python
-ws.print_area = f"A1:H{5 + len(daily)}"
+ws.print_area = f"A1:F{5 + len(daily)}"
 ws.page_setup.orientation = "landscape"
 ws.page_setup.fitToWidth  = 1
 ws.page_setup.fitToHeight = 0
@@ -253,26 +291,144 @@ soffice --headless --convert-to pdf work/daily_mis.xlsx --outdir work/
 
 ```python
 """daily_mis_auto.py — one-command Collections Daily MIS pack.
+
 Usage: python daily_mis_auto.py --input daily_extract.csv --out work/daily_mis.xlsx
-Combines all Phase A behaviors into a single CLI tool.
+Input: CSV export of v_daily_mis (agent-day grain).
 """
 import argparse
 from pathlib import Path
+
 import pandas as pd
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, NamedStyle, Border, Side, PatternFill
+from openpyxl.styles import Alignment, Border, Font, NamedStyle, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 OUT = Path("work/daily_mis.xlsx")
+RAW = Path("data_sources/raw")
+REQUIRED = {"date", "agent_id", "team_name", "total_calls",
+            "connected_calls", "rpc_count", "ptp_count", "payment_count"}
+
+
+def styles(wb):
+    if "title" not in wb.named_styles:
+        wb.add_named_style(NamedStyle("title", font=Font(size=16, bold=True, color="262A76")))
+    if "header" not in wb.named_styles:
+        wb.add_named_style(NamedStyle(
+            "header", font=Font(bold=True, color="FFFFFF"),
+            fill=PatternFill("solid", fgColor="262A76"),
+            alignment=Alignment(horizontal="center"),
+            border=Border(bottom=Side(style="thin"))))
+    if "grid" not in wb.named_styles:
+        wb.add_named_style(NamedStyle(
+            "grid", border=Border(left=Side(style="hair"), right=Side(style="hair"),
+                                  top=Side(style="hair"), bottom=Side(style="hair"))))
+
 
 def build_pack(input_csv: str, output_path: Path):
     df = pd.read_csv(input_csv, parse_dates=["date"])
+    missing = REQUIRED - set(df.columns)
+    if missing:
+        raise ValueError(f"input is missing columns: {sorted(missing)}")
+
+    daily = (df.groupby("date")
+               .agg(Contacts=("total_calls", "sum"),
+                    Connects=("connected_calls", "sum"),
+                    RPCs=("rpc_count", "sum"),
+                    Promises=("ptp_count", "sum"),
+                    Payments=("payment_count", "sum"))
+               .reset_index().sort_values("date"))
+
     wb = Workbook()
-    ws = wb.active
-    ws.title = "Daily"
-    # ... all Phase A behaviors: title, headers, formulas, validation, styles, print setup
+    styles(wb)
+    ws_c = wb.active
+    ws_c.title = "Cover"
+    ws_c["A1"] = "Collections Daily MIS"
+    ws_c["A1"].style = "title"
+    ws_c["A3"], ws_c["B3"] = "Owner:", "MIS Analyst — Collections"
+    ws_c["A4"], ws_c["B4"] = "Generated:", '="Refreshed "&TEXT(NOW(),"yyyy-mm-dd hh:mm")'
+    for i, line in enumerate([
+            "Daily — daily rollup with agent-day detail",
+            "Summary — monthly rollup",
+            "AgentLookup — agent id to name",
+            "Parameters — validation lists",
+            "AgentDaily — per-agent promises and payments"], start=6):
+        ws_c.cell(row=i, column=1, value=line)
+    ws_c.column_dimensions["A"].width = 42
+
+    ws = wb.create_sheet("Daily")
+    ws["A1"] = "Collections Daily MIS"
+    ws["A1"].style = "title"
+    ws["B2"] = daily["date"].max().to_pydatetime()
+    ws["B2"].number_format = "yyyy-mm-dd"
+    ws["A2"] = '="Report for "&TEXT(B2,"yyyy-mm-dd")'
+    headers = ["Date", "Contacts", "Connects", "RPCs", "Promises", "Payments"]
+    for c, h in enumerate(headers, start=1):
+        ws.cell(row=4, column=c, value=h).style = "header"
+    for r, row in enumerate(daily.itertuples(index=False), start=5):
+        ws.cell(row=r, column=1, value=row.date.to_pydatetime()).number_format = "yyyy-mm-dd"
+        for c, value in enumerate(row[1:], start=2):
+            ws.cell(row=r, column=c, value=int(value)).number_format = "#,##0"
+    for c in range(1, 7):
+        ws.column_dimensions[get_column_letter(c)].width = 14
+    ws.freeze_panes = "A5"
+    ws.print_area = f"A1:F{4 + len(daily)}"
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.print_title_rows = "4:4"
+
+    emps = pd.read_csv(RAW / "shared" / "Dim_Employees.csv", dtype="string")
+    emps = emps[emps["employee_type"] == "Agent"][["agent_id", "agent_name", "team_name"]]
+    lu = wb.create_sheet("AgentLookup")
+    lu.append(["AgentID", "Name"])
+    for r in emps.itertuples(index=False):
+        lu.append([r.agent_id, r.agent_name])
+    last_lu = len(emps) + 1
+
+    ad = (df.groupby(["date", "agent_id", "team_name"], as_index=False)
+            .agg(Promises=("ptp_count", "sum"), Payments=("payment_count", "sum")))
+    ws_ad = wb.create_sheet("AgentDaily")
+    ad_headers = ["Agent ID", "Team", "Agent Name (XLOOKUP)",
+                  "Agent Name (VLOOKUP)", "Promises", "Payments"]
+    for c, h in enumerate(ad_headers, start=1):
+        ws_ad.cell(row=4, column=c, value=h).style = "header"
+    for r, row in enumerate(ad.itertuples(index=False), start=5):
+        ws_ad.cell(row=r, column=1, value=row.agent_id)
+        ws_ad.cell(row=r, column=2, value=row.team_name)
+        ws_ad.cell(row=r, column=3, value=(f'=IFNA(_xlfn.XLOOKUP(A{r},AgentLookup!$A$2:$A${last_lu},'
+                                           f'AgentLookup!$B$2:$B${last_lu}),"—")'))
+        ws_ad.cell(row=r, column=4, value=(f'=IFNA(VLOOKUP(A{r},AgentLookup!$A$2:$B${last_lu},'
+                                           f'2,FALSE),"")'))
+        ws_ad.cell(row=r, column=5, value=int(row.Promises))
+        ws_ad.cell(row=r, column=6, value=int(row.Payments))
+
+    params = wb.create_sheet("Parameters")
+    params["A1"] = "Teams"
+    teams = sorted(df["team_name"].dropna().unique())
+    for i, team in enumerate(teams, start=2):
+        params.cell(row=i, column=1, value=team)
+    dv = DataValidation(type="list", formula1=f"=Parameters!$A$2:$A${len(teams) + 1}",
+                        allow_blank=True, showErrorMessage=True,
+                        errorTitle="Invalid team", error="Pick from the list.")
+    ws_ad.add_data_validation(dv)
+    dv.add(f"B5:B{4 + len(ad)}")
+
+    summary = wb.create_sheet("Summary")
+    summary["A1"] = "Period totals"
+    summary["A1"].style = "title"
+    for i, (label, value) in enumerate(
+            [("Contacts", int(daily["Contacts"].sum())),
+             ("Connects", int(daily["Connects"].sum())),
+             ("RPCs", int(daily["RPCs"].sum())),
+             ("Promises", int(daily["Promises"].sum())),
+             ("Payments", int(daily["Payments"].sum()))], start=3):
+        summary.cell(row=i, column=1, value=label).style = "grid"
+        summary.cell(row=i, column=2, value=value).number_format = "#,##0"
+
     wb.save(output_path)
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -282,31 +438,53 @@ if __name__ == "__main__":
     build_pack(args.input, Path(args.out))
 ```
 
-**Verify yourself:** run twice; diff via unzip of the xlsx (it's a zip): only timestamp-bearing parts differ. Spot-check three Summary cells against SQL `v_daily_mis`.
+**Verify yourself:** run twice; diff via unzip of the xlsx (it's a zip): only timestamp-bearing parts differ. Spot-check Summary totals against SQL `v_daily_mis`.
 
 ---
 
 ## Task 9 — Reconciliation
 
 ```python
-# Reconciliation check in the generator:
-import subprocess
+import os
 
-def reconcile(date: str):
-    # Run the SQL query for this date
-    sql_result = subprocess.run(
-        ["psql", "-c", f"SELECT contacts, connects, rpcs, promises FROM v_daily_mis WHERE date = '{date}'"],
-        capture_output=True, text=True
-    )
-    # Read back the generated workbook
-    wb = load_workbook(OUT)
+import psycopg2
+from dotenv import load_dotenv
+from openpyxl import load_workbook
+
+load_dotenv()
+
+
+def reconcile(date: str, out="work/daily_mis.xlsx"):
+    conn = psycopg2.connect(
+        host=os.getenv("POSTGRES_HOST", "localhost"),
+        port=os.getenv("POSTGRES_PORT"),
+        user=os.getenv("POSTGRES_USER"),
+        password=os.getenv("POSTGRES_PASSWORD"),
+        dbname=os.getenv("POSTGRES_DB"))
+    with conn, conn.cursor() as cur:
+        cur.execute("""
+            SELECT COALESCE(SUM(total_calls), 0),
+                   COALESCE(SUM(connected_calls), 0),
+                   COALESCE(SUM(rpc_count), 0),
+                   COALESCE(SUM(ptp_count), 0),
+                   COALESCE(SUM(payment_count), 0)
+            FROM v_daily_mis
+            WHERE date = %s
+        """, (date,))
+        sql_result = [int(v) for v in cur.fetchone()]
+
+    wb = load_workbook(out, data_only=True)
     ws = wb["Daily"]
-    excel_result = [ws.cell(row=5, column=c).value for c in range(2, 7)]
-    # Compare
+    rows = [row for row in ws.iter_rows(min_row=5, max_col=6, values_only=True)
+            if row[0] and str(row[0])[:10] == date]
+    excel_result = [sum(int(v or 0) for v in col) for col in zip(*rows)][1:]
+
     if sql_result != excel_result:
-        raise ValueError(f"Reconciliation failure for {date}: SQL={sql_result}, Excel={excel_result}")
+        raise ValueError(
+            f"Reconciliation failure for {date}: SQL={sql_result}, Excel={excel_result}")
+    print(f"PASS {date}: {sql_result}")
 ```
 
-**Why:** anything exported must agree with the official SQL view (`v_daily_mis`). If it doesn't, that's a finding to explain — not something to eyeball away.
+**Why:** anything exported must agree with the official SQL view (`v_daily_mis`). If it doesn't, that's a finding to explain — not something to eyeball away. Compare period sums, not one row, because `v_daily_mis` is agent-day grain.
 
-**Verify yourself:** run the generator for a known date, compare against a manual SQL query. Any mismatch = a finding to investigate before shipping.
+**Verify yourself:** run the generator for a known date, call `reconcile(date)`, then compare one agent's row against SQL manually. Any mismatch = a finding to investigate before shipping.

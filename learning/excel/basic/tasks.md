@@ -2,7 +2,7 @@
 
 ```
 You are here: learning/excel/basic/
-Tooling:      openpyxl (Python → .xlsx) + Excel/LibreOffice to OPEN and READ what you ship
+Tooling:      Excel/LibreOffice for Phase A manual work, then openpyxl (Python → .xlsx) for Phase B
 Data:         small extracts you export yourself (CSV) or read via pandas — files stay read-only
 Solutions:    basic/results.md — after attempting; then run the script and OPEN the workbook
 Rule:         a workbook you never opened is an untested claim.
@@ -42,7 +42,7 @@ Rule:         a workbook you never opened is an untested claim.
 **Your job (Excel first):**
 1. Open Excel/LibreOffice. Create a new workbook.
 2. Type the title in A1. Build the subtitle formula in A2: `="Report for "&TEXT(B2,"yyyy-mm-dd")`
-3. Add headers in row 4. Freeze panes at A5.
+3. Add headers in **A4:F4**: Date · Contacts · Connects · RPCs · Promises · Payments. Freeze panes at A5.
 4. Set column widths. Apply bold headers, center alignment.
 5. **Save as `work/daily_mis_manual.xlsx`.** Open it again to confirm it looks right.
 6. *Then* read the results.md to see how openpyxl replicates this — compare what's the same and what differs.
@@ -59,11 +59,11 @@ Rule:         a workbook you never opened is an untested claim.
 
 📥 **Inbox:** From MIS Manager · Tue 9:00 · "feed it"
 
-> "Extend the shell: read one month's facts (your python loaders), aggregate to DAILY rows, and write them under the headers. Dates as real dates, counts as numbers — no text-that-looks-like-numbers."
+> "Extend the shell: read one month's facts (your python loaders), aggregate to DAILY rows, and write them under the headers (A5:F...). Dates as real dates, counts as numbers — no text-that-looks-like-numbers."
 
 **Your job (Excel first):**
 1. Export one month of aggregated data to CSV (from your python/pandas loaders).
-2. In Excel: **Data → Get Data → From CSV** (or just paste the data). Import the daily rows.
+2. In Excel: **Data → Get Data → From CSV** (or just paste the data). Import the daily rows starting at **A5**.
 3. Manually sort by date. Confirm dates show as real dates (not text). Apply `#,##0` number format.
 4. Spot-check one day against your SQL/python morning pack — verify the numbers match.
 5. *Then* read the results.md to see the openpyxl version.
@@ -80,14 +80,14 @@ Rule:         a workbook you never opened is an untested claim.
 
 📥 **Inbox:** From Supervisor, Team 4 · Fri 10:00 · "agent names on demand"
 
-> "Second sheet 'Agent Lookup': agent IDs and names from the employees extract. On the daily sheet add an Agent ID column; names must appear via XLOOKUP formula IN THE CELL (not pre-filled by python) so editing an ID updates the name live."
+> "Second sheet 'Agent Lookup': agent IDs and names from the employees extract. Build a separate **AgentDaily** sheet with one row per agent-day; names must appear via XLOOKUP formula IN THE CELL (not pre-filled by python) so editing an ID updates the name live."
 
 **Your job (Excel first):**
 1. On a new sheet `AgentLookup`, manually type agent IDs and names (paste from the CSV).
-2. On the Daily sheet, add an Agent ID column (type IDs manually).
-3. **Type the XLOOKUP formula by hand** in the name column:
+2. Create sheet `AgentDaily` with headers **A4:F4**: Agent ID · Team · Agent Name (XLOOKUP) · Agent Name (VLOOKUP) · Promises · Payments. Type a few agent IDs and teams by hand from the `v_daily_mis` extract.
+3. **Type the XLOOKUP formula by hand** in C5:
    `=IFNA(XLOOKUP(A5,AgentLookup!$A$2:$A$100,AgentLookup!$B$2:$B$100,"—"),"")`
-4. **Now also type VLOOKUP** in the next column:
+4. **Now also type VLOOKUP** in D5:
    `=IFNA(VLOOKUP(A5,AgentLookup!$A$2:$B$100,2,FALSE),"")`
 5. Test both: change an ID to valid, change to garbage. Confirm both work.
 6. Note the differences: XLOOKUP handles direction, VLOOKUP needs column index. What breaks if you insert a column?
@@ -108,9 +108,9 @@ Rule:         a workbook you never opened is an untested claim.
 > "I need to see total Promises and Payments by team for the month. Don't give me another formula sheet — give me something I can filter and drill into."
 
 **Your job (Excel first):**
-1. Select the Data sheet range. Go to **Insert → PivotTable**.
+1. Select the `AgentDaily` range **A4:F{last_row}**. Go to **Insert → PivotTable**.
 2. Place it on a new sheet called `PivotDaily`.
-3. Rows = Team. Values = SUM of Promises, SUM of Payments.
+3. Rows = Team (column B). Values = SUM of Promises (E), SUM of Payments (F).
 4. Add a report filter for Month. Try dragging fields around — feel how the pivot rebuilds.
 5. **Refresh** the pivot after changing one Data value. Confirm it updates.
 6. Note: how many clicks vs. writing a SUMIFS formula? When would you choose a pivot over a formula?
@@ -132,7 +132,7 @@ Rule:         a workbook you never opened is an untested claim.
 
 **Your job (Excel first):**
 1. Create a `Parameters` sheet. Type valid team names in column A (from the CSV extract).
-2. Select the team cell on the Data sheet. Go to **Data → Data Validation → List**.
+2. On `AgentDaily`, select the team cells **B5:B100**. Go to **Data → Data Validation → List**.
 3. Set the source to `=Parameters!$A$2:$A$100`.
 4. Enable "Show error message" on invalid input.
 5. **Try to type "Free Texxt"** — confirm Excel refuses with your error message.
@@ -202,12 +202,12 @@ Rule:         a workbook you never opened is an untested claim.
 1. Assemble everything from Tasks 1–7 into a single CLI script.
 2. Input: CSV path + output xlsx path.
 3. All sheets built with Phase A behaviors intact: XLOOKUP formulas written to cells, validation dropdowns, pivot-ready data layout, named styles, print setup.
-4. Fresh run reproduces the workbook byte-stable except timestamps.
+4. Fresh run reproduces the same sheets, formulas and styles; xlsx zip timestamps will differ, so compare structure rather than bytes.
 
 **Done when:**
 - [ ] Single CLI script: input CSV path + output xlsx path
 - [ ] All sheets built with Phase A behaviors
-- [ ] Fresh run reproduces workbook (byte-stable except timestamps)
+- [ ] Fresh run reproduces workbook (same structure/formulas; zip bytes differ)
 
 ---
 
