@@ -11,7 +11,7 @@ RPC Trend Sparkline =
 VAR Months =
     ADDCOLUMNS (
         VALUES ( dim_calendar[month_num] ),
-        "v", [RPC %]
+        "v", CALCULATE ( [RPC %] )
     )
 VAR MaxV = MAXX ( Months, [v] )
 VAR BarW = 18
@@ -19,7 +19,7 @@ VAR Gap = 4
 VAR Bars =
     CONCATENATEX (
         FILTER ( Months, NOT ISBLANK ( [v] ) ),
-        VAR i  = RANKX ( Months, [month_num], , ASC ) - 1
+        VAR i  = RANKX ( Months, Months[month_num], , ASC ) - 1
         VAR h  = ROUND ( DIVIDE ( [v], MaxV ) * 28, 0 )
         VAR x  = i * ( BarW + Gap )
         RETURN
@@ -85,11 +85,10 @@ VAR Known =
     )
 VAR SlopeIntercept =
     LINESTX ( Known, CALCULATE ( [RPC %] ), dim_calendar[date] )
-VAR Slope    = SELECTCOLUMNS ( SlopeIntercept, [Slope] )
-VAR Intercept= SELECTCOLUMNS ( SlopeIntercept, [Intercept] )
+VAR Slope     = MAXX ( SlopeIntercept, [Slope1] )
+VAR Intercept = MAXX ( SlopeIntercept, [Intercept1] )
 VAR CurrentDate = MAX ( dim_calendar[date] )
-RETURN DIVIDE ( SUMX ( Known, Intercept + Slope * ( CurrentDate - MINX ( Known, dim_calendar[date] ) ) ),
-                COUNTROWS ( Known ) )
+RETURN Intercept + Slope * ( CurrentDate - MINX ( Known, dim_calendar[date] ) )
 ```
 
 Simpler equivalent many models ship:
@@ -113,7 +112,7 @@ Plot both measures plus actuals as lines on the same chart.
 
 **Verify yourself:** backtest comment — hide the last month from Known conceptually by slicing to earlier months, read each method's implied next value, compare to what actually happened; write one sentence on trust. Direction of slopes must agree between methods; magnitude may not.
 
-**Traps & alternatives:** LINESTX returns a TABLE — wrap columns out via SELECTCOLUMNS (as shown). Never let a trend measure silently include blank months: the `FILTER(NOT ISBLANK)` guard is the honesty clause.
+**Traps & alternatives:** LINESTX returns a one-row TABLE — extract each scalar with MAXX (or use SELECTCOLUMNS to make a table, never assign a table to a scalar). Column names are `Slope1`/`Intercept1` unless renamed. Never let a trend measure silently include blank months: the `FILTER(NOT ISBLANK)` guard is the honesty clause.
 
 ---
 
@@ -128,12 +127,10 @@ Theme (`collections_theme.json`, based on project palette #262A76):
   "background": "#FFFFFF",
   "foreground": "#262A76",
   "tableAccent": "#262A76",
-  "visualStyles": {
-    "*": { "*": {
-      "title": [{ "fontSize": 12, "bold": true, "fontColor": "#262A76" }],
-      "labels": [{ "fontSize": 10 }]
-    }},
-    "card": { "*": { "labels": [{ "fontSize": 24 }] } }
+  "textClasses": {
+    "title": { "fontFace": "Calibri", "fontSize": 12, "color": "#262A76" },
+    "callout": { "fontFace": "Calibri", "fontSize": 24, "color": "#262A76" },
+    "label": { "fontFace": "Calibri", "fontSize": 10, "color": "#404040" }
   }
 }
 ```

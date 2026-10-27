@@ -34,9 +34,9 @@ Dim_Targets =
 DATATABLE (
     "Goal", STRING, "Target", DOUBLE,
     {
-        { "RPC %", 45 },
-        { "PTP %", 80 },
-        { "KP %", 80 }
+        { "RPC %", 0.45 },
+        { "PTP %", 0.80 },
+        { "KP %", 0.80 }
     }
 )
 ```
@@ -47,9 +47,9 @@ Measures:
 Selected Target =
 VAR g = SELECTEDVALUE ( Dim_Targets[Goal] )
 RETURN SWITCH ( g,
-    "RPC %", 45,
-    "PTP %", 80,
-    "KP %", 80,
+    "RPC %", 0.45,
+    "PTP %", 0.80,
+    "KP %", 0.80,
     BLANK ()
 )
 ```
@@ -72,7 +72,7 @@ Gap to Target =
 DIVIDE ( [Actual for Goal] - [Selected Target], [Selected Target] )
 ```
 
-**Why each part:** targets live in a TABLE so a strategy change edits a row, not DAX. `SWITCH` maps goal name → its actual measure; the table visual lists goals with actual/target/gap columns driven purely by selection.
+**Why each part:** targets live in a TABLE so a strategy change edits a row, not DAX. Targets are **decimals** (0.45 = 45%) because `[RPC %]` is built with `DIVIDE` and formatted as percent — mixing 45 with 0.45 makes every gap 100× wrong. `SWITCH` maps goal name → its actual measure; the table visual lists goals with actual/target/gap columns driven purely by selection.
 
 **Verify yourself:** change KP target from 80 to 75 in the table — every gap recomputes with zero DAX edits. Cross-check one month's actuals against SQL views.
 
@@ -119,10 +119,10 @@ Apply: visual → conditional formatting → Background color → Format style *
 
 Relate it to BOTH from_bucket and to_bucket? Power BI allows one active relationship per pair — practical route: keep the view's own label columns for the matrix and set **Sort by column** on each label column using duplicated order columns created in Power Query (merge against the order table twice).
 
-2. Matrix: Rows `from_bucket`, Columns `to_bucket`, Values `SUM(accounts)`.
+2. Matrix: Rows `from_bucket`, Columns `to_bucket`, Values `COUNTROWS(v_dpd_migration_matrix)` (the view is one row per account transition; there is no `accounts` column).
 3. Conditional formatting → Background → Rules: highlight cells where from-rank < to-rank (worsened) — implement rank columns in Power Query so rules compare numbers, not text.
 
-**Why each part:** alphabetical sorting is THE classic migration-matrix failure — severity order must be structural (sort-by columns), never left to default. Below-diagonal highlighting makes deterioration pre-attentive: directors see red before reading numbers.
+**Why each part:** alphabetical sorting is THE classic migration-matrix failure — severity order must be structural (sort-by columns), never left to default. Above-diagonal (higher `to_bucket` rank) highlighting makes deterioration pre-attentive: directors see red before reading numbers.
 
 **Verify yourself:** reconcile total account count against SQL `v_dpd_migration_matrix` for the same months; diagonal should dominate (stability is normal).
 

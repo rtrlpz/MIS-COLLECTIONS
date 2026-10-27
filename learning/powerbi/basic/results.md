@@ -9,7 +9,7 @@ Rebuild each solution in your own attempt file — muscle memory is the delivera
 **Model steps:**
 1. Get Data → PostgreSQL database → `localhost:5433`, database `MIS_CollectionsDB`, Import mode, Database credentials from `.env` (never saved into the file's data source cloud settings).
 2. Select only the six tables named in the task (navigator checkboxes) — resist importing everything on day one.
-3. Model view: confirm Power BI auto-detected one-to-many from each dim key to `fact_interactions`. Fix any many-to-many or "guessed" relationship by deleting it and dragging the correct key pair:
+3. Model view: confirm Power BI auto-detected one-to-many from each dim key to `fact_interactions`. Fix any many-to-many or "guessed" relationship by deleting it and dragging the correct key pair. The client/product dimensions are a snowflake branch (`dim_accounts` is the bridge); `fact_interactions` has no client/product keys:
    - `dim_employees[agent_id]` → `fact_interactions[agent_id]`
    - `dim_accounts[account_id]` → `fact_interactions[account_id]`
    - `dim_calendar[date]` → `fact_interactions[interaction_date]`
@@ -19,7 +19,7 @@ Rebuild each solution in your own attempt file — muscle memory is the delivera
 
 **Why:** import mode mirrors the project's production model; single-direction dim→fact keeps filters flowing the way SQL joins think. Hiding keys stops report authors building nonsense on raw IDs.
 
-**Verify yourself:** Model view screenshot shows a clean star. Cross-filter any dim slicer — row counts change, no relationship warnings appear.
+**Verify yourself:** Model view screenshot shows a clean star plus the two snowflake branches; filter by client and confirm interactions narrow through `dim_accounts`. Cross-filter any dim slicer — row counts change, no relationship warnings appear.
 
 **Traps & alternatives:** Power BI sometimes proposes a relationship on name-similar columns (`product_type` vs `product_id`) — delete and rebuild deliberately.
 
