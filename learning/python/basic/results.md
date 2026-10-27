@@ -87,7 +87,7 @@ g = (jan.merge(emps[["agent_id", "team_name"]], on="agent_id", how="left")
         .agg(connected=("calls_connected", "sum"),
              rpcs=("rpc_flag", "sum")))
 
-g["rpc_pct"] = (100 * g["rpcs"] / g["connected"]).round(1)
+g["rpc_pct"] = (100 * g["rpcs"] / g["connected"].replace(0, pd.NA)).round(1)
 print(g.sort_values("rpc_pct", ascending=False))
 ```
 
@@ -159,7 +159,7 @@ RAW = Path("data_sources/raw")
 REPORT_DATE = "2025-06-02"          # ← change ONE character-set daily
 
 d = pd.Timestamp(REPORT_DATE)
-month_dir = RAW / d.strftime("%B").lower() + f"_{d.year}"
+month_dir = RAW / f"{d.strftime('%B').lower()}_{d.year}"
 
 inter = pd.read_csv(month_dir / "Fact_Interactions.csv", parse_dates=["interaction_date"])
 ptp   = pd.read_csv(month_dir / "Fact_PTP_Log.csv",      parse_dates=["ptp_date"])
@@ -171,7 +171,7 @@ print("promises :", int((ptp["ptp_date"] == d).sum()))
 print("payments :", int((pay["payment_date"] == d).sum()))
 ```
 
-**Why each part:** the month folder is DERIVED from the parameter — loading one file instead of twelve is the whole performance trick. Four independent counts, four prints: sticky-note format as requested. (Note: `Path` string-building above is intentionally naive; if you spot the cleaner `(RAW / f"{...}_{...}")` form, use it — say why in a comment.)
+**Why each part:** the month folder is DERIVED from the parameter — loading one file instead of twelve is the whole performance trick. Four independent counts, four prints: sticky-note format as requested. The whole folder expression is one f-string passed to `Path /`; never add a `str` to a `Path` (`Path + str` raises `TypeError`).
 
 **Verify yourself:** run for a known date and compare to your SQL morning-pack numbers — all four must match exactly; that's the parity proof this track exists for.
 

@@ -96,16 +96,6 @@ print(f"before: {base_mb:,.0f} MB   after: {opt_mb:,.0f} MB   "
 import numpy as np
 import pandas as pd
 
-def rpc_pivot(inter_year, emps):
-    g = (inter_year.merge(emps[["agent_id", "team_name"]], on="agent_id")
-         .groupby(["agent_id", "team_name", inter_year["interaction_date"].dt.to_period("M")])
-         .agg(conn=("calls_connected", "sum"), rpcs=("rpc_flag", "sum"))
-         .reset_index())
-    g["rpc_pct"] = 100 * g["rpcs"] / g["conn"]
-    return g.pivot_table(index=["agent_id", "team_name"],
-                         columns=g.columns[2] if False else None)  # see note
-
-# Cleaner explicit pivot:
 def monthly_kpi_matrix(inter_year, emps, value_fn):
     df = inter_year.assign(month=inter_year["interaction_date"].dt.to_period("M"))
     out = (df.merge(emps[["agent_id", "team_name"]], on="agent_id")
@@ -117,10 +107,13 @@ def _rpc(g):
     conn, rpcs = g["calls_connected"].sum(), g["rpc_flag"].sum()
     return 100 * rpcs / conn if conn else np.nan
 
+# `year_interactions` and `employees` come from the Task-2 loader; pass the
+# same pair to monthly_kpi_matrix for any other monthly KPI.
 matrix = monthly_kpi_matrix(year_interactions, employees, _rpc)   # rows=agents, cols=months
 mat = matrix.sort_index(axis=1)                                   # chronological columns
 
-def declining_agents(mat, kpi_name="rpc_pct"):
+def declining_agents(mat):
+    mat = mat.sort_index(axis=1)                                  # chronological columns
     diffs_ok = (mat.diff(axis=1) < 0)                             # month-over-month drop flags
     last, prev = mat.columns[-1], mat.columns[-2]
     two_drops = diffs_ok[last] & diffs_ok[prev]
@@ -262,12 +255,14 @@ def daily_frame(inter, ptp, pay):
 def agent_month_frame(inter, time_log, emps):
     m = inter.assign(month=inter["interaction_date"].dt.to_period("M").astype(str))
     rpc = (m.groupby(["agent_id", "month"])
-             .apply(lambda g: 100 * g["rpc_flag"].sum() / max(g["calls_connected"].sum(), 0),
+             .apply(lambda g: (100 * g["rpc_flag"].sum() / g["calls_connected"].sum()
+                               if g["calls_connected"].sum() else np.nan),
                     include_groups=False)
              .rename("rpc_pct"))
     util = (time_log.assign(month=time_log["log_date"].dt.to_period("M").astype(str))
             .groupby(["agent_id", "month"])
-            .apply(lambda t: 100 * t["tht_hours"].sum() / max(t["operational_hours"].sum(), 0),
+            .apply(lambda t: (100 * t["tht_hours"].sum() / t["operational_hours"].sum()
+                              if t["operational_hours"].sum() else np.nan),
                    include_groups=False)
             .rename("utilization_pct"))
     out = (pd.concat([rpc, util], axis=1).reset_index()

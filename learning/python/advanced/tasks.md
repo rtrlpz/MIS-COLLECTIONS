@@ -36,7 +36,7 @@ Scale:        full year, ~1.34M interaction rows — everything here must stay h
 **Your job:**
 1. Load full-year snapshots; sort by account+date.
 2. Groupby-shift to get previous bucket; drop first-month rows.
-3. Crosstab from×to with severity ordering via the buckets dim.
+3. Crosstab from×to with severity ordering via the seeded bucket order (`Current`, `1-30`, `31-60`, `61-90`, `90+`; the bucket dim is a SQL seed, not a CSV).
 
 **Done when:**
 - [ ] Matrix equals SQL twin cell-for-cell

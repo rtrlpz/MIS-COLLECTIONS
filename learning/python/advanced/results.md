@@ -18,7 +18,8 @@ OPT = {"agent_id": "category", "account_id": "string", "channel": "category",
        "call_outcome": "category", "strategy_id": "category", "rpc_flag": "bool"}
 
 def _months() -> list[Path]:
-    return sorted(d for d in RAW.iterdir() if d.is_dir() and d.name != "shared")
+    dirs = [d for d in RAW.iterdir() if d.is_dir() and d.name != "shared"]
+    return sorted(dirs, key=lambda d: pd.to_datetime(d.name, format="%B_%Y"))
 
 def load_year(table: str, date_col: str, dtypes: dict | None = None) -> pd.DataFrame:
     frames = [pd.read_csv(m / f"{table}.csv", dtype=dtypes, parse_dates=[date_col])
@@ -27,12 +28,13 @@ def load_year(table: str, date_col: str, dtypes: dict | None = None) -> pd.DataF
 
 def contact_kpis(inter: pd.DataFrame) -> pd.DataFrame:
     """agent-month contacts. Parity target: v_contact_metrics (monthly grain)."""
-    g = inter.groupby(["agent_id", inter["interaction_date"].dt.to_period("M").astype(str)])
-    out = g.agg(total_calls=("calls_attempted", "sum"),
-                connected=("calls_connected", "sum"),
-                rpcs=("rpc_flag", "sum"))
-    out["rpc_pct"] = 100 * out["rpcs"] / out["connected"]
-    return out.reset_index().rename(columns={"interaction_date": "month"})
+    x = inter.assign(month=inter["interaction_date"].dt.to_period("M").astype(str))
+    out = (x.groupby(["agent_id", "month"])
+            .agg(total_calls=("calls_attempted", "sum"),
+                 connected=("calls_connected", "sum"),
+                 rpcs=("rpc_flag", "sum")))
+    out["rpc_pct"] = 100 * out["rpcs"] / out["connected"].replace(0, pd.NA)
+    return out.reset_index()
 
 def promise_kpis(ptp: pd.DataFrame, pay: pd.DataFrame) -> pd.DataFrame:
     """plan-level kept evaluation (cumulative >=95%). Target: v_promise_metrics."""
@@ -41,24 +43,27 @@ def promise_kpis(ptp: pd.DataFrame, pay: pd.DataFrame) -> pd.DataFrame:
     ev = ptp.merge(totals, on="ptp_id", how="left")
     ev["paid_total"] = ev["paid_total"].fillna(0)
     ev["is_kept_math"] = ev["paid_total"] >= 0.95 * ev["promised_amount"]
-    g = ev.groupby([ptp["ptp_date"].dt.to_period("M").astype("str"),
-                    "status"]).size().unstack(fill_value=0)
-    return g.add_prefix("plans_").reset_index().rename(columns={"ptp_date": "month"})
+    ev = ev.assign(month=ev["ptp_date"].dt.to_period("M").astype(str))
+    g = ev.groupby(["month", "status"]).size().unstack(fill_value=0)
+    return g.add_prefix("plans_").reset_index()
 
 def utilization_kpis(time_log: pd.DataFrame) -> pd.DataFrame:
     """ratio-of-sums monthly utilization. Target: v_productivity_metrics."""
-    g = time_log.groupby([time_log["log_date"].dt.to_period("M").astype(str), "agent_id"])
-    out = g.agg(op_hours=("operational_hours", "sum"), tht_hours=("tht_hours", "sum"))
-    out["utilization_pct"] = 100 * out["tht_hours"] / out["op_hours"]
-    return out.reset_index().rename(columns={"log_date": "month"})
+    x = time_log.assign(month=time_log["log_date"].dt.to_period("M").astype(str))
+    out = (x.groupby(["month", "agent_id"])
+            .agg(op_hours=("operational_hours", "sum"),
+                 tht_hours=("tht_hours", "sum")))
+    out["utilization_pct"] = 100 * out["tht_hours"] / out["op_hours"].replace(0, pd.NA)
+    return out.reset_index()
 
 if __name__ == "__main__":
     t0 = time.perf_counter()
     inter = load_year("Fact_Interactions", "interaction_date", OPT)
     ptp   = load_year("Fact_PTP_Log", "ptp_date")
+    pay   = load_year("Fact_Payments", "payment_date")
     tl    = load_year("Fact_Agent_Time_Log", "log_date")
     t1 = time.perf_counter(); print(f"load {t1-t0:.1f}s")
-    ck, pk, uk = contact_kpis(inter), promise_kpis(ptp, tl.assign()), utilization_kpis(tl)
+    ck, pk, uk = contact_kpis(inter), promise_kpis(ptp, pay), utilization_kpis(tl)
     print(f"kpis {time.perf_counter()-t1:.1f}s  "
           f"rows: {len(ck)}/{len(pk)}/{len(uk)}")
 ```
@@ -77,14 +82,16 @@ if __name__ == "__main__":
 import pandas as pd
 
 snap = load_year("Fact_EOM_Snapshot", "snapshot_date")   # loader from Task 1
-buckets = pd.read_csv(RAW / "shared" / "Dim_Delinquency_Bucket.csv")
 
 s = snap.sort_values(["account_id", "snapshot_date"])
 s["prev_bucket"] = s.groupby("account_id")["dpd_bucket"].shift()
 h2 = s[(s["snapshot_date"] >= "2025-07-01") & (s["snapshot_date"] < "2026-01-01")
        & s["prev_bucket"].notna()]
 
-order = dict(zip(buckets["bucket_label"], buckets["sort_order"]))
+# The bucket dimension is DB-only (database/seeds/003_dim_delinquency_bucket.sql);
+# mirror its labels + sort_order here for the file-side twin.
+ORDER = {"Current": 0, "1-30": 1, "31-60": 2, "61-90": 3, "90+": 4}
+order = ORDER
 h2 = h2.assign(from_rank=h2["prev_bucket"].map(order),
                to_rank=h2["dpd_bucket"].map(order))
 
@@ -101,6 +108,7 @@ print(h2["direction"].value_counts())
 # Exits: accounts whose last snapshot precedes the book end
 last_seen = snap.groupby("account_id")["snapshot_date"].max()
 exits = last_seen[last_seen < snap["snapshot_date"].max()]
+print(f"exited accounts: {len(exits)}")
 ```
 
 **Why each part:** groupby-shift is pandas' LAG — sorting first is what makes 'previous' mean previous in TIME. Reindexing both axes by severity order fixes the alphabetical-scatter failure before any human reads it.
@@ -112,9 +120,10 @@ exits = last_seen[last_seen < snap["snapshot_date"].max()]
 ## Task 3 — Seasonal-naive forecast → capacity
 
 ```python
-stock = (snap.groupby(snap["snapshot_date"].dt.to_period("M").astype(str))
+stock = (snap.groupby(snap["snapshot_date"].dt.to_period("M"))
               .apply(lambda m: (m["status"] == "Mora").sum(), include_groups=False)
-              .rename("mora_accounts"))
+              .rename("mora_accounts")
+              .sort_index())                    # PeriodIndex sorts chronologically
 
 proj_jan = round(stock.tail(3).mean())          # trailing-3 baseline
 
@@ -146,19 +155,20 @@ print(pd.DataFrame(sens))
 import sys
 import pandas as pd
 
-CHECKS = []
-def check(name):
+CHECKS = {}
+def check(name, needs=()):
     def deco(fn):
-        CHECKS.append((name, fn)); return fn
+        CHECKS[name] = (fn, needs)
+        return fn
     return deco
 
-@check("pk_unique_interactions")
+@check("pk_unique_interactions", needs=("interactions",))
 def _(inter): return inter["interaction_id"].is_unique
 
-@check("no_null_agent_on_interactions")
+@check("no_null_agent_on_interactions", needs=("interactions",))
 def _(inter): return inter["agent_id"].notna().all()
 
-@check("weekday_only_interactions")
+@check("weekday_only_interactions", needs=("interactions",))
 def _(inter): return int((inter["interaction_date"].dt.dayofweek >= 5).sum()) == 0
 
 @check("kept_plans_meet_95pct", needs=("ptp", "payments"))
@@ -167,46 +177,39 @@ def _(ptp, payments):
     k = ptp[ptp["status"] == "Kept"].merge(tot.rename("paid"), on="ptp_id", how="left")
     return bool((k["paid"].fillna(0) >= 0.95 * k["promised_amount"]).all())
 
-@check("reentry_band_5_25")
+@check("reentry_band_5_25", needs=("snapshots",))
 def _(snap):
-    s = snap.sort_values(["account_id", "snapshot_date"])
-    prev = s.groupby("account_id")["status"].shift()
-    cured_ids = set(s.loc[(prev == "Mora") & (s["status"] == "Activo"), "account_id"])
-    mora_after = s[(s["status"] == "Mora") & (s["account_id"].isin(cured_ids))]
-    reentered = mora_after.merge(
-        s.loc[(prev == "Mora") & (s["status"] == "Activo"), ["account_id", "snapshot_date"]]
-          .rename(columns={"snapshot_date": "cure_date"}),
-        on="account_id")
-    relapsed = reentered["snapshot_date"] > reentered["cure_date"]
-    rate = 100 * len(reentered.loc[relapsed].drop_duplicates("account_id")) / max(len(cured_ids), 1)
+    s = snap.assign(mo=snap["snapshot_date"].dt.to_period("M"))
+    st = s.pivot_table(index="account_id", columns="mo", values="status", aggfunc="first")
+    months = sorted(st.columns)
+    cured_n = reentered_n = 0
+    for m0, m1, m2 in zip(months, months[1:], months[2:]):
+        cured = (st[m0] == "Mora") & (st[m1] == "Activo")
+        cured_n += int(cured.sum())
+        reentered_n += int((cured & (st[m2] == "Mora")).sum())
+    rate = 100 * reentered_n / max(cured_n, 1)
+    print(f"  reentry: {reentered_n}/{cured_n} = {rate:.1f}%")
     return 5 <= rate <= 25
 
-@check("calendar_covers_2025")
+@check("calendar_covers_2025", needs=("calendar",))
 def _(cal): return int(cal.query("date >= '2025-01-01' and date <= '2025-12-31'").shape[0]) >= 365
+```
 
 Runner (bottom of `qc_checks.py`):
 
 ```python
 def main(cache: dict[str, pd.DataFrame]):
     failures = []
-    for name, fn in CHECKS:
+    for name, (fn, needs) in CHECKS.items():
         try:
-            ok = bool(fn(*[cache[a] for a in NEEDS.get(name, ())]))
+            ok = bool(fn(*[cache[a] for a in needs]))
         except Exception as e:
-            ok, _ = False, print(f"  error in {name}: {e!r}")
+            ok = False
+            print(f"  error in {name}: {e!r}")
         print(f"{name:<32} {'PASS' if ok else 'FAIL'}")
         if not ok:
             failures.append(name)
     sys.exit(1 if failures else 0)
-
-NEEDS = {
-    "pk_unique_interactions":      ("interactions",),
-    "no_null_agent_on_interactions": ("interactions",),
-    "weekday_only_interactions":   ("interactions",),
-    "kept_plans_meet_95pct":       ("ptp", "payments"),
-    "reentry_band_5_25":           ("snapshots",),
-    "calendar_covers_2025":        ("calendar",),
-}
 
 if __name__ == "__main__":
     cache = {
