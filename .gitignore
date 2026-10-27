@@ -66,3 +66,9 @@ dashboards/pbix/
 # Learning data and scratch files
 learning/excel/basic/work/libre-office/data/**
 learning/excel/data/**
+
+# Learner scratch: keep the folder marker, ignore everything learners produce
+learning/**/work/*
+!learning/**/work/.gitkeep
+learning/excel/basic/data/
+learning/excel/medium/data/
