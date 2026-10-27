@@ -29,7 +29,7 @@ JOIN dim_accounts AS da
 WHERE fe.snapshot_date = DATE '2025-03-31'
 	AND fe.status = 'Mora'
 	-- AND da.product_type = 'Tarjeta'
-ORDER BY fe.arrears DESC, balance DES
+ORDER BY fe.arrears DESC, fe.balance DESC
 LIMIT 25;
 
 

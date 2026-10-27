@@ -22,9 +22,9 @@ Your job:
 SELECT 
 	da.product_type AS product,
 	COUNT(*) AS accounts,
-	ROUND(AVG(da.credit_limit), 2)
+	ROUND(AVG(da.credit_limit), 2) AS avg_credit_limit
 FROM dim_accounts AS da
-GROUP BY da.product_typer
+GROUP BY da.product_type
 ORDER BY accounts DESC; 
 
 /*

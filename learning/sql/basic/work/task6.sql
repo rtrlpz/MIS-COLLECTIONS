@@ -32,8 +32,8 @@ SELECT
 		2
 	) AS count_share_pct
 FROM fact_payments AS fp
-WHERE fp.payment_date >= DATE '2025-01-01'
-	AND fp.payment_date < DATE '2025-04-01'
+WHERE fp.payment_date >= DATE '2025-05-01'
+	AND fp.payment_date < DATE '2025-06-01'
 GROUP BY fp.payment_method
 ORDER BY dollar_share_pct DESC;
 
