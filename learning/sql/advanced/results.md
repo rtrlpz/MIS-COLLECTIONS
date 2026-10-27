@@ -174,11 +174,11 @@ kept AS (   -- per-plan cumulative >=95% rule, plans attributed to making month
     FROM fact_ptp_log pt
     GROUP BY 1, 2
 ),
-cures AS (
+cures AS (   -- 002 definition: DISTINCT cured accounts / all payments (count, not $)
     SELECT pay.agent_id,
            EXTRACT(MONTH FROM pay.payment_date)::int               AS month_num,
-           ROUND(100.0 * SUM(pay.amount_paid) FILTER (WHERE pay.is_cured)
-                 / NULLIF(SUM(pay.amount_paid), 0), 2)             AS cure_rate_legacy_pct
+           ROUND(100.0 * COUNT(DISTINCT pay.account_id) FILTER (WHERE pay.is_cured)
+                 / NULLIF(COUNT(*), 0), 2)                         AS cure_rate_pct
     FROM fact_payments pay
     WHERE pay.agent_id IS NOT NULL
     GROUP BY 1, 2
@@ -192,7 +192,7 @@ util AS (
 ),
 rebuilt AS (
     SELECT c.agent_id, c.month_num, k.kept_n, k.evaluated_n,
-           u.util_pct, cu.cure_rate_legacy_pct,
+           u.util_pct, cu.cure_rate_pct,
            c.rpc_pct_avg_daily, c.rpc_pct_ratio,
            c.aht_rpc_avg_daily,  c.aht_rpc_ratio
     FROM agent_month_contacts c
@@ -219,7 +219,7 @@ Then score whichever variant matched best and diff composites:
 --   HAVING ABS(gap) > 0.05     -- rounding noise vs definitional mismatch
 ```
 
-**Why each part:** computing BOTH variants is the audit — whichever matches `view_rpc_pct` reveals how production aggregates, and the other column becomes your documented improvement candidate. Kept uses plan-status counts (the per-plan rule already lives in status); cure uses the legacy honest ratio that 002 documents.
+**Why each part:** computing BOTH variants is the audit — whichever matches `view_rpc_pct` reveals how production aggregates, and the other column becomes your documented improvement candidate. Kept uses plan-status counts (the per-plan rule already lives in status); cure uses 002's count-based conversion ratio, which is also what the scorecard consumes.
 
 **Verify yourself:** count mismatches per component at |gap| > 0.05. Expected shape: one aggregation style snaps most agents to near-zero gaps while the other drifts systematically — name it in your memo. Missing agent-months usually mean the view's base (`v_monthly_summary`) drops low-activity rows: prove it by listing agents absent from one side only.
 
@@ -273,13 +273,13 @@ SELECT m.snapshot_date,
          - v.portfolio_cure_rate                                             AS gap_vs_view,
        ROUND(100.0 * COALESCE(ff.cured_accounts, 0) / NULLIF(s.stock_entering, 0), 2) AS flip_pct
 FROM stock s
-LEFT JOIN view_style vw ON vw.mo = DATE_TRUNC('month', s.snapshot_date)::date - INTERVAL '1 month' + INTERVAL '1 month'
+LEFT JOIN view_style vw ON vw.mo = DATE_TRUNC('month', s.snapshot_date)::date
 LEFT JOIN flip_style ff ON ff.mo = DATE_TRUNC('month', s.snapshot_date)::date
 JOIN v_monthend_portfolio v ON v.snapshot_date = s.snapshot_date
 ORDER BY s.snapshot_date;
 ```
 
-Correction note before you run it: align the cure month with the STOCK month exactly as the view does (`cures.snapshot_month = m.snapshot_month`, i.e., same calendar month label). If your first attempt joins the prior month instead, the gap column will scream at you — that IS the reconciliation exercise working.
+The cure month is the SAME calendar month as the stock row: the view divides same-month cures by the prior month's Mora stock (`LAG`). If you instead join cures to the prior month, `gap_vs_view` will be badly negative — that is the reconciliation exercise working.
 
 **Why each part:** the view-style CTE reproduces production semantics from raw tables (payment flags, not status flips); the flip-style CTE is the stricter operational definition many credit teams prefer. Showing both against one denominator makes the definitional gap visible and auditable.
 
@@ -300,19 +300,25 @@ WITH pairs AS (
          + (EXTRACT(MONTH FROM r.recovery_date) - EXTRACT(MONTH FROM w.writeoff_date)) AS months_since
     FROM fact_writeoffs w
     JOIN fact_recoveries r USING (account_id)
+),
+agg AS (
+    SELECT DATE_TRUNC('month', writeoff_date)::date       AS cohort_month,
+           months_since,
+           SUM(amount_recovered)                          AS recovered_usd
+    FROM pairs
+    GROUP BY 1, 2
 )
-SELECT DATE_TRUNC('month', writeoff_date)::date          AS cohort_month,
+SELECT cohort_month,
        months_since,
-       ROUND(SUM(amount_recovered)::numeric, 2)          AS recovered_usd,
-       ROUND(100.0 * SUM(amount_recovered)
-             / SUM(SUM(amount_recovered)) OVER (PARTITION BY DATE_TRUNC('month', writeoff_date)::date), 1) AS pct_of_cohort
-FROM pairs
-GROUP BY 1, 2
-ORDER BY 1, 2;
-
--- Cumulative share per cohort (running total over month-since):
---   ADD: SUM(SUM(amount_recovered)) OVER (PARTITION BY cohort ORDER BY months_since)
---   divided by the cohort total from the same window frame.
+       ROUND(recovered_usd::numeric, 2)                    AS recovered_usd,
+       ROUND(100.0 * recovered_usd
+             / NULLIF(SUM(recovered_usd) OVER (PARTITION BY cohort_month), 0), 1) AS pct_of_cohort,
+       ROUND(100.0 * SUM(recovered_usd) OVER (PARTITION BY cohort_month
+                                              ORDER BY months_since
+                                              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+             / NULLIF(SUM(recovered_usd) OVER (PARTITION BY cohort_month), 0), 1) AS cumulative_pct
+FROM agg
+ORDER BY cohort_month, months_since;
 ```
 
 **Why each part:** joining recoveries to write-offs by `account_id` inherits whatever grain the recovery table has — multiple partials per account are correct and wanted. The partitioned window gives within-cohort shares; the commented variant turns them into the cumulative curve ops asked for.
@@ -340,14 +346,19 @@ numbered AS (
 baseline AS (
     SELECT snapshot_date, mora_accounts,
            ROUND(AVG(mora_accounts) OVER (ORDER BY rn
-                 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)) AS ma3_forecast_next
+                 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)) AS ma3
     FROM numbered
 )
 SELECT snapshot_date,
        mora_accounts,
-       ma3_forecast_next
+       ma3,
+       COALESCE(LEAD(snapshot_date) OVER (ORDER BY snapshot_date),
+                (snapshot_date + INTERVAL '1 month')::date)     AS forecast_for_month,
+       ma3                                               AS forecast_accounts
 FROM baseline
 ORDER BY snapshot_date;
+-- The final row labels the month AFTER the last snapshot, so its ma3 is the
+-- Jan-2026 projection (trailing average of Oct-Nov-Dec 2025).
 
 -- Capacity arithmetic (assumptions stated inline so reviewers can attack them):
 --   A1 attempts_per_delinquent_account_per_month ≈ 6      (dialer strategy, quoted from config commentary)
