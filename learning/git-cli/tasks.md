@@ -3,7 +3,7 @@
 ```
 You are here: learning/git-cli/
 Setup:    one terminal at the project root — you ARE inside a repo already (`git status` to confirm)
-Lab:      disposable practice files go in work/ (git-ignored); nothing here can hurt real work
+Lab:      disposable practice files go in work/ (git-ignored); commit drills force-add one practice file deliberately
 Solutions:results.md — after attempting; run every command yourself
 Why:      the JD's world runs on versioned deliverables — "show me what changed" is a daily question
 ```
@@ -92,7 +92,7 @@ Why:      the JD's world runs on versioned deliverables — "show me what change
 
 > "The July pack shipped. Mark that exact state so we can retrieve it forever: annotated tag, pushed meaningfully, found again. Then read the project's history shape with log --graph."
 
-**Your job:** create annotated tag `monthly-pack-2025-07` on a chosen commit · `git show <tag>` retrieval drill · `git log --graph --oneline -20` interpretation.
+**Your job:** create annotated tag `monthly-pack-2025-07` on a chosen commit · push the tag (`git push origin <tag>`) · `git show <tag>` retrieval drill · `git log --graph --oneline -20` interpretation.
 
 **Done when:** answers_8.md: tag/show outputs summarized + what --graph taught you about branching rhythm.
 

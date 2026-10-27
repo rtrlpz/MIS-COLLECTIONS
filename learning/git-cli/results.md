@@ -39,13 +39,15 @@ git diff --stat                         # which files changed and how much
 
 ```bash
 git status                       # choose ONE logical unit
-git add learning/git-cli/work/report.sql
+# work/ is ignored by design. This drill deliberately force-adds the practice file;
+# never force-add real outputs (.env, generated CSVs) — that is how secrets leak.
+git add -f learning/git-cli/work/report.sql
 git diff --cached                # REVIEW exactly what's staged — the pre-commit gate
 git commit -m "docs(learning): add MIS report query drill for git-cli track"
 git log --oneline -3             # confirm shape matches repo voice
 ```
 
-**Why each part:** path-scoped add beats `-A` unless you've reviewed everything; `--cached` shows the COMMIT'S future contents, not your working tree. Repo style: imperative mood ("add", not "added") — messages describe what the commit DOES to the repo.
+**Why each part:** path-scoped add beats `-A` unless you've reviewed everything; `--cached` shows the COMMIT'S future contents, not your working tree. `-f` is the exception, not the habit: ignored paths are ignored because they are generated or secret. Repo style: imperative mood ("add", not "added") — messages describe what the commit DOES to the repo.
 
 **Verify yourself:** `git show --stat HEAD` — exactly the files you intended, nothing else.
 
@@ -56,7 +58,7 @@ git log --oneline -3             # confirm shape matches repo voice
 ```bash
 git switch -c feature/mis-variant-clientX     # create AND switch (modern syntax)
 echo "-- clientX override" >> learning/git-cli/work/report.sql
-git add learning/git-cli/work/report.sql
+git add -f learning/git-cli/work/report.sql
 git commit -m "feat(learning): clientX pack variant draft"
 git switch main                                # tree reverts to main's state
 git branch -v                                  # both branches, last commits side by side
@@ -140,6 +142,10 @@ git stash push -m "wip: august pack draft"      # named stashes save future-you
 git stash list                                   # stash@{0} visible
 git status                                       # clean tree — handle the fire
 # ...urgent fix + commit...
+printf 'urgent fix
+' > learning/git-cli/work/urgent.txt
+git add -f learning/git-cli/work/urgent.txt
+git commit -m "fix(learning): urgent pack query correction"
 git stash pop                                    # edits return; conflicts reported if any
 ```
 
@@ -153,10 +159,11 @@ git stash pop                                    # edits return; conflicts repor
 
 ```bash
 git tag -a monthly-pack-2025-07 <commit-hash> -m "July monthly pack as shipped"
+git push origin monthly-pack-2025-07             # publish the tag (tag push is separate from branch push)
 git show monthly-pack-2025-07                    # the exact state + message, forever retrievable
 git log --graph --oneline -20                    # branching rhythm made visible
 ```
 
 **Why annotated (-a):** carries author, date, message — a label with provenance, matching how finance archives period-end artifacts. Lightweight tags are fine for throwaway bookmarks only.
 
-**Verify yourself:** `git show` prints the commit your pack shipped from; six months from now that command answers "what EXACTLY went out" without archaeology.
+**Verify yourself:** after the push, `git ls-remote --tags origin` lists it; `git show` prints the commit your pack shipped from; six months from now that command answers "what EXACTLY went out" without archaeology.
