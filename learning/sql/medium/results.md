@@ -30,7 +30,7 @@ promises AS (
 ),
 cures AS (
     SELECT agent_id,
-           COUNT(*) FILTER (WHERE is_cured)       AS cure_count,
+           COUNT(DISTINCT account_id) FILTER (WHERE is_cured)    AS cure_count,
            COALESCE(SUM(amount_paid) FILTER (WHERE is_cured), 0) AS cured_amount
     FROM fact_payments, report_date
     WHERE payment_date = d
@@ -52,7 +52,7 @@ LEFT JOIN cures    u USING (agent_id)
 ORDER BY e.team_name, c.rpc_count DESC NULLS LAST;
 ```
 
-**Why each part:** `contacts` is the spine (INNER) because the pack is about calling activity; promises and cures hang off it with LEFT JOINs so agents don't vanish on quiet promise days. Each CTE aggregates BEFORE joining — joining raw then grouping would work here but scales badly and invites duplicate-row bugs as sources grow. `FILTER (WHERE …)` counts cured rows inside a single pass.
+**Why each part:** `contacts` is the spine (INNER) because the pack is about calling activity; promises and cures hang off it with LEFT JOINs so agents don't vanish on quiet promise days. Each CTE aggregates BEFORE joining — joining raw then grouping would work here but scales badly and invites duplicate-row bugs as sources grow. `FILTER (WHERE …)` counts cured accounts inside a single pass — `DISTINCT` matters when one account has several cured payments that day.
 
 **Verify yourself:** row count must equal `SELECT COUNT(DISTINCT agent_id) FROM v_daily_mis WHERE date = DATE '2025-06-02'`. Spot-check one agent's numbers against that view directly.
 
@@ -79,13 +79,13 @@ SELECT pt.ptp_id,
        pt.promised_amount,
        pt.status,
        pt.grace_until_date,
-       t.paid_total,
-       t.payment_count,
-       CASE WHEN t.paid_total >= 0.95 * pt.promised_amount
+       COALESCE(t.paid_total, 0)                    AS paid_total,
+       COALESCE(t.payment_count, 0)                 AS payment_count,
+       CASE WHEN COALESCE(t.paid_total, 0) >= 0.95 * pt.promised_amount
             THEN 'meets_95pct' ELSE 'underpaid' END AS cumulative_check,
-       (t.payment_count > 1)                        AS is_installment
+       (COALESCE(t.payment_count, 0) > 1)           AS is_installment
 FROM fact_ptp_log pt
-JOIN plan_totals t USING (ptp_id)
+LEFT JOIN plan_totals t USING (ptp_id)
 WHERE pt.status = 'Kept'
   AND pt.ptp_date >= DATE '2025-04-01'
   AND pt.ptp_date <  DATE '2025-07-01'
@@ -96,13 +96,15 @@ SELECT ROUND(100.0 * AVG((payment_count > 1)::int), 1) AS multi_part_kept_pct
 FROM (
     SELECT pt.ptp_id, COUNT(p.payment_id) AS payment_count
     FROM fact_ptp_log pt
-    JOIN fact_payments p USING (ptp_id)
+    LEFT JOIN fact_payments p USING (ptp_id)
     WHERE pt.status = 'Kept'
+      AND pt.ptp_date >= DATE '2025-04-01'
+      AND pt.ptp_date <  DATE '2025-07-01'
     GROUP BY pt.ptp_id
 ) x;
 ```
 
-**Why each part:** `WHERE ptp_id IS NOT NULL` keeps self-cure/unlinked payments out of promise math. The `0.95` factor encodes the business rule (cumulative ≥95%). Kept-only filter turns the query into an invariant check — any `underpaid` row would be a data bug worth escalating, not a business finding.
+**Why each part:** `WHERE ptp_id IS NOT NULL` keeps self-cure/unlinked payments out of promise math, while the LEFT JOIN keeps Kept plans that never received a payment — otherwise the invariant quietly skips the worst cases. The `0.95` factor encodes the business rule (cumulative ≥95%). Kept-only filter turns the query into an invariant check — any `underpaid` row would be a data bug worth escalating, not a business finding.
 
 **Verify yourself:** zero `underpaid` rows must remain. Your Q2 kept-plan count should line up with `v_promise_metrics WHERE granularity='monthly'` sums for months 4–6.
 
