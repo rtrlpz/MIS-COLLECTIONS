@@ -47,11 +47,14 @@ monthly = (inter.groupby(inter["interaction_date"].dt.to_period("M"))
                 .apply(lambda g: 100 * g["rpc_flag"].sum()
                        / max(g["calls_connected"].sum(), 1), include_groups=False))
 
+plot_s = monthly.copy()
+plot_s.index = plot_s.index.astype(str)          # one axis type for line + scatter
+under = plot_s[plot_s < TARGET]
+
 fig, ax = plt.subplots(figsize=(9, 4))
-monthly.plot(ax=ax, marker="o", color="#262A76", label="RPC %")
+plot_s.plot(ax=ax, marker="o", color="#262A76", label="RPC %")
 ax.axhline(TARGET, color="#FF0000", ls="--", lw=1, label=f"target {TARGET:.0f}%")
-under = monthly[monthly < TARGET]
-ax.scatter(under.index.astype(str), under.values, color="#FFC000", zorder=3,
+ax.scatter(under.index, under.values, color="#FFC000", zorder=3,
            label="below target")
 ax.set_title("Monthly RPC % vs target — 2025"); ax.set_ylabel("RPC %")
 ax.legend(); plt.tight_layout(); plt.show()
@@ -89,8 +92,7 @@ assert (kept["paid"].fillna(0) >= 0.95 * kept["promised_amount"]).all()
 import seaborn as sns
 import numpy as np
 
-arms = pd.read_csv(RAW / "data_sources/raw/shared/Dim_Strategy.csv".replace("data_sources/raw/shared/", "shared/")) \
-    if False else pd.read_csv(RAW / "data_sources" / "raw" / "shared" / "Dim_Strategy.csv")
+arms = pd.read_csv(RAW / "data_sources" / "raw" / "shared" / "Dim_Strategy.csv")
 
 grid = (inter.merge(arms[["strategy_id", "strategy_name"]], on="strategy_id")
              .pivot_table(index="strategy_name", columns="channel",

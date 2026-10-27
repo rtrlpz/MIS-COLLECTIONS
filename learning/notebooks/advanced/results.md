@@ -41,14 +41,14 @@ order = ["Current", "1-30", "31-60", "61-90", "90+"]
 t = s[s["prev"].notna() & (s["snapshot_date"] >= "2025-07-01")
       & (s["snapshot_date"] < "2026-01-01")]
 mat = pd.crosstab(t["prev"], t["dpd_bucket"]).reindex(index=order, columns=order)
-share = mat.div(mat.values.sum()) * 100
+share = mat.div(mat.sum(axis=1).replace(0, pd.NA), axis=0) * 100
 
 fig, ax = plt.subplots(figsize=(6.5, 5))
 sns.heatmap(share, annot=True, fmt=".1f", cmap="Blues",
-            cbar_kws={"label": "% of all transitions"})
-ax.set_title("Bucket transitions H2 2025 (% of transitions)")
+            cbar_kws={"label": "% of from-bucket accounts"})
+ax.set_title("Bucket transitions H2 2025 (% of from-bucket)")
 ax.set_xlabel("to bucket"); ax.set_ylabel("from bucket")
-# Emphasize worsening (below severity diagonal):
+# Emphasize worsening (above the severity diagonal: to_rank > from_rank):
 for i in range(5):
     for j in range(5):
         if i < j:
@@ -69,7 +69,9 @@ Cells:
 3. **code:** chart history line + `proj = stock.tail(3).mean()` as dashed marker at January position; shade ±10% band via `fill_between`.
 
 ```python
-hist = stock[:-0] if False else stock            # full series
+hist = stock.dropna().sort_index()                # full series, chronological
+last_period = hist.index[-1]
+next_month_label = last_period + 1                # January 2026 if data ends Dec 2025
 fig, ax = plt.subplots(figsize=(8, 4))
 hist.plot(ax=ax, marker="o", color="#262A76", label="actual Mora stock")
 proj = float(hist.tail(3).mean())

@@ -17,19 +17,18 @@ Question: what does one month of call activity look like structurally?
 from pathlib import Path
 import pandas as pd
 
-RAW = Path("../../data_sources/raw")
+RAW = next(p for p in [Path.cwd(), *Path.cwd().parents]
+           if (p / "data_sources" / "raw").is_dir()) / "data_sources" / "raw"
 ```
-> *Notebook paths are relative to the NOTEBOOK's location — from `learning/notebooks/basic/work/` the project root is two levels up. Adjust or use an absolute constant; say which in a markdown note.*
+> *This walks up from the notebook's working directory until it finds the repo root. It is execution-location independent — no `../../` counting, no absolute paths.*
 
 **Cell 4 (code):**
 ```python
-june = pd.read_csv(RAW / "data_sources/raw/june_2025/Fact_Interactions.csv".replace("data_sources/raw/", ""),
-                   parse_dates=["interaction_date"]) if False else pd.read_csv(
-    Path("data_sources/raw").resolve() / "june_2025" / "Fact_Interactions.csv",
-    dtype={"agent_id": "string"}, parse_dates=["interaction_date"])
+june = pd.read_csv(RAW / "june_2025" / "Fact_Interactions.csv",
+                   dtype={"agent_id": "string"}, parse_dates=["interaction_date"])
 print(june.shape); print(june.dtypes); display(june.head(3))
 ```
-Simpler honest version: set `RAW = Path.cwd()` variants until it runs — then WRITE DOWN the convention you chose. **Cell 5 (markdown):** takeaway, e.g., "One month ≈ 100K rows; ids are strings; flags already boolean."
+**Cell 5 (markdown):** takeaway, e.g., "One month ≈ 100K rows; ids are strings; flags already boolean."
 
 **Verify yourself:** Kernel → Restart & Run All → zero errors, sequential execution numbers.
 
@@ -79,14 +78,16 @@ Cell order is the answer: **md question → code → md reading-of-table → cod
 ## Task 4 — Annotated monthly trend
 
 ```python
-months = [d.name.replace("_2025","") for d in sorted(p for p in RAW.iterdir()
-          if p.is_dir() and p.name != "shared")]
+dirs = sorted((d for d in RAW.iterdir() if d.is_dir() and d.name != "shared"),
+              key=lambda d: pd.to_datetime(d.name, format="%B_%Y"))
 vol = []
-for mdir in sorted(p for p in RAW.iterdir() if p.is_dir() and p.name != "shared"):
+for mdir in dirs:
     dfm = pd.read_csv(mdir / "Fact_Interactions.csv", usecols=["interaction_id"])
     vol.append(len(dfm))
 
-s = pd.Series(vol, index=pd.PeriodIndex(months, freq="M"))
+months = pd.PeriodIndex([pd.Period(pd.to_datetime(d.name, format="%B_%Y"), freq="M")
+                         for d in dirs], freq="M")
+s = pd.Series(vol, index=months)
 
 fig, ax = plt.subplots(figsize=(9, 4))
 s.plot(ax=ax, marker="o", color="#262A76")
