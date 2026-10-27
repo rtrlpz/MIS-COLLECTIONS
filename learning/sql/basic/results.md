@@ -35,16 +35,15 @@ UNION ALL SELECT 'dim_accounts',        COUNT(*) FROM dim_accounts
 ORDER BY rows DESC;
 
 -- 3) Join keys per fact: shared columns with dimension PKs
-SELECT f.table_name  AS fact_table,
-       kcu.column_name AS key_column,
-       c.table_name  AS dim_table
-FROM information_schema.table_constraints tc
-JOIN information_schema.key_column_usage kcu
-  ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
-JOIN information_schema.constraint_column_usage c
-  ON tc.constraint_name = c.constraint_name
-WHERE tc.table_schema = 'public' AND tc.constraint_type = 'FOREIGN KEY'
-ORDER BY f.table_name, key_column;
+SELECT conrelid::regclass   AS fact_table,
+       a.attname            AS key_column,
+       confrelid::regclass  AS dim_table
+FROM pg_constraint c
+JOIN LATERAL unnest(c.conkey) WITH ORDINALITY AS k(attnum, ord) ON TRUE
+JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum
+WHERE c.contype = 'f'
+  AND c.connamespace = 'public'::regnamespace
+ORDER BY fact_table, key_column;
 ```
 
 **Why each part:** the catalog queries survive schema changes — a typed list rots the day someone adds a table. The UNION-ALL counts are dumb on purpose: one result set, zero cleverness. The FK query answers "what connects to what" with authority instead of guessing.
@@ -110,17 +109,19 @@ WHERE f.interaction_date >= DATE '2025-01-01'
 GROUP BY f.channel
 ORDER BY rpc_pct DESC;
 
--- Reconciliation against the official implementation:
-SELECT channel, rpc_pct
+-- Reconciliation at TOTAL level: v_contact_metrics has no channel column,
+-- so channel-level parity cannot be proven from the view alone.
+SELECT ROUND(100.0 * SUM(rpc_count) / NULLIF(SUM(connected_calls), 0), 1)
+       AS rpc_pct_q1
 FROM v_contact_metrics
 WHERE granularity = 'monthly' AND month_num BETWEEN 1 AND 3;
 ```
 
 **Why each part:** `rpc_flag::int` turns the boolean into 0/1 so `SUM` works. `NULLIF(denominator, 0)` converts an empty divisor into NULL — the row shows a blank percentage instead of crashing. `100.0` forces decimal math; `100` would do integer division and hand you zeros.
 
-**Verify yourself:** aggregate your per-channel numbers across all channels and compare to the view's monthly totals for the same months. Equal means your definition matches production.
+**Verify yourself:** aggregate your per-channel numbers across all channels and compare that single ratio to the view's Q1 rollup. Equal means your definition matches production. A channel-level diff needs raw `fact_interactions` on both sides — the view cannot answer it.
 
-**Traps & alternatives:** dividing by `SUM(calls_attempted)` is the intern mistake from the request — attempts include unanswered dials. Don't average per-day percentages (`AVG(rpc_pct)`) when you want a period rate; weight by volume or compute from sums (this exact trap returns in medium Task 6).
+**Traps & alternatives:** the view is per-agent/team — never `GROUP BY channel` against it, the column does not exist. Dividing by `SUM(calls_attempted)` is the intern mistake from the request — attempts include unanswered dials. Don't average per-day percentages (`AVG(rpc_pct)`) when you want a period rate; weight by volume or compute from sums (this exact trap returns in medium Task 6).
 
 ---
 
