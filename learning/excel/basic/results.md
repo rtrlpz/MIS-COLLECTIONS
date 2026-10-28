@@ -110,12 +110,12 @@ wb.save(OUT)
 
 ### Manual steps (do these in Excel):
 1. Create sheet `AgentLookup`. Column A: agent IDs. Column B: agent names (paste from CSV).
-2. On Daily sheet, column A (below headers): type agent IDs manually.
-3. **Type the XLOOKUP formula** in cell I5 (name column):
+2. On the `AgentDaily` sheet, headers A4:G4 = Agent ID · Team · Agent Name (XLOOKUP) · Agent Name (VLOOKUP) · Promises · Payments · Month. Type agent IDs and teams in A/B, and the month (for example `2025-06-01`) in G.
+3. **Type the XLOOKUP formula** in cell C5 (name column):
    ```
    =IFNA(XLOOKUP(A5,AgentLookup!$A$2:$A$100,AgentLookup!$B$2:$B$100,"—"),"")
    ```
-4. **Type the VLOOKUP formula** in cell J5:
+4. **Type the VLOOKUP formula** in cell D5:
    ```
    =IFNA(VLOOKUP(A5,AgentLookup!$A$2:$B$100,2,FALSE),"")
    ```
@@ -145,10 +145,12 @@ p = ptp.assign(day=ptp["ptp_date"].dt.normalize()).groupby(["day", "agent_id"]).
 q = pay.assign(day=pay["payment_date"].dt.normalize()).groupby(["day", "agent_id"]).size().rename("Payments")
 ad = ad.merge(p, on=["day", "agent_id"], how="left").merge(q, on=["day", "agent_id"], how="left")
 ad[["Promises", "Payments"]] = ad[["Promises", "Payments"]].fillna(0).astype(int)
+ad["Month"] = ad["day"].dt.to_period("M").dt.to_timestamp()
 
 ws_ad = wb.create_sheet("AgentDaily")
 for col, h in enumerate(["Agent ID", "Team", "Agent Name (XLOOKUP)",
-                         "Agent Name (VLOOKUP)", "Promises", "Payments"], start=1):
+                         "Agent Name (VLOOKUP)", "Promises", "Payments",
+                         "Month"], start=1):
     ws_ad.cell(row=4, column=col, value=h).font = Font(bold=True)
 
 for i, row in enumerate(ad.itertuples(index=False), start=5):
@@ -160,6 +162,7 @@ for i, row in enumerate(ad.itertuples(index=False), start=5):
                value=f'=IFNA(VLOOKUP(A{i},AgentLookup!$A$2:$B${n_rows},2,FALSE),"")')
     ws_ad.cell(row=i, column=5, value=int(row.Promises))
     ws_ad.cell(row=i, column=6, value=int(row.Payments))
+    ws_ad.cell(row=i, column=7, value=row.Month).number_format = "yyyy-mm"
 ```
 
 **Why each part:** the FORMULA lives in the cell — python never pre-fills names. `IFNA` turns misses into an em-dash. `XLOOKUP` is direction-safe; `VLOOKUP` requires the lookup column to be leftmost. openpyxl must write the future function as `_xlfn.XLOOKUP`; LibreOffice may still show `#NAME?` for it — test the VLOOKUP path there.
@@ -171,14 +174,14 @@ for i, row in enumerate(ad.itertuples(index=False), start=5):
 ## Task 4 — Pivot Table basics (manual creation)
 
 ### Manual steps (do these in Excel — NO openpyxl pivot creation):
-1. On the `AgentDaily` sheet, select the entire data range (A4:F{last_row}).
+1. On the `AgentDaily` sheet, select the entire data range (A4:G{last_row}).
 2. Go to **Insert → PivotTable**. Choose "New Worksheet." Name the sheet `PivotDaily`.
 3. In the PivotTable Fields pane:
    - Drag `Team` to **Rows**
    - Drag `Promises` to **Values** (default: Sum)
    - Drag `Payments` to **Values**
 4. Add a filter: drag `Month` to **Filters** area.
-5. **Refresh test:** change one value in the Data sheet → right-click pivot → **Refresh**. Confirm the sum changes.
+5. **Refresh test:** change one value in the AgentDaily sheet → right-click pivot → **Refresh**. Confirm the sum changes.
 6. **Explore:** drag `Team` to Columns instead of Rows. Notice how the layout flips. This is the interactive advantage of pivots — no formula rewriting needed.
 
 **Manual pivot notes:**
@@ -289,11 +292,26 @@ soffice --headless --convert-to pdf work/daily_mis.xlsx --outdir work/
 
 ## Task 8 — Full generator script
 
+**Build the extract first.** `v_daily_mis` has no `payment_count` column, so join the payment count at agent-day grain before exporting:
+
+```sql
+SELECT d.date, d.agent_id, d.team_name, d.total_calls, d.connected_calls,
+       d.rpc_count, d.ptp_count, COALESCE(p.payment_count, 0) AS payment_count
+FROM v_daily_mis d
+LEFT JOIN (
+    SELECT payment_date AS date, agent_id, COUNT(*) AS payment_count
+    FROM fact_payments
+    GROUP BY 1, 2
+) p ON p.date = d.date AND p.agent_id = d.agent_id;
+```
+
+The join leaves self-cures (payments with no `agent_id`) out of the agent-day extract — correct for an agent-level pack, and worth saying out loud in the reconciliation note.
+
 ```python
 """daily_mis_auto.py — one-command Collections Daily MIS pack.
 
 Usage: python daily_mis_auto.py --input daily_extract.csv --out work/daily_mis.xlsx
-Input: CSV export of v_daily_mis (agent-day grain).
+Input: agent-day extract of v_daily_mis joined to fact_payments (see query above).
 """
 import argparse
 from pathlib import Path
@@ -389,9 +407,10 @@ def build_pack(input_csv: str, output_path: Path):
 
     ad = (df.groupby(["date", "agent_id", "team_name"], as_index=False)
             .agg(Promises=("ptp_count", "sum"), Payments=("payment_count", "sum")))
+    ad["Month"] = ad["date"].dt.to_period("M").dt.to_timestamp()
     ws_ad = wb.create_sheet("AgentDaily")
     ad_headers = ["Agent ID", "Team", "Agent Name (XLOOKUP)",
-                  "Agent Name (VLOOKUP)", "Promises", "Payments"]
+                  "Agent Name (VLOOKUP)", "Promises", "Payments", "Month"]
     for c, h in enumerate(ad_headers, start=1):
         ws_ad.cell(row=4, column=c, value=h).style = "header"
     for r, row in enumerate(ad.itertuples(index=False), start=5):
@@ -403,6 +422,7 @@ def build_pack(input_csv: str, output_path: Path):
                                            f'2,FALSE),"")'))
         ws_ad.cell(row=r, column=5, value=int(row.Promises))
         ws_ad.cell(row=r, column=6, value=int(row.Payments))
+        ws_ad.cell(row=r, column=7, value=row.Month).number_format = "yyyy-mm"
 
     params = wb.create_sheet("Parameters")
     params["A1"] = "Teams"
@@ -463,14 +483,21 @@ def reconcile(date: str, out="work/daily_mis.xlsx"):
         dbname=os.getenv("POSTGRES_DB"))
     with conn, conn.cursor() as cur:
         cur.execute("""
-            SELECT COALESCE(SUM(total_calls), 0),
-                   COALESCE(SUM(connected_calls), 0),
-                   COALESCE(SUM(rpc_count), 0),
-                   COALESCE(SUM(ptp_count), 0),
-                   COALESCE(SUM(payment_count), 0)
-            FROM v_daily_mis
-            WHERE date = %s
-        """, (date,))
+            WITH mis AS (
+                SELECT COALESCE(SUM(total_calls), 0)     AS contacts,
+                       COALESCE(SUM(connected_calls), 0) AS connects,
+                       COALESCE(SUM(rpc_count), 0)       AS rpcs,
+                       COALESCE(SUM(ptp_count), 0)       AS promises
+                FROM v_daily_mis
+                WHERE date = %s
+            ), pay AS (
+                SELECT COUNT(*) AS payments
+                FROM fact_payments
+                WHERE payment_date = %s
+            )
+            SELECT mis.contacts, mis.connects, mis.rpcs, mis.promises, pay.payments
+            FROM mis, pay
+        """, (date, date))
         sql_result = [int(v) for v in cur.fetchone()]
 
     wb = load_workbook(out, data_only=True)
@@ -485,6 +512,6 @@ def reconcile(date: str, out="work/daily_mis.xlsx"):
     print(f"PASS {date}: {sql_result}")
 ```
 
-**Why:** anything exported must agree with the official SQL view (`v_daily_mis`). If it doesn't, that's a finding to explain — not something to eyeball away. Compare period sums, not one row, because `v_daily_mis` is agent-day grain.
+**Why:** anything exported must agree with the official SQL sources. `v_daily_mis` covers activity and promises; `fact_payments` supplies the payment count. If the totals differ, that's a finding to explain — not something to eyeball away. Compare period sums, not one row, because `v_daily_mis` is agent-day grain.
 
 **Verify yourself:** run the generator for a known date, call `reconcile(date)`, then compare one agent's row against SQL manually. Any mismatch = a finding to investigate before shipping.

@@ -32,11 +32,10 @@ Modeling → New table:
 ```dax
 Dim_Targets =
 DATATABLE (
-    "Goal", STRING, "Target", DOUBLE,
+    "MetricName", STRING, "GoalValue", DOUBLE, "AmberThreshold", DOUBLE,
     {
-        { "RPC %", 0.45 },
-        { "PTP %", 0.80 },
-        { "KP %", 0.80 }
+        { "PTP%", 0.80, 0.85 },
+        { "KP%",  0.80, 0.85 }
     }
 )
 ```
@@ -44,27 +43,13 @@ DATATABLE (
 Measures:
 
 ```dax
-Selected Target =
-VAR g = SELECTEDVALUE ( Dim_Targets[Goal] )
-RETURN SWITCH ( g,
-    "RPC %", 0.45,
-    "PTP %", 0.80,
-    "KP %", 0.80,
-    BLANK ()
-)
-```
-
-Simpler, data-driven version (preferred):
-
-```dax
-Selected Target = SELECTEDVALUE ( Dim_Targets[Target] )
+Selected Target = SELECTEDVALUE ( Dim_Targets[GoalValue] )
 
 Actual for Goal =
-VAR g = SELECTEDVALUE ( Dim_Targets[Goal] )
+VAR g = SELECTEDVALUE ( Dim_Targets[MetricName] )
 RETURN SWITCH ( g,
-    "RPC %", [RPC %],
-    "PTP %", [PTP %],
-    "KP %",  [KP %],
+    "PTP%", [Promise Rate],
+    "KP%",  [KP Rate],
     BLANK ()
 )
 
@@ -72,11 +57,13 @@ Gap to Target =
 DIVIDE ( [Actual for Goal] - [Selected Target], [Selected Target] )
 ```
 
-**Why each part:** targets live in a TABLE so a strategy change edits a row, not DAX. Targets are **decimals** (0.45 = 45%) because `[RPC %]` is built with `DIVIDE` and formatted as percent — mixing 45 with 0.45 makes every gap 100× wrong. `SWITCH` maps goal name → its actual measure; the table visual lists goals with actual/target/gap columns driven purely by selection.
+**Why each part:** targets live in a TABLE so a strategy change edits a row, not DAX. `GoalValue` is a **decimal** (0.80 = 80%) because `[Promise Rate]` and `[KP Rate]` are built with `DIVIDE` and formatted as percent — mixing 80 with 0.80 makes every gap 100× wrong. `SWITCH` maps `MetricName` → its actual measure; the table visual lists goals with actual/target/gap columns driven purely by selection. The names match the project `Dim_Targets` (`MetricName`, `GoalValue`), so the exercise transfers directly.
 
-**Verify yourself:** change KP target from 80 to 75 in the table — every gap recomputes with zero DAX edits. Cross-check one month's actuals against SQL views.
+**Verify yourself:** change KP's `GoalValue` from 0.80 to 0.75 in the table — every gap recomputes with zero DAX edits. Cross-check one month's `[Promise Rate]` and `[KP Rate]` against `v_contact_metrics` / SQL.
 
-**Traps & alternatives:** hardcoding `IF(goal="KP %",[KP %]>=0.80,…)` inside color measures scatters thresholds across five measures — governance violation you'll fix properly in Task 3.
+**Traps & alternatives:** hardcoding `IF(goal="KP%", [KP Rate]>=0.80, …)` inside color measures scatters thresholds across many measures — governance violation you'll fix properly in Task 3. `[PTP %]` / `[KP %]` are not the project measure names; the model uses `[Promise Rate]` / `[KP Rate]`.
+
+**Note on KP Rate:** it is `Kept ÷ (Kept + Broken)`, so `Pending` promises are excluded, matching `v_agent_scorecards`.
 
 ---
 
@@ -84,24 +71,37 @@ DIVIDE ( [Actual for Goal] - [Selected Target], [Selected Target] )
 
 ```dax
 -- Project RAG standard: Green #00B050 · Amber #FFC000 · Red #FF0000
-KP % Color =
-VAR kp = [KP %]
-RETURN IF ( ISBLANK ( kp ), BLANK (),
-    IF ( kp >= 0.80, "#00B050",
-        IF ( kp >= 0.60, "#FFC000", "#FF0000" ) ) )
+-- Amber lower bound = 85% of goal (Dim_Targets[AmberThreshold])
+PTP % Color =
+VAR actual = [Promise Rate]
+VAR goal   = LOOKUPVALUE ( Dim_Targets[GoalValue],
+                           Dim_Targets[MetricName], "PTP%" )
+VAR amber  = goal * LOOKUPVALUE ( Dim_Targets[AmberThreshold],
+                                  Dim_Targets[MetricName], "PTP%" )
+RETURN IF ( ISBLANK ( actual ), BLANK (),
+    SWITCH ( TRUE (),
+        actual >= goal,  "#00B050",
+        actual >= amber, "#FFC000",
+        "#FF0000" ) )
 
-RPC % Color =
-VAR r = [RPC %]
-RETURN IF ( ISBLANK ( r ), BLANK (),
-    IF ( r >= 0.45, "#00B050",
-        IF ( r >= 0.35, "#FFC000", "#FF0000" ) ) )
+KP % Color =
+VAR actual = [KP Rate]
+VAR goal   = LOOKUPVALUE ( Dim_Targets[GoalValue],
+                           Dim_Targets[MetricName], "KP%" )
+VAR amber  = goal * LOOKUPVALUE ( Dim_Targets[AmberThreshold],
+                                  Dim_Targets[MetricName], "KP%" )
+RETURN IF ( ISBLANK ( actual ), BLANK (),
+    SWITCH ( TRUE (),
+        actual >= goal,  "#00B050",
+        actual >= amber, "#FFC000",
+        "#FF0000" ) )
 ```
 
 Apply: visual → conditional formatting → Background color → Format style **Field value** → pick the measure.
 
-**Why each part:** colors as MEASURES mean thresholds live in reviewed code (with comments), survive refresh, and can later read their bounds FROM `Dim_Targets` — the full governance loop.
+**Why each part:** colors as MEASURES mean thresholds live in reviewed code, survive refresh, and read their bounds FROM `Dim_Targets` — the full governance loop. With an 80% goal and a 0.85 amber threshold, amber starts at 68%; anything below 68% is red.
 
-**Verify yourself:** slice to a team/month with weak RPC% — cell flips amber/red without touching format rules. Blank-safe: an empty slice shows no fill, not red.
+**Verify yourself:** slice to a team/month with weak KP% — cell flips amber/red without touching format rules. Confirm one 67% month is red and one 70% month is amber. Blank-safe: an empty slice shows no fill, not red.
 
 ---
 

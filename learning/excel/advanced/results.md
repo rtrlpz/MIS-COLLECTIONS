@@ -24,23 +24,24 @@
 2. Keep it a plain range — lookups below point at `$A$2:$B$200`.
 
 #### Daily sheet:
-1. Paste the daily data (agent-day rows from `v_daily_mis`). Headers in row 4.
-2. Columns A4:J4 = Date | Agent ID | Team | Contacts | Connects | RPCs | Promises | Payments | Name (XLOOKUP) | Name (VLOOKUP). **Type XLOOKUP by hand** in I5:
-   `=IFNA(XLOOKUP(A5,AgentLookup!$A$2:$A$100,AgentLookup!$B$2:$B$100,"—"),"")`
+1. Paste the daily extract (agent-day rows from `v_daily_mis` joined to `fact_payments`, with `kept_count`/`broken_count`). Headers in row 4 (the CSV header row must match the table headers so the QueryTable refresh does not break structured references).
+2. Columns A4:L4 = Date | Agent ID | Team | Contacts | Connects | RPCs | Promises | Payments | Kept | Broken | Name (XLOOKUP) | Name (VLOOKUP). **Type XLOOKUP by hand** in K5:
+   `=IFNA(XLOOKUP(B5,AgentLookup!$A$2:$A$100,AgentLookup!$B$2:$B$100),"—")`
 3. **Data → Data Validation → List** on the team column (C5:C...) → source = Parameters!$A$2:$A$100
 4. Freeze panes at A5
 5. Convert the data range to an **Excel Table** (Ctrl+T) — name it `tblDaily`
 
 #### Summary sheet:
 1. Month dates in A5:A16
-2. **Type SUMIFS formulas** by hand for each KPI column
+2. **Type SUMIFS formulas** by hand for each KPI column: Month | Contacts | Connects | RPCs | RPC % | Promises | Payments | KP % | Promises Δ MoM
 3. RPC% in E5: `=IFERROR(D5/C5,"")`
-4. MoM delta in F6: `=TEXT(D6-D5,"+0;-0;±0")`
-5. **Conditional formatting** on E5:E16 (RPC% is column E):
-   - Green: `=E5>=Parameters!$E$3` → #00B050
-   - Amber: `=AND(E5>=Parameters!$E$2,E5<Parameters!$E$3)` → #FFC000
-   - Red: `=E5<Parameters!$E$2` → #FF0000
-   Thresholds in Parameters!E2:E3
+4. KP% in H5: `=IFERROR(SUMIFS(tblDaily[Kept],tblDaily[Date],">="&A5,tblDaily[Date],"<"&EDATE(A5,1))/(SUMIFS(tblDaily[Kept],tblDaily[Date],">="&A5,tblDaily[Date],"<"&EDATE(A5,1))+SUMIFS(tblDaily[Broken],tblDaily[Date],">="&A5,tblDaily[Date],"<"&EDATE(A5,1))),0)`
+5. Promises Δ in I6: `=TEXT(F6-F5,"+0;-0;±0")`
+6. **Conditional formatting** on H5:H16 (KP% is column H):
+   - Green: `=H5>=Parameters!$E$3` → #00B050
+   - Amber: `=AND(H5>=Parameters!$E$2,H5<Parameters!$E$3)` → #FFC000
+   - Red: `=H5<Parameters!$E$2` → #FF0000
+   Thresholds in Parameters!E2:E3 (0.68 / 0.80 = 85% of the 80% goal / goal)
 
 #### PivotDaily sheet:
 1. Select tblDaily → **Insert → PivotTable** → new sheet
@@ -71,17 +72,17 @@
 
 ### Manual steps:
 1. Open `work/daily_mis_manual.xlsx`
-2. Add a new row to the Data sheet below the table
+2. Add a new row below the Daily table
 3. **Right-click the pivot → Refresh** → confirm the new row appears
 4. **PivotTable Analyze → Options → Data** → see the cache range
-5. **Problem demonstration:** if the cache is hardcoded to `A4:G50` and you add row 51, the pivot ignores it
+5. **Problem demonstration:** if the cache is hardcoded to `A4:L50` and you add row 51, the pivot ignores it
 
 **Fix options tested:**
 - **Option A — Excel Table:** convert data range to Table → cache auto-expands with table rows (best for openpyxl-generated files)
 - **Option B — Manual cache range update:** right-click pivot → PivotTable Options → Data → change range (works but fragile)
 - **Option C — Power Query source:** pivot sourced from Power Query connection → cache refreshes when the query refreshes (best enterprise practice)
 
-**Enterprise recommendation:** Power Query as the pivot source. The pipeline generates the Data sheet → Power Query loads it → pivot reads from the query. Adding data? Refresh the query, the pivot follows.
+**Enterprise recommendation:** Power Query as the pivot source. The pipeline generates the Daily sheet → Power Query loads it → pivot reads from the query. Adding data? Refresh the query, the pivot follows.
 
 **Verify yourself:** add rows → refresh → confirm new data appears. Test all three options.
 
@@ -93,13 +94,16 @@
 
 ## Task 3 — Full generator script
 
+**Build the extract first.** `v_daily_mis` has no `payment_count`; join `fact_payments` at agent-day grain (same pattern as basic Task 8). It already exposes `kept_count` and `broken_count`, so select them directly for the KP% RAG column.
+
 ```python
 """generate_daily_mis.py — one-command Collections Daily MIS pack.
 
 Usage:
   python generate_daily_mis.py --input daily_extract.csv --out work/daily_mis.xlsx
   python generate_daily_mis.py --latest C:\\collections\\drops --out work/daily_mis.xlsx
-Input CSV is an export of v_daily_mis (one row per agent-day).
+Input CSV is an agent-day extract: v_daily_mis joined to fact_payments
+(see basic Task 8) with kept_count / broken_count included.
 """
 import argparse
 from pathlib import Path
@@ -112,7 +116,8 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 REQUIRED = {"date", "agent_id", "team_name", "total_calls",
-            "connected_calls", "rpc_count", "ptp_count", "payment_count"}
+            "connected_calls", "rpc_count", "ptp_count", "payment_count",
+            "kept_count", "broken_count"}
 
 
 def pick_latest(folder: Path) -> Path:
@@ -123,10 +128,12 @@ def pick_latest(folder: Path) -> Path:
 
 
 def build_pack(input_csv: Path, output_path: Path):
-    df = pd.read_csv(input_csv, parse_dates=["date"])
+    df = pd.read_csv(input_csv)
+    df.columns = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
     missing = REQUIRED - set(df.columns)
     if missing:
         raise ValueError(f"input is missing columns: {sorted(missing)}")
+    df["date"] = pd.to_datetime(df["date"])
 
     wb = Workbook()
     ws_c = wb.active
@@ -137,7 +144,7 @@ def build_pack(input_csv: Path, output_path: Path):
     ws_c["A4"], ws_c["B4"] = "Generated:", '="Snapshot "&TEXT(TODAY(),"yyyy-mm-dd")&" · refreshed "&TEXT(NOW(),"yyyy-mm-dd hh:mm")'
     for i, line in enumerate([
             "Daily — agent-day extract from v_daily_mis",
-            "Summary — monthly SUMIFS rollup with RAG RPC%",
+            "Summary — monthly SUMIFS rollup with RAG KP%",
             "AgentLookup — agent id to name",
             "Parameters — RAG thresholds and team list",
             "ChangeLog — dated record of every change"], start=6):
@@ -145,7 +152,8 @@ def build_pack(input_csv: Path, output_path: Path):
 
     ws_d = wb.create_sheet("Daily")
     headers = ["Date", "Agent ID", "Team", "Contacts", "Connects",
-               "RPCs", "Promises", "Payments", "Name (XLOOKUP)", "Name (VLOOKUP)"]
+               "RPCs", "Promises", "Payments", "Kept", "Broken",
+               "Name (XLOOKUP)", "Name (VLOOKUP)"]
     for c, h in enumerate(headers, start=1):          # header row 4, table starts A4
         ws_d.cell(row=4, column=c, value=h).font = Font(bold=True, color="FFFFFF")
         ws_d.cell(row=4, column=c).fill = PatternFill("solid", fgColor="262A76")
@@ -155,13 +163,14 @@ def build_pack(input_csv: Path, output_path: Path):
         ws_d.cell(row=r, column=2, value=row.agent_id)
         ws_d.cell(row=r, column=3, value=row.team_name)
         for c, value in enumerate([row.total_calls, row.connected_calls, row.rpc_count,
-                                   row.ptp_count, row.payment_count], start=4):
+                                   row.ptp_count, row.payment_count,
+                                   row.kept_count, row.broken_count], start=4):
             ws_d.cell(row=r, column=c, value=int(value)).number_format = "#,##0"
-        ws_d.cell(row=r, column=9, value=f'=IFNA(_xlfn.XLOOKUP(B{r},AgentLookup!$A$2:$A$200,AgentLookup!$B$2:$B$200),"—")')
-        ws_d.cell(row=r, column=10, value=f'=IFNA(VLOOKUP(B{r},AgentLookup!$A$2:$B$200,2,FALSE),"")')
+        ws_d.cell(row=r, column=11, value=f'=IFNA(_xlfn.XLOOKUP(B{r},AgentLookup!$A$2:$A$200,AgentLookup!$B$2:$B$200),"—")')
+        ws_d.cell(row=r, column=12, value=f'=IFNA(VLOOKUP(B{r},AgentLookup!$A$2:$B$200,2,FALSE),"")')
 
     last = 4 + len(df)
-    tbl = Table(displayName="tblDaily", ref=f"A4:J{last}")
+    tbl = Table(displayName="tblDaily", ref=f"A4:L{last}")
     tbl.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True)
     ws_d.add_table(tbl)
     ws_d.freeze_panes = "A5"
@@ -176,9 +185,9 @@ def build_pack(input_csv: Path, output_path: Path):
 
     # Parameters: RAG thresholds in E2:E3, teams in A
     ws_p = wb.create_sheet("Parameters")
-    ws_p["E1"] = "RAG thresholds"
-    ws_p["E2"] = 0.45
-    ws_p["E3"] = 0.50
+    ws_p["E1"] = "KP% RAG thresholds"
+    ws_p["E2"] = 0.68
+    ws_p["E3"] = 0.80
     ws_p["A1"] = "Teams"
     teams = sorted(df["team_name"].dropna().unique())
     for i, team in enumerate(teams, start=2):
@@ -195,7 +204,7 @@ def build_pack(input_csv: Path, output_path: Path):
     ws_s["A1"] = "Monthly rollup"
     ws_s["A1"].font = Font(size=16, bold=True, color="262A76")
     for c, h in enumerate(["Month", "Contacts", "Connects", "RPCs", "RPC %",
-                           "Δ vs prior month"], start=1):
+                           "Promises", "Payments", "KP %", "Promises Δ MoM"], start=1):
         ws_s.cell(row=4, column=c, value=h).font = Font(bold=True, color="FFFFFF")
         ws_s.cell(row=4, column=c).fill = PatternFill("solid", fgColor="262A76")
 
@@ -209,10 +218,21 @@ def build_pack(input_csv: Path, output_path: Path):
         ws_s.cell(row=i, column=4, value=(f'=SUMIFS(tblDaily[RPCs],tblDaily[Date],">="&A{i},'
                                           f'tblDaily[Date],"<"&EDATE(A{i},1))'))
         ws_s.cell(row=i, column=5, value=f'=IFERROR(D{i}/C{i},"")').number_format = "0.0%"
+        ws_s.cell(row=i, column=6, value=(f'=SUMIFS(tblDaily[Promises],tblDaily[Date],">="&A{i},'
+                                          f'tblDaily[Date],"<"&EDATE(A{i},1))'))
+        ws_s.cell(row=i, column=7, value=(f'=SUMIFS(tblDaily[Payments],tblDaily[Date],">="&A{i},'
+                                          f'tblDaily[Date],"<"&EDATE(A{i},1))'))
+        ws_s.cell(row=i, column=8, value=(
+            f'=IFERROR(SUMIFS(tblDaily[Kept],tblDaily[Date],">="&A{i},'
+            f'tblDaily[Date],"<"&EDATE(A{i},1))/'
+            f'(SUMIFS(tblDaily[Kept],tblDaily[Date],">="&A{i},'
+            f'tblDaily[Date],"<"&EDATE(A{i},1))+'
+            f'SUMIFS(tblDaily[Broken],tblDaily[Date],">="&A{i},'
+            f'tblDaily[Date],"<"&EDATE(A{i},1))),0)')).number_format = "0.0%"
         if i > 5:
-            ws_s.cell(row=i, column=6, value=f'=TEXT(D{i}-D{i-1},"+0;-0;±0")')
+            ws_s.cell(row=i, column=9, value=f'=TEXT(F{i}-F{i-1},"+0;-0;±0")')
 
-    rag = f"E5:E{4 + len(months)}"
+    rag = f"H5:H{4 + len(months)}"
     ws_s.conditional_formatting.add(rag, CellIsRule(
         operator="greaterThanOrEqual", formula=["Parameters!$E$3"],
         fill=PatternFill("solid", fgColor="00B050")))
@@ -247,7 +267,7 @@ if __name__ == "__main__":
     build_pack(src, Path(args.out))
 ```
 
-**Reconciliation:** reuse the `reconcile()` function from Excel Basic Task 9 — compare each month's Contacts/RPCs/Promises/Payments totals with `v_daily_mis` before sending.
+**Reconciliation:** reuse the `reconcile()` function from Excel Basic Task 9 — compare each month's Contacts/RPCs/Promises/Payments/Kept/Broken totals against the CSV extract (itself audited against `v_daily_mis` + `fact_payments`) before sending.
 
 **Verify yourself:** run twice → compare sheet names, table refs and every formula (openpyxl read-back); Excel writes fresh zip timestamps, so byte equality is the wrong test. Compare Summary totals against SQL `v_daily_mis` for the same month.
 
@@ -297,7 +317,7 @@ End Sub
 Option Explicit
 
 Const DROP_PATH As String = "C:\collections\drops\"
-Const DATA_SHEET As String = "Data"
+Const DATA_SHEET As String = "Daily"
 
 Public Sub RefreshPack()
     Dim csvPath As String
@@ -333,7 +353,7 @@ End Function
 Private Sub LoadCsvIntoData(ByVal csvPath As String)
     Dim wsD As Worksheet, qt As QueryTable
     Set wsD = ThisWorkbook.Worksheets(DATA_SHEET)
-    wsD.Range("A5:J100000").ClearContents   ' keep the header/table at A4'
+    wsD.Range("A5:L100000").ClearContents   ' keep the header/table at A4'
     Set qt = wsD.QueryTables.Add(Connection:="TEXT;" & csvPath, Destination:=wsD.Range("A4"))
     With qt
         .TextFileParseType = xlDelimited
@@ -381,11 +401,11 @@ def rebuild_data(ws, df, first_row=5):
 
 
 wb = load_workbook("work/pack_template.xlsm", keep_vba=True)
-rebuild_data(wb["Data"], df_daily)   # values only — same sheet names
+rebuild_data(wb["Daily"], df_daily)   # values only — same sheet names
 wb.save("work/daily_mis.xlsm")
 ```
 
-**Verify yourself:** open generated file → Alt+F11 shows modules intact → Workbook_Open fires → button works. Break test: rename Data sheet in a copy → observe what orphans; document.
+**Verify yourself:** open generated file → Alt+F11 shows modules intact → Workbook_Open fires → button works. Break test: rename Daily sheet in a copy → observe what orphans; document.
 
 ---
 

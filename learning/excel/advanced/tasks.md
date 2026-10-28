@@ -26,13 +26,13 @@ The rule: **if you can't build it manually in Excel, you can't automate it corre
 
 📥 **Inbox:** From Operations Manager · Tue 2:00 · "the director wants the full pack, now"
 
-> "Before we automate anything, build the FULL daily MIS pack manually in Excel. Every sheet. Every formula. Every chart. Every RAG indicator. The director needs to see what 'done' looks like — and you need to understand it before you make it self-run."
+> "Before we automate anything, build the FULL daily MIS pack manually in Excel. Every sheet. Every formula. Every chart. Every RAG indicator. The director needs to see what 'done' looks like — and you need to understand it before you make it self-run. Use the daily extract: `v_daily_mis` joined to `fact_payments`, not a bare view export."
 
 **Your job (Excel only — NO Python):**
 1. **Cover sheet:** Title, owner, generation timestamp (formula off a cell), navigation lines for each tab. Tab color coded.
 2. **Daily sheet:** All daily data rows. XLOOKUP/VLOOKUP for agent names. Data validation dropdowns. Freeze panes.
-3. **Summary sheet:** SUMIFS rollup by month, RPC% column, MoM delta. RAG conditional formatting referencing Parameters thresholds.
-4. **PivotDaily sheet:** PivotTable from the Daily data. Rows = Team, Values = SUM of all KPIs, Filter = Month.
+3. **Summary sheet:** SUMIFS rollup by month, RPC% and KP% columns, MoM delta. RAG conditional formatting on KP% referencing Parameters thresholds.
+4. **PivotDaily sheet:** PivotTable from the Daily table. Rows = Team, Values = SUM of all KPIs, Filter = Month.
 5. **PivotChart + Slicer:** PivotChart showing RPC% trends. Slicer on Team. Dashboard sheet layout.
 6. **Power Query connection:** Load the daily extract via Power Query → Refresh on open configured.
 7. **ChangeLog sheet:** Pre-populate with ≥3 entries documenting this workbook's creation.
@@ -58,7 +58,7 @@ The rule: **if you can't build it manually in Excel, you can't automate it corre
 > "The pivot table on the dashboard isn't updating when we add new rows. I need to understand why — and fix it. This is the kind of thing that wastes half a morning if you don't know how pivots work under the hood."
 
 **Your job:**
-1. Open `work/daily_mis_manual.xlsx`. Add a new row to the Daily sheet below the table.
+1. Open `work/daily_mis_manual.xlsx`. Add a new row below the Daily table.
 2. **Right-click the pivot → Refresh** → confirm the new row appears.
 3. **Check the pivot cache:** go to **PivotTable Analyze → Options → Data** → see the cache range.
 4. **Problem:** if the cache doesn't auto-expand, new rows are invisible to the pivot.
@@ -88,12 +88,12 @@ The rule: **if you can't build it manually in Excel, you can't automate it corre
 
 📥 **Inbox:** From Head of MIS · Mon 9:00 · "the flagship deliverable"
 
-> "Write `generate_daily_mis.py`: reads the daily KPI extract (CSV export of `v_daily_mis`), builds the FULL pack from your Phase A manual workbook — Cover, Daily, Summary, AgentLookup, Parameters, ChangeLog — with every style, formula, RAG rule, pivot-ready data layout, and print setting applied. One command, zero manual steps."
+> "Write `generate_daily_mis.py`: reads the daily KPI extract (a CSV built from `v_daily_mis` plus payment counts from `fact_payments`), builds the FULL pack from your Phase A manual workbook — Cover, Daily, Summary, AgentLookup, Parameters, ChangeLog — with every style, formula, RAG rule, pivot-ready data layout, and print setting applied. One command, zero manual steps."
 
 **Your job:**
 1. Assemble everything from basic/medium/Phase A into a single CLI script.
-2. Input: CSV path + output xlsx path. The CSV is an export of `v_daily_mis` with `date, agent_id, team_name, total_calls, connected_calls, rpc_count, ptp_count, payment_count`.
-3. All behaviors intact: structured references (Excel Table), SUMIFS formulas, RAG conditional formatting, validation dropdowns, XLOOKUP formulas, print setup, Power Query-ready Data sheet layout.
+2. Input: CSV path + output xlsx path. The extract is agent-day grain with `date, agent_id, team_name, total_calls, connected_calls, rpc_count, ptp_count, payment_count`, plus the `kept_count` / `broken_count` columns needed for KP% (select them from `v_daily_mis`). `v_daily_mis` supplies everything except `payment_count` — join `fact_payments` as in basic Task 8.
+3. All behaviors intact: structured references (Excel Table), SUMIFS formulas, RAG conditional formatting, validation dropdowns, XLOOKUP formulas, print setup, Power Query-ready Daily sheet layout.
 4. **Key test:** the generated workbook must be functionally identical to `work/daily_mis_manual.xlsx` — same formulas, same structure, same pivot-ready layout.
 5. Fresh run reproduces the same sheets, tables and formulas; xlsx zip timestamps will differ, so compare structure not bytes.
 6. Add reconciliation step (compare generated numbers against SQL `v_daily_mis`).
@@ -131,11 +131,11 @@ The rule: **if you can't build it manually in Excel, you can't automate it corre
 
 📥 **Inbox:** From Site Director · Thu 4:30 PM · "8:45 email attaches this"
 
-> "Add a 'Refresh Pack' button on the Cover wired to a VBA module: prompts for the daily CSV (or uses a fixed drop path), clears and reloads the Data sheet, recalcs, exports Daily+Summary to PDF with the date in the filename. One click, morning done."
+> "Add a 'Refresh Pack' button on the Cover wired to a VBA module: prompts for the daily CSV (or uses a fixed drop path), clears and reloads the Daily sheet, recalcs, exports Daily+Summary to PDF with the date in the filename. One click, morning done."
 
 **Your job:**
 1. Write VBA module `modPackPipeline`:
-   - `RefreshPack` sub: find newest CSV in drop path, load into Data sheet via QueryTable, recalc, export PDF
+   - `RefreshPack` sub: find newest CSV in drop path, load into Daily sheet via QueryTable, recalc, export PDF
    - Failure path: missing CSV → message box, no partial write
 2. Cover button: Insert → Shapes → rectangle → Assign Macro → `RefreshPack`
 3. PDF filename: `daily_mis_YYYY-MM-DD.pdf`
@@ -164,7 +164,7 @@ The rule: **if you can't build it manually in Excel, you can't automate it corre
    - Cannot author VBA from python; only preserve existing project
    - Sheet-level code (event handlers on renamed/deleted sheets) can orphan
    - Keep sheet NAMES stable so ThisWorkbook/module references survive
-3. **Test:** open generated file → Alt+F11 shows modules intact → Workbook_Open fires → button works. Break test deliberately: rename Data sheet in a copy → observe what orphans.
+3. **Test:** open generated file → Alt+F11 shows modules intact → Workbook_Open fires → button works. Break test deliberately: rename Daily sheet in a copy → observe what orphans.
 
 **Done when:**
 - [ ] Documented flow with template → rebuild → save

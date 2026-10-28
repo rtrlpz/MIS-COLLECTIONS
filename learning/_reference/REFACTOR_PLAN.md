@@ -1,6 +1,6 @@
 # learning/ REFACTOR PLAN — Collections MIS Analyst JD Alignment
 
-> **Status:** ✅ COMPLETE — all 7 phases delivered (Aug 2026) · ~95 JD-aligned tasks across 6 tracks
+> **Status:** ✅ COMPLETE — all 7 phases delivered (Aug 2026) · 111 JD-aligned tasks across 6 tracks
 > **Owner:** MIS & Analytics Lead review
 > **Goal:** Rewrite and expand the entire `learning/` practice lab so a new analyst is
 > day-one ready for the Collections MIS Analyst role (source JD:
@@ -76,11 +76,11 @@ Requirements extracted from the actual job description, and where each one is tr
 | **sql/** | 7 → **9** | 5 → **8** | 4 → **9** | freshness check, payments allocation, installment reconciliation, LAG/LEAD roll rates, vintage, re-entry cohorts, scorecard audit, portfolio_cure_rate reconcile, capacity forecast baseline, recovery curve, governance audit |
 | **powerbi/** | 4 → **6** | → **6** | → **5** | MTD/YTD + calc group, Dim_Targets actual-vs-target, RAG formatting, roll-rate matrix visual, SVG indicator cards, RLS via v_rls_supervisor_map + View-As testing, report governance/theme |
 | **python/** | 4 → **6** | → **6** | → **5** | dtype/chunking @1.34M rows, installment-aware reconciliation, KP-decline detector, DB↔CSV checksum reconciliation, transition matrix, seasonal-naive forecast + capacity, QC assertion suite |
-| **excel/** | 4 → **6** | → **6** | → **5** | formula-driven RAG, Power Query refresh, openpyxl MIS generator, VBA Workbook_Open, VBA import→refresh→PDF macro pipeline, .xlsm via keep_vba, Task Scheduler, change-log governance |
+| **excel/** | 4 → **9** | → **13** | → **7** | formula-driven RAG, Power Query refresh, openpyxl MIS generator, VBA Workbook_Open, VBA import→refresh→PDF macro pipeline, .xlsm via keep_vba, Task Scheduler, change-log governance |
 | **notebooks/** | 4 → **5** | → **5** | → **4** | explanation-first mirrors of Python topics: cure waterfall, roll-rate heatmap, forecast narrative |
 | **git-cli/** | single level 5 → **8** | | | diff-before-send, MIS-variant branch, merge-conflict resolution on report SQL, revert, stash under pressure, release tagging |
 
-Total: ~95 tasks (was ~40). Every level keeps its "Words you'll meet" primer and Finish page.
+Total: 111 tasks (was ~40). Every level keeps its "Words you'll meet" primer and Finish page.
 
 ## 5. Delivery order & commit strategy
 
@@ -119,5 +119,5 @@ and keeps each commit self-contained/revertable.
 | 3 | `powerbi/` all levels | ✅ Done (Aug 2026; 17 tasks incl. SVG cards, RLS, governance) |
 | 4 | `python/` all levels | ✅ Done (Aug 2026; solutions QA-run vs live CSVs+DB: row counts, team RPC% parity, 22-cell matrix match) |
 | 5 | `notebooks/` all levels | ✅ Done (Aug 2026; 14 explanation-first tasks: KPI explainer, roll-rate heatmap, forecast narrative, reproducibility hardening) |
-| 6 | `excel/` all levels (incl. VBA) | ✅ Done (Aug 2026; 17 tasks: openpyxl generator, Workbook_Open + one-button VBA pipeline, keep_vba flow, scheduler governance) |
+| 6 | `excel/` all levels (incl. VBA) | ✅ Done (Aug 2026; 29 tasks: openpyxl generator, Workbook_Open + one-button VBA pipeline, keep_vba flow, scheduler governance) |
 | 7 | `git-cli/` + kpi_glossary additions + consistency sweep | ✅ Done (Aug 2026; 8 drills incl. conflict resolution/revert/stash/tag; glossary +2 sections: portfolio risk metrics, forecasting & capacity) |

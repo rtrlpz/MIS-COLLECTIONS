@@ -29,7 +29,8 @@ def load_year(table, date_col, dtypes=None):
 inter = load_year("Fact_Interactions", "interaction_date", OPT)
 print(f"{len(inter):,} rows | {inter.memory_usage(deep=True).sum()/1024**2:,.0f} MB deep")
 assert len(inter) == sum(len(pd.read_csv(m / "Fact_Interactions.csv"))
-                         for m in (RAW / "data_sources" / "raw").iterdir() if m.is_dir())
+                         for m in (RAW / "data_sources" / "raw").iterdir()
+                         if m.is_dir() and m.name != "shared")
 ```
 > *Reference: `_reference/datasets.md` lists ~1.34M for fact_interactions — write the actual number beside it.*
 
@@ -42,25 +43,35 @@ assert len(inter) == sum(len(pd.read_csv(m / "Fact_Interactions.csv"))
 ```python
 import matplotlib.pyplot as plt
 
-TARGET = 45.0
-monthly = (inter.groupby(inter["interaction_date"].dt.to_period("M"))
-                .apply(lambda g: 100 * g["rpc_flag"].sum()
-                       / max(g["calls_connected"].sum(), 1), include_groups=False))
+GOAL = 80.0
+AMBER = 0.85 * GOAL          # project RAG rule: amber starts at 85% of goal
 
-plot_s = monthly.copy()
-plot_s.index = plot_s.index.astype(str)          # one axis type for line + scatter
-under = plot_s[plot_s < TARGET]
+ptp = load_year("Fact_PTP_Log", "ptp_date",
+                {"agent_id": "category", "status": "category"})
+
+def kp_pct(g):
+    resolved = g["status"].isin(["Kept", "Broken"]).sum()
+    return 100 * (g["status"] == "Kept").sum() / max(resolved, 1)
+
+monthly = (ptp.groupby(ptp["ptp_date"].dt.to_period("M"))
+              .apply(kp_pct, include_groups=False))
+
+labels = monthly.index.astype(str).tolist()
+x = list(range(len(monthly)))
+colours = ["#00B050" if v >= GOAL else "#FFC000" if v >= AMBER else "#FF0000"
+           for v in monthly]
 
 fig, ax = plt.subplots(figsize=(9, 4))
-plot_s.plot(ax=ax, marker="o", color="#262A76", label="RPC %")
-ax.axhline(TARGET, color="#FF0000", ls="--", lw=1, label=f"target {TARGET:.0f}%")
-ax.scatter(under.index, under.values, color="#FFC000", zorder=3,
-           label="below target")
-ax.set_title("Monthly RPC % vs target — 2025"); ax.set_ylabel("RPC %")
-ax.legend(); plt.tight_layout(); plt.show()
+ax.plot(x, monthly.values, color="#262A76", lw=1.5, label="KP %")
+ax.scatter(x, monthly.values, c=colours, zorder=3, s=45)
+ax.axhline(GOAL, color="#00B050", ls="--", lw=1, label=f"goal {GOAL:.0f}%")
+ax.axhline(AMBER, color="#FFC000", ls=":", lw=1, label=f"amber floor {AMBER:.0f}%")
+ax.set_xticks(x, labels, rotation=45, ha="right")
+ax.set_title("Monthly KP % vs goal — 2025"); ax.set_ylabel("KP %")
+ax.set_ylim(0, 100); ax.legend(); plt.tight_layout(); plt.show()
 ```
 
-Takeaway cell names the under-target months explicitly and one plausible driver each.
+Takeaway cell names the months under 80% and splits them into amber (68–80%) and red (<68%), with one plausible driver each.
 
 ---
 
@@ -68,11 +79,20 @@ Takeaway cell names the under-target months explicitly and one plausible driver 
 
 Narrative arc with real cells:
 
-1. **md:** "Rule: a plan is Kept when cumulative payments ≥95% of promised within grace. Watch plan `<pick a multi-part ptp_id from Q2>`."
-2. **code:** filter that plan's rows from ptp + payments; display promised/grace/status.
-3. **code:** its payment rows chronologically with running cumulative column (`cumsum`) and a `% of promise` column.
-4. **md:** reading — part 1 alone = X% (<95) → stays Pending; part 2 crosses threshold → Kept.
-5. **code:** aggregate invariant across ALL kept plans:
+1. **code:** load the two tables once.
+
+```python
+ptp = load_year("Fact_PTP_Log", "ptp_date",
+                {"agent_id": "category", "status": "category"})
+pay = load_year("Fact_Payments", "payment_date",
+                {"agent_id": "category", "ptp_id": "string"})
+```
+
+2. **md:** "Rule: a plan is Kept when cumulative payments ≥95% of promised within grace. Watch plan `<pick a multi-part ptp_id from Q2>`."
+3. **code:** filter that plan's rows from ptp + payments; display promised/grace/status.
+4. **code:** its payment rows chronologically with running cumulative column (`cumsum`) and a `% of promise` column.
+5. **md:** reading — part 1 alone = X% (<95) → stays Pending; part 2 crosses threshold → Kept.
+6. **code:** aggregate invariant across ALL kept plans:
 
 ```python
 totals = pay[pay["ptp_id"].notna()].groupby("ptp_id")["amount_paid"].sum()
@@ -80,7 +100,7 @@ kept = ptp[ptp["status"] == "Kept"].merge(totals.rename("paid"), on="ptp_id", ho
 assert (kept["paid"].fillna(0) >= 0.95 * kept["promised_amount"]).all()
 ```
 
-6. **md takeaway:** per-row checking is why finance doubted us; per-plan is the contract.
+7. **md takeaway:** per-row checking is why finance doubted us; per-plan is the contract.
 
 **Verify yourself:** a colleague reads only your markdown cells — do they get it without running anything?
 
@@ -123,6 +143,9 @@ TEAM  = None            # None = all teams
 Every downstream cell consumes only MONTH/TEAM:
 
 ```python
+emps = pd.read_csv(RAW / "data_sources" / "raw" / "shared" / "Dim_Employees.csv",
+                   dtype={"agent_id": "category", "team_name": "category"})
+
 mask = inter["interaction_date"].dt.to_period("M").astype(str).eq(MONTH)
 if TEAM:
     mask &= inter["agent_id"].isin(

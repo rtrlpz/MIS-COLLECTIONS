@@ -135,7 +135,10 @@ you are exporting **daily × team** data, which Basic never had.
        GROUP BY 1, 2
    ),
    promises AS (
-       SELECT p.ptp_date AS date, e.team_name AS team, COUNT(*) AS promises
+       SELECT p.ptp_date AS date, e.team_name AS team,
+              COUNT(*) AS promises,
+              COUNT(*) FILTER (WHERE p.status = 'Kept')   AS kept,
+              COUNT(*) FILTER (WHERE p.status = 'Broken') AS broken
        FROM fact_ptp_log p
        JOIN dim_employees e ON e.agent_id = p.agent_id
        GROUP BY 1, 2
@@ -152,7 +155,9 @@ you are exporting **daily × team** data, which Basic never had.
           COALESCE(a.connects, 0) AS "Connects",
           COALESCE(a.rpcs, 0)     AS "RPCs",
           COALESCE(pr.promises, 0) AS "Promises",
-          COALESCE(pa.payments, 0) AS "Payments"
+          COALESCE(pa.payments, 0) AS "Payments",
+          COALESCE(pr.kept, 0)     AS "Kept",
+          COALESCE(pr.broken, 0)   AS "Broken"
    FROM activity a
    FULL OUTER JOIN promises pr
        ON pr.date = a.date AND pr.team = a.team
@@ -167,8 +172,9 @@ you are exporting **daily × team** data, which Basic never had.
    separator and tick **Detect special numbers** so dates become real dates.
 
 **Expected result:** Two CSV files. The team CSV has the columns
-`Date, Team, Contacts, Connects, RPCs, Promises, Payments`, covers
-2025-01-01 to 2025-12-31, and contains the eight teams.
+`Date, Team, Contacts, Connects, RPCs, Promises, Payments, Kept, Broken`, covers
+2025-01-01 to 2025-12-31, and contains the eight teams. Kept and Broken are the
+resolved-promise counts behind KP%.
 
 **Beginner check:** Open the team CSV. The first date is a real date (right-
 aligned, not text), the last date is 2025-12-31, and the Team column shows
@@ -210,9 +216,12 @@ for month in sorted(glob.glob("data_sources/raw/*_2025")):
                     RPCs=("rpc_flag", "sum")).reset_index()
                .rename(columns={"interaction_date": "Date",
                                 "team_name": "Team"}))
-    p = (ptp.groupby(["ptp_date", "team_name"]).size()
-            .rename("Promises").reset_index()
-            .rename(columns={"ptp_date": "Date", "team_name": "Team"}))
+    p = (ptp.groupby(["ptp_date", "team_name"])
+             .agg(Promises=("ptp_id", "size"),
+                  Kept=("status", lambda s: (s == "Kept").sum()),
+                  Broken=("status", lambda s: (s == "Broken").sum()))
+             .reset_index()
+             .rename(columns={"ptp_date": "Date", "team_name": "Team"}))
     q = (pay.groupby(["payment_date", "team_name"]).size()
             .rename("Payments").reset_index()
             .rename(columns={"payment_date": "Date", "team_name": "Team"}))
@@ -253,7 +262,7 @@ stranger should be able to open the file and know what each tab is.
    - `A7`: `How to use this pack`
    - `A8:A13`: one short line per tab, for example
      `Data — the only place raw daily values live`,
-     `Summary — monthly totals and RPC%`,
+     `Summary — monthly totals, RPC% and KP%`,
      `Parameters — teams and RAG thresholds`,
      `AgentLookup — agent ID to name`,
      `ChangeLog — every shipped edit is recorded here`.
@@ -289,7 +298,7 @@ equivalent of an Excel Table: **named ranges**.
 
 **What to create:** The `Data` sheet plus named ranges `tblDate`, `tblTeam`,
 `tblContacts`, `tblConnects`, `tblRPCs`, `tblPromises`, `tblPayments`,
-`tblMonth`, and one helper column.
+`tblKept`, `tblBroken`, `tblMonth`, and one helper column.
 
 **Steps:**
 
@@ -301,20 +310,20 @@ equivalent of an Excel Table: **named ranges**.
    (`Ctrl+V`).
 4. Make sure row 1 contains these headers, in this order:
    `A1 Date`, `B1 Team`, `C1 Contacts`, `D1 Connects`, `E1 RPCs`,
-   `F1 Promises`, `G1 Payments`, `H1 Month`.
-5. In `H2` type:
+   `F1 Promises`, `G1 Payments`, `H1 Kept`, `I1 Broken`, `J1 Month`.
+5. In `J2` type:
 
    ```
    =DATE(YEAR(A2);MONTH(A2);1)
    ```
 
    This turns the date into the first day of its month. Fill it down to the
-   last data row (double-click the small square at the bottom-right of `H2`,
+   last data row (double-click the small square at the bottom-right of `J2`,
    or drag it down).
 6. Format the columns:
    - `A` → `yyyy-mm-dd`
-   - `H` → `yyyy-mm`
-   - `C:G` → `#,##0`
+   - `J` → `yyyy-mm`
+   - `C:I` → `#,##0`
    Use **Format → Cells** (or `Ctrl+1`).
 7. Define the named ranges:
    **Sheet → Named Ranges and Expressions → Define**.
@@ -329,14 +338,16 @@ equivalent of an Excel Table: **named ranges**.
    | `tblRPCs` | `$Data.$E$2:$E$10000` |
    | `tblPromises` | `$Data.$F$2:$F$10000` |
    | `tblPayments` | `$Data.$G$2:$G$10000` |
-   | `tblMonth` | `$Data.$H$2:$H$10000` |
+   | `tblKept` | `$Data.$H$2:$H$10000` |
+   | `tblBroken` | `$Data.$I$2:$I$10000` |
+   | `tblMonth` | `$Data.$J$2:$J$10000` |
 
    10,000 is a safe upper bound — the names cover the data even when rows are
    added. In Excel this is done with a Table and `tblDaily[Contacts]`.
 8. Save.
 
 **Expected result:** A Data sheet with one row per date × team, a Month
-column filled for every row, and eight named ranges.
+column filled for every row, and ten named ranges.
 
 **Beginner check:** In any empty cell, type `=SUM(tblPromises)` and press
 Enter. It must equal the total of column F. Delete the test cell afterwards.
@@ -361,7 +372,8 @@ calculated.
 1. On `Summary`:
    - `A1`: `Monthly Summary` (bold, size 14)
    - Row 4 headers: `A4 Month`, `B4 Contacts`, `C4 Connects`, `D4 RPCs`,
-     `E4 RPC %`, `F4 Promises`, `G4 Payments`, `H4 Promises Δ MoM`
+     `E4 RPC %`, `F4 Promises`, `G4 Payments`, `H4 KP %`,
+     `I4 Promises Δ MoM`
 2. In `A5` type `2025-01-01`. In `A6` type `2025-02-01`. Select both and drag
    the fill handle down to `A16` so you have all 12 months. Format `A5:A16`
    as `yyyy-mm`.
@@ -378,19 +390,29 @@ calculated.
 7. In `G5` type `=SUMIFS(tblPayments;tblMonth;$A5)`.
 8. In `E5` type `=IFERROR(D5/C5;0)` and format `E5` as `0.0%`.
    This is RPCs ÷ Connects.
-9. In `H6` type `=F6-F5` and format `H6:H16` as `+#,##0;-#,##0;0`.
-   This is this month's promises minus last month's.
-10. Select `B5:G5` and drag the fill handle down to row 16.
-11. Select `H6` and drag down to `H16`.
-12. Save.
+9. In `H5` type:
 
-**Expected result:** Twelve month rows with totals, an RPC% column, and a
+   ```
+   =IFERROR(SUMIFS(tblKept;tblMonth;$A5)/
+            (SUMIFS(tblKept;tblMonth;$A5)+SUMIFS(tblBroken;tblMonth;$A5));0)
+   ```
+
+   Format `H5` as `0.0%`. This is KP% — Kept ÷ (Kept + Broken). `Pending`
+   promises stay out of the denominator.
+10. In `I6` type `=F6-F5` and format `I6:I16` as `+#,##0;-#,##0;0`.
+    This is this month's promises minus last month's.
+11. Select `B5:H5` and drag the fill handle down to row 16.
+12. Select `I6` and drag down to `I16`.
+13. Save.
+
+**Expected result:** Twelve month rows with totals, RPC%, KP%, and a
 month-over-month promise delta.
 
 **Beginner check:** Go to `Data`, pick one Promises cell and add `100` to it.
-Return to `Summary`: that month's `F` and the next month's `H` must change.
+Return to `Summary`: that month's `F` and the next month's `I` must change.
 Now type `=SUM(tblPromises)` in an empty cell — it must equal the sum of
-`F5:F16`. Delete the test cell.
+`F5:F16`. Delete the test cell. Check one `H` cell by hand:
+Kept ÷ (Kept + Broken) for that month.
 
 **Files created/modified:** `work/daily_mis_medium.xlsx`
 
@@ -405,7 +427,7 @@ strategy can tune them without editing formulas. Red/amber/green is the
 standard MIS "ten-second read".
 
 **What to create:** Threshold cells on `Parameters` and three conditional
-formatting rules on `Summary!E5:E16`.
+formatting rules on `Summary!H5:H16`.
 
 **Steps:**
 
@@ -413,9 +435,9 @@ formatting rules on `Summary!E5:E16`.
    - `A1`: `Team`
    - `A2:A9`: `Team 1` … `Team 8`
    - `D1`: `Threshold`
-   - `D2`: `RPC% amber`, `E2`: `0.35` (format `0.0%`)
-   - `D3`: `RPC% green`, `E3`: `0.45` (format `0.0%`)
-2. On `Summary`, select `E5:E16`.
+   - `D2`: `KP% amber`, `E2`: `0.68` (format `0.0%`)
+   - `D3`: `KP% green`, `E3`: `0.80` (format `0.0%`)
+2. On `Summary`, select `H5:H16`.
 3. **Format → Conditional → Manage → Add**.
 4. Rule 1 (green):
    - Condition: **Cell value is** → **greater than or equal to**
@@ -431,17 +453,18 @@ formatting rules on `Summary!E5:E16`.
    - New Style → Background `#FF0000`, Font color white
 7. Use **Move Up** so the green rule is first.
 8. Test: change `E3` to `0.90` → almost everything repaints. Set it back to
-   `0.45`.
+   `0.80`.
 
-**Expected result:** The RPC% cells colour themselves, and changing a
+**Expected result:** The KP% cells colour themselves, and changing a
 threshold repaints the summary instantly.
 
-**Beginner check:** Set `E2` and `E3` both to `0`. Every RPC% cell must turn
-green. Restore `0.35` and `0.45`. Hover over a cell to read its value and
+**Beginner check:** Set `E2` and `E3` both to `0`. Every KP% cell must turn
+green. Restore `0.68` and `0.80`. Hover over a cell to read its value and
 confirm the colour matches the rule.
 
-**Important:** RPC% is stored as a decimal (`0.40`), so the thresholds must
-also be decimals (`0.35`, `0.45`), not `35` and `45`. If you type `35`, the
+**Important:** KP% is stored as a decimal (`0.80`), so the thresholds must
+also be decimals (`0.68`, `0.80`), not `68` and `80`. The 0.68 amber bound is
+the project rule: amber starts at 85% of the 80% goal. If you type `68`, the
 comparison is wrong.
 
 **Files created/modified:** `work/daily_mis_medium.xlsx`
@@ -459,7 +482,7 @@ exploration, and learn what "refresh" means.
 
 **Steps:**
 
-1. On `Data`, select the whole used range `A1:H{last row}`.
+1. On `Data`, select the whole used range `A1:J{last row}`.
 2. **Insert → Pivot Table**.
 3. Source: **Current Selection**. Destination: **New Sheet**. Click OK.
 4. Rename the new sheet `PivotMonthly`.
@@ -575,14 +598,14 @@ rows — the settings people forget until the boardroom printer fails.
 
 **Steps:**
 
-1. On `Summary`, select `A1:H16`.
+1. On `Summary`, select `A1:I16`.
 2. **Format → Print Ranges → Define**.
 3. **Format → Page Style → Page**:
    - Orientation: **Landscape**
    - Scaling: **Fit print range(s) on number of pages** → Width `1`,
      Height `0`
 4. **Format → Print Ranges → Edit** → **Rows to repeat**: `$4:$4`.
-5. Repeat for `Data`: print range `A1:H{last row}`, landscape, fit to one page
+5. Repeat for `Data`: print range `A1:J{last row}`, landscape, fit to one page
    wide, rows to repeat `$1:$1`.
 6. **File → Export as PDF** → save as
    `learning/excel/medium/work/exports/daily_mis_medium.pdf`.
@@ -661,7 +684,7 @@ must fit one page wide.
    cover["A7"] = "How to use this pack"
    notes = [
        "Data — the only place raw daily values live",
-       "Summary — monthly totals and RPC%",
+       "Summary — monthly totals, RPC% and KP%",
        "Parameters — teams and RAG thresholds",
        "AgentLookup — agent ID to name",
        "ChangeLog — every shipped edit is recorded here",
@@ -737,32 +760,35 @@ conditional formatting.
 
    ws_d = wb["Data"]
    headers = ["Date", "Team", "Contacts", "Connects", "RPCs",
-              "Promises", "Payments", "Month"]
+              "Promises", "Payments", "Kept", "Broken", "Month"]
    ws_d.append(headers)
    for _, row in df.iterrows():
        ws_d.append([
            row["Date"].to_pydatetime(), row["Team"],
            int(row["Contacts"]), int(row["Connects"]), int(row["RPCs"]),
            int(row["Promises"]), int(row["Payments"]),
+           int(row["Kept"]), int(row["Broken"]),
            row["Month"].to_pydatetime(),
        ])
 
    last = ws_d.max_row
    for r in range(2, last + 1):
        ws_d[f"A{r}"].number_format = "yyyy-mm-dd"
-       ws_d[f"H{r}"].number_format = "yyyy-mm"
-       for col in "CDEFG":
+       ws_d[f"J{r}"].number_format = "yyyy-mm"
+       for col in "CDEFGHI":
            ws_d[f"{col}{r}"].number_format = "#,##0"
 
    ws_d.freeze_panes = "A2"
    for col, width in {"A": 12, "B": 10, "C": 11, "D": 11,
-                      "E": 9, "F": 11, "G": 11, "H": 10}.items():
+                      "E": 9, "F": 11, "G": 11, "H": 9,
+                      "I": 9, "J": 10}.items():
        ws_d.column_dimensions[col].width = width
 
    names = {
        "tblDate": "A", "tblTeam": "B", "tblContacts": "C",
        "tblConnects": "D", "tblRPCs": "E", "tblPromises": "F",
-       "tblPayments": "G", "tblMonth": "H",
+       "tblPayments": "G", "tblKept": "H", "tblBroken": "I",
+       "tblMonth": "J",
    }
    for name, col in names.items():
        wb.defined_names.add(DefinedName(
@@ -776,7 +802,7 @@ conditional formatting.
    ws_s["A1"] = "Monthly Summary"
    ws_s["A1"].font = Font(size=14, bold=True, color="262A76")
    head = ["Month", "Contacts", "Connects", "RPCs", "RPC %",
-           "Promises", "Payments", "Promises Δ MoM"]
+           "Promises", "Payments", "KP %", "Promises Δ MoM"]
    for c, text in enumerate(head, start=1):
        cell = ws_s.cell(row=4, column=c, value=text)
        cell.font = Font(bold=True, color="FFFFFF")
@@ -795,12 +821,17 @@ conditional formatting.
            ws_s[f"{col}{i}"] = f"=SUMIFS({name},tblMonth,$A{i})"
        ws_s[f"E{i}"] = f"=IFERROR(D{i}/C{i},0)"
        ws_s[f"E{i}"].number_format = "0.0%"
+       ws_s[f"H{i}"] = (
+           f"=IFERROR(SUMIFS(tblKept,tblMonth,$A{i})/"
+           f"(SUMIFS(tblKept,tblMonth,$A{i})+SUMIFS(tblBroken,tblMonth,$A{i})),0)")
+       ws_s[f"H{i}"].number_format = "0.0%"
        if i > 5:
-           ws_s[f"H{i}"] = f"=F{i}-F{i-1}"
+           ws_s[f"I{i}"] = f"=F{i}-F{i-1}"
+           ws_s[f"I{i}"].number_format = "+#,##0;-#,##0;0"
 
    ws_s.freeze_panes = "A5"
    ws_s.column_dimensions["A"].width = 12
-   for col in "BCDEFGH":
+   for col in "BCDEFGHI":
        ws_s.column_dimensions[col].width = 14
    ```
 
@@ -812,17 +843,17 @@ conditional formatting.
    for i, team in enumerate(sorted(df["Team"].unique()), start=2):
        ws_p[f"A{i}"] = team
    ws_p["D1"] = "Threshold"
-   ws_p["D2"] = "RPC% amber"
-   ws_p["E2"] = 0.35
+   ws_p["D2"] = "KP% amber"
+   ws_p["E2"] = 0.68
    ws_p["E2"].number_format = "0.0%"
-   ws_p["D3"] = "RPC% green"
-   ws_p["E3"] = 0.45
+   ws_p["D3"] = "KP% green"
+   ws_p["E3"] = 0.80
    ws_p["E3"].number_format = "0.0%"
 
    green = PatternFill("solid", fgColor="00B050")
    amber = PatternFill("solid", fgColor="FFC000")
    red   = PatternFill("solid", fgColor="FF0000")
-   rng = "E5:E16"
+   rng = "H5:H16"
    ws_s.conditional_formatting.add(rng, CellIsRule(
        operator="greaterThanOrEqual", formula=["Parameters!$E$3"], fill=green))
    ws_s.conditional_formatting.add(rng, CellIsRule(
@@ -837,10 +868,10 @@ conditional formatting.
 7. Open `daily_mis_auto.xlsx` in Calc.
 
 **Expected result:** The generated `Data` sheet has all rows; `Summary` shows
-12 months of totals; RPC% cells are coloured by the rules.
+12 months of totals; KP% cells are coloured by the rules.
 
 **Beginner check:** In the generated workbook, `=SUM(tblPromises)` must equal
-`=SUM(F5:F16)`. Change `Parameters!E3` to `0.90`; the RPC% cells must
+`=SUM(F5:F16)`. Change `Parameters!E3` to `0.90`; the KP% cells must
 repaint. Compare one month with your manual workbook — the numbers must match.
 
 **Files created/modified:** `work/scripts/build_pack.py`,
@@ -877,15 +908,15 @@ tab colours, and print/PDF settings.
    ws_l.column_dimensions["B"].width = 32
 
    # Demo lookups on Data: write formulas, not pre-filled names.
-   ws_d["J4"] = "Agent ID"
-   ws_d["K4"] = "Name (VLOOKUP)"
-   ws_d["J5"] = "EID-001"
-   ws_d["K5"] = ('=IFERROR(VLOOKUP(J5,AgentLookup!$A$2:$B$89,2,FALSE),"—")')
+   ws_d["L4"] = "Agent ID"
+   ws_d["M4"] = "Name (VLOOKUP)"
+   ws_d["L5"] = "EID-001"
+   ws_d["M5"] = ('=IFERROR(VLOOKUP(L5,AgentLookup!$A$2:$B$89,2,FALSE),"—")')
    ```
 
    Use `VLOOKUP` here because it works in every LibreOffice version. If you
    use Calc 24.8 or newer, you may replace it with
-   `=IFNA(XLOOKUP(J5,AgentLookup!$A$2:$A$89,AgentLookup!$B$2:$B$89),"—")`.
+   `=IFNA(XLOOKUP(L5,AgentLookup!$A$2:$A$89,AgentLookup!$B$2:$B$89),"—")`.
 
 2. Add team validation on the Data sheet:
 
@@ -904,10 +935,10 @@ tab colours, and print/PDF settings.
    ```python
    ws_cl = wb["ChangeLog"]
    ws_cl.append(["Date", "Author", "Sheet/Range", "What changed", "Why"])
-   ws_cl.append(["2025-08-25", "Your Name", "Summary!H5:H16",
+   ws_cl.append(["2025-08-25", "Your Name", "Summary!I5:I16",
                  "Added MoM delta column", "Ops asked for direction at a glance"])
    ws_cl.append(["2025-08-25", "Your Name", "Parameters!E2:E3",
-                 "Set RPC% thresholds", "Strategy calibration"])
+                 "Set KP% thresholds", "Strategy calibration"])
    ws_cl.append(["2025-08-26", "Your Name", "Data!C5",
                  "Fixed a paste error caught by reconciliation",
                  "Workbook must agree with the source"])
@@ -928,7 +959,7 @@ tab colours, and print/PDF settings.
    ```
 
    For `Summary`, use `ws_s.print_title_rows = "4:4"` and
-   `ws_s.print_area = "A1:H16"`.
+   `ws_s.print_area = "A1:I16"`.
 
 5. Save, run the script, and export a PDF:
 
@@ -974,13 +1005,14 @@ final review of the whole pack.
            source = next(r for r in csv.DictReader(f)
                          if r["Date"] == date_text and r["Team"] == team)
 
-       wb = load_workbook(OUT, data_only=False)
+       wb = load_workbook(OUT, data_only=True)
        ws = wb["Data"]
        for row in ws.iter_rows(min_row=2, values_only=True):
            if row[0].strftime("%Y-%m-%d") == date_text and row[1] == team:
                sheet = {
                    "Contacts": row[2], "Connects": row[3], "RPCs": row[4],
                    "Promises": row[5], "Payments": row[6],
+                   "Kept": row[7], "Broken": row[8],
                }
                break
 
@@ -989,7 +1021,7 @@ final review of the whole pack.
            if value != expected:
                print(f"FAIL {key}: sheet={value} source={expected}")
                return False
-       print(f"PASS {date_text} / {team}: all five metrics match")
+       print(f"PASS {date_text} / {team}: all seven metrics match")
        return True
    ```
 
@@ -1006,7 +1038,7 @@ final review of the whole pack.
    - [ ] Six sheets in the fixed order, tabs coloured
    - [ ] `Data` has one row per date × team and a Month column
    - [ ] Summary totals equal `=SUM(tblPromises)` and match the manual workbook
-   - [ ] RPC% turns green/amber/red from the Parameters thresholds
+   - [ ] KP% turns green/amber/red from the Parameters thresholds
    - [ ] Pivot (manual) and Dashboard chart work
    - [ ] The CSV refresh routine is documented on the Cover
    - [ ] Dropdown refuses invalid team names

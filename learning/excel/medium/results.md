@@ -47,7 +47,10 @@ WITH activity AS (
     GROUP BY 1, 2
 ),
 promises AS (
-    SELECT p.ptp_date AS date, e.team_name AS team, COUNT(*) AS promises
+    SELECT p.ptp_date AS date, e.team_name AS team,
+           COUNT(*) AS promises,
+           COUNT(*) FILTER (WHERE p.status = 'Kept')   AS kept,
+           COUNT(*) FILTER (WHERE p.status = 'Broken') AS broken
     FROM fact_ptp_log p
     JOIN dim_employees e ON e.agent_id = p.agent_id
     GROUP BY 1, 2
@@ -64,7 +67,9 @@ SELECT COALESCE(a.date, pr.date, pa.date) AS "Date",
        COALESCE(a.connects, 0)   AS "Connects",
        COALESCE(a.rpcs, 0)       AS "RPCs",
        COALESCE(pr.promises, 0)  AS "Promises",
-       COALESCE(pa.payments, 0)  AS "Payments"
+       COALESCE(pa.payments, 0)  AS "Payments",
+       COALESCE(pr.kept, 0)      AS "Kept",
+       COALESCE(pr.broken, 0)    AS "Broken"
 FROM activity a
 FULL OUTER JOIN promises pr
     ON pr.date = a.date AND pr.team = a.team
@@ -103,9 +108,12 @@ for month in sorted(glob.glob("data_sources/raw/*_2025")):
                     Connects=("calls_connected", "sum"),
                     RPCs=("rpc_flag", "sum")).reset_index()
                .rename(columns={"interaction_date": "Date", "team_name": "Team"}))
-    p = (ptp.groupby(["ptp_date", "team_name"]).size()
-            .rename("Promises").reset_index()
-            .rename(columns={"ptp_date": "Date", "team_name": "Team"}))
+    p = (ptp.groupby(["ptp_date", "team_name"])
+             .agg(Promises=("ptp_id", "size"),
+                  Kept=("status", lambda s: (s == "Kept").sum()),
+                  Broken=("status", lambda s: (s == "Broken").sum()))
+             .reset_index()
+             .rename(columns={"ptp_date": "Date", "team_name": "Team"}))
     q = (pay.groupby(["payment_date", "team_name"]).size()
             .rename("Payments").reset_index()
             .rename(columns={"payment_date": "Date", "team_name": "Team"}))
@@ -121,7 +129,7 @@ out.sort_values(["Date", "Team"]).to_csv(OUT, index=False)
 
 **Verify yourself:** open the CSV in Calc with **Comma** + **Detect special numbers**. Dates must be right-aligned (real dates), the last date `2025-12-31`, and `Team 1` … `Team 8` must appear. Sort by Team and count eight groups. Sum `Promises` and compare with a direct `SELECT COUNT(*) FROM fact_ptp_log` for 2025 — the difference should only be payments/promises with a null `agent_id` (self-cures, not team-attributable).
 
-**Traps & alternatives:** exporting the player with `is_current = TRUE` matters — `dim_employees` is SCD2, so the same agent appears more than once without that filter. And do not `GROUP BY` day + team and then join raw facts at the end; it multiplies promise and payment counts (this is the duplicate-row trap the CTEs exist to avoid).
+**Traps & alternatives:** `dim_employees` is the **current-state** table (one row per agent), so `is_current = TRUE` is a safe guard but not a de-duplicator. History lives in `dim_employee_history`; joining that here would multiply rows for the six transferred agents. And do not `GROUP BY` day + team and then join raw facts at the end; it multiplies promise and payment counts (this is the duplicate-row trap the CTEs exist to avoid).
 
 ---
 
@@ -163,15 +171,15 @@ out.sort_values(["Date", "Team"]).to_csv(OUT, index=False)
 
 1. Open `data/raw_daily_mis_team.csv` in Calc → import dialog: **Comma**, tick **Detect special numbers**.
 2. `Ctrl+A`, `Ctrl+C`.
-3. In your workbook: `Data!A1`, `Ctrl+V`. Headers land in row 1: `Date, Team, Contacts, Connects, RPCs, Promises, Payments`.
-4. `H1` = `Month`; `H2`:
+3. In your workbook: `Data!A1`, `Ctrl+V`. Headers land in row 1: `Date, Team, Contacts, Connects, RPCs, Promises, Payments, Kept, Broken`.
+4. `J1` = `Month`; `J2`:
 
    ```
    =DATE(YEAR(A2);MONTH(A2);1)
    ```
 
    Fill down to the last data row (double-click the fill handle).
-5. Formats: `A` → `yyyy-mm-dd`, `H` → `yyyy-mm`, `C:G` → `#,##0`.
+5. Formats: `A` → `yyyy-mm-dd`, `J` → `yyyy-mm`, `C:I` → `#,##0`.
 6. **Sheet → Named Ranges and Expressions → Define**, then add:
 
    | Name | Range |
@@ -183,7 +191,9 @@ out.sort_values(["Date", "Team"]).to_csv(OUT, index=False)
    | `tblRPCs` | `$Data.$E$2:$E$10000` |
    | `tblPromises` | `$Data.$F$2:$F$10000` |
    | `tblPayments` | `$Data.$G$2:$G$10000` |
-   | `tblMonth` | `$Data.$H$2:$H$10000` |
+   | `tblKept` | `$Data.$H$2:$H$10000` |
+   | `tblBroken` | `$Data.$I$2:$I$10000` |
+   | `tblMonth` | `$Data.$J$2:$J$10000` |
 
 **Why each part:** named ranges are Calc's substitute for structured table references. They keep formulas range-free when rows are appended, and the 10,000-row ceiling costs nothing because the ranges are mostly empty.
 
@@ -198,7 +208,7 @@ out.sort_values(["Date", "Team"]).to_csv(OUT, index=False)
 ### Manual steps
 
 1. `Summary!A1` = `Monthly Summary`, bold 14 pt.
-2. Row 4 headers: `Month, Contacts, Connects, RPCs, RPC %, Promises, Payments, Promises Δ MoM`.
+2. Row 4 headers: `Month, Contacts, Connects, RPCs, RPC %, Promises, Payments, KP %, Promises Δ MoM`.
 3. `A5` = `2025-01-01`, `A6` = `2025-02-01`, select both, drag to `A16`. Format `A5:A16` as `yyyy-mm`.
 4. Formulas, then fill down:
 
@@ -209,14 +219,17 @@ out.sort_values(["Date", "Team"]).to_csv(OUT, index=False)
    E5  =IFERROR(D5/C5;0)          format 0.0%
    F5  =SUMIFS(tblPromises;tblMonth;$A5)
    G5  =SUMIFS(tblPayments;tblMonth;$A5)
-   H6  =F6-F5                     format +#,##0;-#,##0;0
+   H5  =IFERROR(SUMIFS(tblKept;tblMonth;$A5)/
+                (SUMIFS(tblKept;tblMonth;$A5)+SUMIFS(tblBroken;tblMonth;$A5));0)
+                                   format 0.0%
+   I6  =F6-F5                     format +#,##0;-#,##0;0
    ```
 
-**Why each part:** `SUMIFS` lets the month column carry the whole comparison, so no start/end date arithmetic and no hardcoded month boundaries. `IFERROR(...,0)` keeps an empty month readable. The delta is a plain subtraction — the number format does the sign decoration.
+**Why each part:** `SUMIFS` lets the month column carry the whole comparison, so no start/end date arithmetic and no hardcoded month boundaries. `IFERROR(...,0)` keeps an empty month readable. KP% uses resolved promises only: Kept ÷ (Kept + Broken), so `Pending` cannot dilute the rate. The delta is a plain subtraction — the number format does the sign decoration.
 
-**Verify yourself:** add `100` to one `Promises` cell on `Data`. The month's `F` and the next month's `H` must both move. `=SUM(tblPromises)` must equal `=SUM(F5:F16)`.
+**Verify yourself:** add `100` to one `Promises` cell on `Data`. The month's `F` and the next month's `I` must both move. `=SUM(tblPromises)` must equal `=SUM(F5:F16)`. Recompute one `H` cell by hand and confirm it matches.
 
-**Traps & alternatives:** `H5` is deliberately empty — the first month has no prior month. Do not "fix" that with a `0`; it would read as a real delta of zero. The `$A5` anchor is relative in the row so it fills correctly; using `$A$5` everywhere would freeze every month to January.
+**Traps & alternatives:** `I5` is deliberately empty — the first month has no prior month. Do not "fix" that with a `0`; it would read as a real delta of zero. The `$A5` anchor is relative in the row so it fills correctly; using `$A$5` everywhere would freeze every month to January.
 
 ---
 
@@ -231,21 +244,21 @@ out.sort_values(["Date", "Team"]).to_csv(OUT, index=False)
    | `A1` | `Team` |
    | `A2:A9` | `Team 1` … `Team 8` |
    | `D1` | `Threshold` |
-   | `D2` / `E2` | `RPC% amber` / `0.35` (format `0.0%`) |
-   | `D3` / `E3` | `RPC% green` / `0.45` (format `0.0%`) |
+   | `D2` / `E2` | `KP% amber` / `0.68` (format `0.0%`) |
+   | `D3` / `E3` | `KP% green` / `0.80` (format `0.0%`) |
 
-2. Select `Summary!E5:E16` → **Format → Conditional → Manage → Add**.
+2. Select `Summary!H5:H16` → **Format → Conditional → Manage → Add**.
 3. Green: **Cell value is → greater than or equal to → `$Parameters.$E$3`**, background `#00B050`, font white.
 4. Amber: **Cell value is → between → `$Parameters.$E$2` and `$Parameters.$E$3`**, background `#FFC000`.
 5. Red: **Cell value is → less than → `$Parameters.$E$2`**, background `#FF0000`, font white.
 6. **Move Up** so green is evaluated first.
-7. Test: `E3` → `0.90` repaints almost everything; restore to `0.45`.
+7. Test: `E3` → `0.90` repaints almost everything; restore to `0.80`.
 
-**Why each part:** the rules point at a cell, not at a literal, so the threshold is a business decision stored next to the team list — not a code change. Green-first ordering matters: Calc evaluates rules in order and the first match wins.
+**Why each part:** the rules point at a cell, not at a literal, so the threshold is a business decision stored next to the team list — not a code change. Green-first ordering matters: Calc evaluates rules in order and the first match wins. The 0.68 amber bound is the project rule: amber starts at 85% of the 80% KP goal.
 
-**Verify yourself:** set both thresholds to `0` → every RPC% cell goes green. Restore `0.35` and `0.45`. Change one `Data` payment count to push a month below `0.35` and confirm it turns red.
+**Verify yourself:** set both thresholds to `0` → every KP% cell goes green. Restore `0.68` and `0.80`. Change one `Data` kept/broken count to push a month below `0.68` and confirm it turns red.
 
-**Traps & alternatives:** RPC% is stored as a decimal (`0.40`), so thresholds must be decimals. Typing `35` makes every cell red and looks "buggy" when the formula is actually correct. In Excel the range reference would read `$E$3` (same sheet) or `Parameters!$E$3`; Calc's `$Parameters.$E$3` is the inter-sheet form.
+**Traps & alternatives:** KP% is stored as a decimal (`0.80`), so thresholds must be decimals. Typing `68` makes every cell red and looks "buggy" when the formula is actually correct. In Excel the range reference would read `$E$3` (same sheet) or `Parameters!$E$3`; Calc's `$Parameters.$E$3` is the inter-sheet form.
 
 ---
 
@@ -253,7 +266,7 @@ out.sort_values(["Date", "Team"]).to_csv(OUT, index=False)
 
 ### Manual steps
 
-1. `Data!A1:H{last row}` → **Insert → Pivot Table**.
+1. `Data!A1:J{last row}` → **Insert → Pivot Table**.
 2. Source **Current Selection**, destination **New Sheet** → OK → rename `PivotMonthly`.
 3. Layout:
 
@@ -313,10 +326,10 @@ out.sort_values(["Date", "Team"]).to_csv(OUT, index=False)
 
 ### Manual steps
 
-1. `Summary!A1:H16` → **Format → Print Ranges → Define**.
+1. `Summary!A1:I16` → **Format → Print Ranges → Define**.
 2. **Format → Page Style → Page**: Landscape, scaling **Fit print range(s) on number of pages**, Width `1`, Height `0`.
 3. **Format → Print Ranges → Edit → Rows to repeat**: `$4:$4`.
-4. Repeat for `Data`: range `A1:H{last row}`, rows to repeat `$1:$1`.
+4. Repeat for `Data`: range `A1:J{last row}`, rows to repeat `$1:$1`.
 5. **File → Export as PDF** → `learning/excel/medium/work/exports/daily_mis_medium.pdf`.
 6. Open the PDF and inspect every page.
 
@@ -373,7 +386,7 @@ cover["B5"].number_format = "yyyy-mm-dd hh:mm"
 cover["A7"] = "How to use this pack"
 for i, line in enumerate([
         "Data — the only place raw daily values live",
-        "Summary — monthly totals and RPC%",
+        "Summary — monthly totals, RPC% and KP%",
         "Parameters — teams and RAG thresholds",
         "AgentLookup — agent ID to name",
         "ChangeLog — every shipped edit is recorded here"], start=8):
@@ -415,28 +428,31 @@ df["Month"] = df["Date"].values.astype("datetime64[M]")
 
 ws_d = wb["Data"]
 ws_d.append(["Date", "Team", "Contacts", "Connects", "RPCs",
-             "Promises", "Payments", "Month"])
+             "Promises", "Payments", "Kept", "Broken", "Month"])
 for _, row in df.iterrows():
     ws_d.append([row["Date"].to_pydatetime(), row["Team"],
                  int(row["Contacts"]), int(row["Connects"]), int(row["RPCs"]),
                  int(row["Promises"]), int(row["Payments"]),
+                 int(row["Kept"]), int(row["Broken"]),
                  row["Month"].to_pydatetime()])
 
 last = ws_d.max_row
 for r in range(2, last + 1):
     ws_d[f"A{r}"].number_format = "yyyy-mm-dd"
-    ws_d[f"H{r}"].number_format = "yyyy-mm"
-    for col in "CDEFG":
+    ws_d[f"J{r}"].number_format = "yyyy-mm"
+    for col in "CDEFGHI":
         ws_d[f"{col}{r}"].number_format = "#,##0"
 
 ws_d.freeze_panes = "A2"
 for col, width in {"A": 12, "B": 10, "C": 11, "D": 11,
-                   "E": 9, "F": 11, "G": 11, "H": 10}.items():
+                   "E": 9, "F": 11, "G": 11, "H": 9,
+                   "I": 9, "J": 10}.items():
     ws_d.column_dimensions[col].width = width
 
 for name, col in {"tblDate": "A", "tblTeam": "B", "tblContacts": "C",
                   "tblConnects": "D", "tblRPCs": "E", "tblPromises": "F",
-                  "tblPayments": "G", "tblMonth": "H"}.items():
+                  "tblPayments": "G", "tblKept": "H", "tblBroken": "I",
+                  "tblMonth": "J"}.items():
     wb.defined_names.add(DefinedName(
         name, attr_text=f"Data!${col}$2:${col}$10000"))
 ```
@@ -447,7 +463,7 @@ ws_s["A1"] = "Monthly Summary"
 ws_s["A1"].font = Font(size=14, bold=True, color="262A76")
 
 head = ["Month", "Contacts", "Connects", "RPCs", "RPC %",
-        "Promises", "Payments", "Promises Δ MoM"]
+        "Promises", "Payments", "KP %", "Promises Δ MoM"]
 for c, text in enumerate(head, start=1):
     cell = ws_s.cell(row=4, column=c, value=text)
     cell.font = Font(bold=True, color="FFFFFF")
@@ -464,13 +480,17 @@ for i, month in enumerate(months, start=5):
         ws_s[f"{col}{i}"] = f"=SUMIFS({name},tblMonth,$A{i})"
     ws_s[f"E{i}"] = f"=IFERROR(D{i}/C{i},0)"
     ws_s[f"E{i}"].number_format = "0.0%"
+    ws_s[f"H{i}"] = (
+        f"=IFERROR(SUMIFS(tblKept,tblMonth,$A{i})/"
+        f"(SUMIFS(tblKept,tblMonth,$A{i})+SUMIFS(tblBroken,tblMonth,$A{i})),0)")
+    ws_s[f"H{i}"].number_format = "0.0%"
     if i > 5:
-        ws_s[f"H{i}"] = f"=F{i}-F{i-1}"
-        ws_s[f"H{i}"].number_format = "+#,##0;-#,##0;0"
+        ws_s[f"I{i}"] = f"=F{i}-F{i-1}"
+        ws_s[f"I{i}"].number_format = "+#,##0;-#,##0;0"
 
 ws_s.freeze_panes = "A5"
 ws_s.column_dimensions["A"].width = 12
-for col in "BCDEFGH":
+for col in "BCDEFGHI":
     ws_s.column_dimensions[col].width = 14
 ```
 
@@ -480,12 +500,12 @@ ws_p["A1"] = "Team"
 for i, team in enumerate(sorted(df["Team"].unique()), start=2):
     ws_p[f"A{i}"] = team
 ws_p["D1"] = "Threshold"
-ws_p["D2"], ws_p["E2"] = "RPC% amber", 0.35
+ws_p["D2"], ws_p["E2"] = "KP% amber", 0.68
 ws_p["E2"].number_format = "0.0%"
-ws_p["D3"], ws_p["E3"] = "RPC% green", 0.45
+ws_p["D3"], ws_p["E3"] = "KP% green", 0.80
 ws_p["E3"].number_format = "0.0%"
 
-rng = "E5:E16"
+rng = "H5:H16"
 ws_s.conditional_formatting.add(rng, CellIsRule(
     operator="greaterThanOrEqual", formula=["Parameters!$E$3"],
     fill=PatternFill("solid", fgColor="00B050")))
@@ -519,9 +539,9 @@ ws_l.freeze_panes = "A2"
 ws_l.column_dimensions["A"].width = 14
 ws_l.column_dimensions["B"].width = 32
 
-ws_d["J4"], ws_d["K4"] = "Agent ID", "Name (VLOOKUP)"
-ws_d["J5"] = "EID-001"
-ws_d["K5"] = '=IFERROR(VLOOKUP(J5,AgentLookup!$A$2:$B$89,2,FALSE),"—")'
+ws_d["L4"], ws_d["M4"] = "Agent ID", "Name (VLOOKUP)"
+ws_d["L5"] = "EID-001"
+ws_d["M5"] = '=IFERROR(VLOOKUP(L5,AgentLookup!$A$2:$B$89,2,FALSE),"—")'
 ```
 
 ```python
@@ -538,10 +558,10 @@ dv.add(f"B2:B{last}")
 ```python
 ws_cl = wb["ChangeLog"]
 ws_cl.append(["Date", "Author", "Sheet/Range", "What changed", "Why"])
-ws_cl.append(["2025-08-25", "Your Name", "Summary!H5:H16",
+ws_cl.append(["2025-08-25", "Your Name", "Summary!I5:I16",
               "Added MoM delta column", "Ops asked for direction at a glance"])
 ws_cl.append(["2025-08-25", "Your Name", "Parameters!E2:E3",
-              "Set RPC% thresholds", "Strategy calibration"])
+              "Set KP% thresholds", "Strategy calibration"])
 ws_cl.append(["2025-08-26", "Your Name", "Data!C5",
               "Fixed a paste error caught by reconciliation",
               "Workbook must agree with the source"])
@@ -557,7 +577,7 @@ for ws in wb.worksheets:
     ws.print_title_rows = "1:1"
 
 ws_s.print_title_rows = "4:4"
-ws_s.print_area = "A1:H16"
+ws_s.print_area = "A1:I16"
 
 wb.save(OUT)
 ```
@@ -567,9 +587,9 @@ python learning/excel/medium/work/scripts/build_pack.py
 soffice --headless --convert-to pdf --outdir learning/excel/medium/work/exports learning/excel/medium/work/daily_mis_auto.xlsx
 ```
 
-**Why each part:** the lookup is a formula in the cell, not a pre-filled name — editing `J5` must update `K5`, which is the whole point of the drill. VLOOKUP is used because it works in every Calc version; XLOOKUP needs Calc 24.8+. `print_title_rows = "1:1"` is applied to all sheets and then overridden for Summary, which has a two-row title block.
+**Why each part:** the lookup is a formula in the cell, not a pre-filled name — editing `L5` must update `M5`, which is the whole point of the drill. VLOOKUP is used because it works in every Calc version; XLOOKUP needs Calc 24.8+. `print_title_rows = "1:1"` is applied to all sheets and then overridden for Summary, which has a two-row title block.
 
-**Verify yourself:** type `Free Texxt` into a `Data` team cell → refused with your message. Change `J5` to `EID-042` → the name updates. Change it to garbage → `—`. Open the PDF: landscape, one page wide, header repeats.
+**Verify yourself:** type `Free Texxt` into a `Data` team cell → refused with your message. Change `L5` to `EID-042` → the name updates. Change it to garbage → `—`. Open the PDF: landscape, one page wide, header repeats.
 
 **Traps & alternatives:** the lookup range `$A$2:$B$89` is a fixed guess. Compute it from `emp.shape[0] + 1` so it follows the roster. Data validation renders in Calc as a dropdown arrow; the `showErrorMessage` flag is what makes an invalid paste fail rather than pass silently. openpyxl cannot author VBA or Power Query — the PDF step is the honest automation boundary.
 
@@ -596,6 +616,7 @@ def reconcile(date_text, team, out=OUT):
             sheet = {
                 "Contacts": row[2], "Connects": row[3], "RPCs": row[4],
                 "Promises": row[5], "Payments": row[6],
+                "Kept": row[7], "Broken": row[8],
             }
             break
 
@@ -608,14 +629,14 @@ def reconcile(date_text, team, out=OUT):
         if value != expected:
             print(f"FAIL {key}: sheet={value} source={expected}")
             return False
-    print(f"PASS {date_text} / {team}: all five metrics match")
+    print(f"PASS {date_text} / {team}: all seven metrics match")
     return True
 
 
 reconcile("2025-06-02", "Team 1")
 ```
 
-**Why each part:** `data_only=True` reads cached values, so the check compares numbers rather than formula text. Comparing all five metrics catches the classic paste error that changes one column only. A `FAIL` is a finding to explain — never a line to delete.
+**Why each part:** `data_only=True` reads cached values, so the check compares numbers rather than formula text. Comparing all seven metrics catches the classic paste error that changes one column only. A `FAIL` is a finding to explain — never a line to delete.
 
 **Verify yourself:** the script prints `PASS 2025-06-02 / Team 1`. Edit one `Data` cell in the saved workbook, rerun, and see `FAIL` with the metric name. Restore and rerun for `PASS`.
 

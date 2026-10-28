@@ -32,11 +32,11 @@ New tools:    TOTALMTD/YTD family, CALCULATE modifiers, field-value conditional 
 ## Task 2 — Targets vs actuals
 📥 **Inbox:** From Operations Manager · Wed 11:00 · "board asks 'against target' constantly"
 
-> "Give me actual RPC% next to its target with the gap, driven by ONE target table — when strategy changes the number, I edit a row, not twelve measures."
+> "Give me actual PTP% and KP% next to their 80% goals with the gap, driven by ONE target table — when strategy changes the number, I edit a row, not twelve measures."
 
 **Your job:**
-1. Build a small targets table (goal name, target value) via Enter Data or DAX `DATATABLE`.
-2. Measures: selected goal's target, actual-vs-target gap.
+1. Build a small targets table (`MetricName`, `GoalValue`, `AmberThreshold`) via Enter Data or DAX `DATATABLE`. Use the project goals: PTP% 0.80 and KP% 0.80, amber at 0.85 × goal.
+2. Measures: selected goal's target, actual-vs-goal gap (actual switch between `[Promise Rate]` and `[KP Rate]`).
 3. Table visual: metric name, actual, target, gap — one row per KPI.
 
 **Done when:**
@@ -48,7 +48,7 @@ New tools:    TOTALMTD/YTD family, CALCULATE modifiers, field-value conditional 
 ## Task 3 — RAG colors managers can scan
 📥 **Inbox:** From Site Director · Thu 4:00 PM · "I read this page in ten seconds"
 
-> "Color-code the KPI table: green/amber/red per our thresholds. Colors must come from MEASURES, not manual formatting rules — the thresholds will move."
+> "Color-code the KPI table: green/amber/red per our thresholds (green at/above goal, amber from 85% of goal). Colors must come from MEASURES, not manual formatting rules — the thresholds move when strategy changes."
 
 **Your job:**
 1. Per-KPI color measure returning hex codes (green #00B050 / amber #FFC000 / red #FF0000).

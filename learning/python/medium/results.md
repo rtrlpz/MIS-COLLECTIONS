@@ -144,7 +144,7 @@ import pandas as pd
 import psycopg2
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 load_dotenv(ROOT / ".env")
 
 FACTS = {  # table -> (folder_glob relative name pattern, money col or None)

@@ -25,11 +25,11 @@ Theme:        notebooks that ANALYZE, not just display: targets on charts,
 ## Task 2 — KPI chart with a target line
 📥 **Inbox:** From Operations Manager · Wed 3:00 · "managers ask 'against target' in every review"
 
-> "Monthly RPC% line chart with the 45% target drawn as a horizontal reference line; color the below-target markers amber. One glance answers 'who's under'."
+> "Monthly KP% line chart with the 80% goal drawn as a horizontal reference line; colour points by the project RAG rule (green at/above goal, amber from 85% of goal, red below). One glance answers 'who's under'."
 
 **Done when:**
-- [ ] Reference line labeled 'target 45%'
-- [ ] Below-target points visually distinct
+- [ ] Reference line labeled 'goal 80%'
+- [ ] Points coloured green / amber / red by the 0.85 × goal rule
 - [ ] Takeaway cell naming the under-target months
 
 ---

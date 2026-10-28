@@ -208,16 +208,49 @@ FROM rebuilt r
 JOIN v_agent_scorecards v ON v.agent_id = r.agent_id AND v.month_num = r.month_num;
 ```
 
-Then score whichever variant matched best and diff composites:
+Then score each variant and diff composites:
 
 ```sql
--- Wrap `rebuilt` + chosen variant in normalization exactly as 004 does:
---   aht_norm = CASE WHEN aht >= 300 OR aht IS NULL THEN 0 ELSE (300-aht)/300*100 END
---   composite = rpc_norm*0.25 + kept_norm*0.25 + cure_norm*0.20 + util_norm*0.15 + aht_norm*0.15
--- Diff pattern:
---   SELECT ... ROUND(rebuilt_composite - view_composite, 2) AS gap
---   HAVING ABS(gap) > 0.05     -- rounding noise vs definitional mismatch
+, normalized AS (
+    SELECT r.agent_id,
+           r.month_num,
+           r.rpc_pct_avg_daily                                      AS rpc_avg_daily_norm,
+           r.rpc_pct_ratio                                          AS rpc_ratio_norm,
+           100.0 * r.kept_n / NULLIF(r.evaluated_n, 0)              AS kept_norm,
+           r.cure_rate_pct                                          AS cure_norm,
+           r.util_pct                                               AS util_norm,
+           CASE WHEN r.aht_rpc_avg_daily IS NULL OR r.aht_rpc_avg_daily >= 300 THEN 0
+                ELSE ROUND((300 - r.aht_rpc_avg_daily) / 300 * 100, 2)
+           END                                                      AS aht_avg_daily_norm,
+           CASE WHEN r.aht_rpc_ratio IS NULL OR r.aht_rpc_ratio >= 300 THEN 0
+                ELSE ROUND((300 - r.aht_rpc_ratio) / 300 * 100, 2)
+           END                                                      AS aht_ratio_norm
+    FROM rebuilt r
+),
+scored AS (
+    SELECT n.*,
+           ROUND(n.rpc_avg_daily_norm * 0.25 + n.kept_norm * 0.25
+                 + n.cure_norm * 0.20 + n.util_norm * 0.15
+                 + n.aht_avg_daily_norm * 0.15, 2)                  AS composite_avg_daily,
+           ROUND(n.rpc_ratio_norm * 0.25 + n.kept_norm * 0.25
+                 + n.cure_norm * 0.20 + n.util_norm * 0.15
+                 + n.aht_ratio_norm * 0.15, 2)                      AS composite_ratio
+    FROM normalized n
+)
+SELECT s.agent_id,
+       s.month_num,
+       s.composite_avg_daily,
+       s.composite_ratio,
+       v.composite_score                                            AS view_composite,
+       ROUND(s.composite_avg_daily - v.composite_score, 2)          AS gap_avg_daily,
+       ROUND(s.composite_ratio - v.composite_score, 2)              AS gap_ratio
+FROM scored s
+JOIN v_agent_scorecards v USING (agent_id, month_num)
+ORDER BY ABS(ROUND(s.composite_avg_daily - v.composite_score, 2)) DESC,
+         ABS(ROUND(s.composite_ratio - v.composite_score, 2)) DESC;
 ```
+
+The variant whose gap column collapses to rounding noise (|gap| ≤ 0.05 for nearly every row) is the production aggregation; the other is your documented improvement candidate.
 
 **Why each part:** computing BOTH variants is the audit — whichever matches `view_rpc_pct` reveals how production aggregates, and the other column becomes your documented improvement candidate. Kept uses plan-status counts (the per-plan rule already lives in status); cure uses 002's count-based conversion ratio, which is also what the scorecard consumes.
 
@@ -419,14 +452,15 @@ ORDER BY month_num;
 
 ## Task 9 — Point-in-time team attribution (SCD2)
 
-**Approach:** range-join interactions to the history version valid on each interaction date. Verify July credits RECEIVING teams (should equal current state — transfers applied), then compare JUNE, where history and current-state must disagree for exactly the six movers.
+**Approach:** range-join interactions to the history version valid on each interaction date. Verify July credits the RECEIVING org (should equal current state — transfers applied), then compare JUNE, where history and current state disagree for the transferred agents. Separate supervisor moves from true team moves: the generator can move an agent to a different supervisor who sits in the same team.
 
 ```sql
 -- Step 1: point-in-time attribution helper for any month
 WITH pit AS (
     SELECT f.agent_id,
            f.interaction_date,
-           h.team_name AS team_at_call_time
+           h.team_name     AS team_at_call_time,
+           h.supervisor_id AS supervisor_at_call_time
     FROM fact_interactions f
     JOIN dim_employee_history h
          ON h.agent_id = f.agent_id
@@ -437,13 +471,16 @@ WITH pit AS (
 )
 SELECT CASE WHEN j.interaction_date < DATE '2025-07-01' THEN 'June' ELSE 'July' END AS month_bucket,
        j.team_at_call_time,
-       e.team_name AS team_current_state,
+       e.team_name       AS team_current_state,
+       j.supervisor_at_call_time,
+       e.supervisor_id   AS supervisor_current_state,
        COUNT(DISTINCT j.agent_id) AS agents,
        COUNT(*)                   AS interactions
 FROM pit j
 JOIN dim_employees e USING (agent_id)
-GROUP BY 1, 2, 3
-HAVING j.team_at_call_time <> e.team_name            -- keep only disagreement rows
+GROUP BY 1, 2, 3, 4, 5
+HAVING j.team_at_call_time      <> e.team_name
+    OR j.supervisor_at_call_time <> e.supervisor_id   -- keep only disagreement rows
 ORDER BY 1, interactions DESC;
 
 -- Naive baseline to quantify the shift against:
@@ -454,9 +491,9 @@ WHERE f.interaction_date >= DATE '2025-06-01' AND f.interaction_date < DATE '202
 GROUP BY 1 ORDER BY 2 DESC;
 ```
 
-**Why each part:** the range join `valid_from <= date <= valid_to` IS point-in-time attribution; `LEAST(valid_to, …)` tames the open-ended sentinel row (`9999-12-31`). The HAVING keeps disagreement rows only — in June those are the six pre-transfer agents still credited to their OLD team; in July the same query should return ZERO rows, which is itself the verification that transfers were applied cleanly.
+**Why each part:** the range join `valid_from <= date <= valid_to` IS point-in-time attribution; `LEAST(valid_to, …)` tames the open-ended sentinel row (`9999-12-31`). The HAVING keeps disagreement rows only — in June those are the pre-transfer agents still credited to their OLD org; in July the same query should return ZERO rows, which is itself the verification that transfers were applied cleanly. The two org columns let you report supervisor moves and team moves separately, because not every supervisor change changes `team_name`.
 
-**Verify yourself:** June disagreement set must contain exactly six agents spanning old-team/receiving-team pairs; July must return nothing. Sum interactions across both attribution styles per team-month — totals equal, only labels move.
+**Verify yourself:** June disagreement rows should cover the transferred agents (up to six); filter `team_at_call_time <> team_current_state` to isolate true team moves. July must return nothing at either grain. Sum interactions across both attribution styles per team-month — totals equal, only labels move. If your June set has fewer than six rows, check whether some transfers stayed inside the same team before calling it a bug.
 
 **Traps & alternatives:** overlapping history windows would double-count interactions — add a per-agent/date version-count check if you ever suspect the history table. Current-state attribution stays correct for "who owns this TODAY"; anything historical needs the range join. State which one your report uses, in its footer.
 

@@ -84,7 +84,7 @@ Rule:         a workbook you never opened is an untested claim.
 
 **Your job (Excel first):**
 1. On a new sheet `AgentLookup`, manually type agent IDs and names (paste from the CSV).
-2. Create sheet `AgentDaily` with headers **A4:F4**: Agent ID · Team · Agent Name (XLOOKUP) · Agent Name (VLOOKUP) · Promises · Payments. Type a few agent IDs and teams by hand from the `v_daily_mis` extract.
+2. Create sheet `AgentDaily` with headers **A4:G4**: Agent ID · Team · Agent Name (XLOOKUP) · Agent Name (VLOOKUP) · Promises · Payments · Month. Type a few agent IDs, teams and the month (`2025-06-01`) by hand from the `v_daily_mis` extract.
 3. **Type the XLOOKUP formula by hand** in C5:
    `=IFNA(XLOOKUP(A5,AgentLookup!$A$2:$A$100,AgentLookup!$B$2:$B$100,"—"),"")`
 4. **Now also type VLOOKUP** in D5:
@@ -108,7 +108,7 @@ Rule:         a workbook you never opened is an untested claim.
 > "I need to see total Promises and Payments by team for the month. Don't give me another formula sheet — give me something I can filter and drill into."
 
 **Your job (Excel first):**
-1. Select the `AgentDaily` range **A4:F{last_row}**. Go to **Insert → PivotTable**.
+1. Select the `AgentDaily` range **A4:G{last_row}**. Go to **Insert → PivotTable**.
 2. Place it on a new sheet called `PivotDaily`.
 3. Rows = Team (column B). Values = SUM of Promises (E), SUM of Payments (F).
 4. Add a report filter for Month. Try dragging fields around — feel how the pivot rebuilds.
@@ -196,11 +196,11 @@ Rule:         a workbook you never opened is an untested claim.
 
 📥 **Inbox:** From Head of MIS · Mon 9:00 · "the flagship deliverable"
 
-> "Write `daily_mis_auto.py`: reads the daily KPI extract (CSV export of `v_daily_mis`), builds the FULL pack — Cover, Daily, Summary, AgentLookup, Parameters — with every style, formula, lookup, validation, and print setting applied. One command, zero manual steps."
+> "Write `daily_mis_auto.py`: reads the daily KPI extract (a CSV built from `v_daily_mis` plus payment counts from `fact_payments`), builds the FULL pack — Cover, Daily, Summary, AgentLookup, Parameters — with every style, formula, lookup, validation, and print setting applied. One command, zero manual steps."
 
 **Your job:**
 1. Assemble everything from Tasks 1–7 into a single CLI script.
-2. Input: CSV path + output xlsx path.
+2. Input: CSV path + output xlsx path. The extract is agent-day grain with `date, agent_id, team_name, total_calls, connected_calls, rpc_count, ptp_count, payment_count`. `v_daily_mis` supplies everything except `payment_count` — take that from `fact_payments` (see results.md for the export query).
 3. All sheets built with Phase A behaviors intact: XLOOKUP formulas written to cells, validation dropdowns, pivot-ready data layout, named styles, print setup.
 4. Fresh run reproduces the same sheets, formulas and styles; xlsx zip timestamps will differ, so compare structure rather than bytes.
 
@@ -215,10 +215,10 @@ Rule:         a workbook you never opened is an untested claim.
 
 📥 **Inbox:** From MIS Manager · Fri 3:00 · "nothing leaves this desk without it"
 
-> "Before ANY workbook ships, verify it agrees with the official SQL view (`v_daily_mis`). Build a reconciliation check into the generator: compare one day's numbers from the generated file against the query result."
+> "Before ANY workbook ships, verify it agrees with the official SQL sources (`v_daily_mis` plus `fact_payments`). Build a reconciliation check into the generator: compare one day's numbers from the generated file against the query result."
 
 **Your job:**
-1. Run a SQL query for a test date and note the four numbers (contacts, connects, RPCs, promises).
+1. Run a SQL query for a test date and note the five numbers (contacts, connects, RPCs, promises, payments). Payment count is not a `v_daily_mis` column — count `fact_payments` rows for the date.
 2. Generate the workbook from the same date's data.
 3. Open the generated file and read back the numbers from the Data sheet.
 4. Compare. Any mismatch = a finding, not a rounding error.
@@ -226,7 +226,7 @@ Rule:         a workbook you never opened is an untested claim.
 
 **Done when:**
 - [ ] Reconciliation step in the generator script
-- [ ] Generated numbers match SQL view exactly
+- [ ] Generated numbers match the SQL sources exactly
 - [ ] Any discrepancy documented as a finding
 
 ---

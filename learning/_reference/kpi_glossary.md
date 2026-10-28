@@ -78,6 +78,8 @@
 
 RAG colors: Green `#00B050`, Amber `#FFC000`, Red `#FF0000`.
 
+RAG bands for Higher-is-Better KPIs: **green ≥ goal**, **amber ≥ 0.85 × goal**, **red below**. With the 80% PTP/KP goals, the amber floor is **68%**. `Dim_Targets[AmberThreshold]` stores 0.85 for these rows; for Lower-is-Better metrics (ACW) the direction is inverted — see `dashboards/dax/dax_targets_and_comparisons.md`.
+
 ## 8. No-TL / leadership filter
 
 KPI views exclude non-production roles (Team Leader, Ops Sr Manager, etc.). In this synthetic dataset all 80 agents have a `supervisor_id`, so **include** them; the rule matters mostly if you re-join raw staffing data.

@@ -43,9 +43,11 @@ def promise_kpis(ptp: pd.DataFrame, pay: pd.DataFrame) -> pd.DataFrame:
     ev = ptp.merge(totals, on="ptp_id", how="left")
     ev["paid_total"] = ev["paid_total"].fillna(0)
     ev["is_kept_math"] = ev["paid_total"] >= 0.95 * ev["promised_amount"]
+    ev = ev[ev["status"].isin(["Kept", "Broken"])]   # Pending is not evaluated yet
     ev = ev.assign(month=ev["ptp_date"].dt.to_period("M").astype(str))
-    g = ev.groupby(["month", "status"]).size().unstack(fill_value=0)
-    return g.add_prefix("plans_").reset_index()
+    g = ev.groupby(["month", "is_kept_math"]).size().unstack(fill_value=0)
+    return g.rename(columns={True: "kept_math", False: "broken_math"}) \
+            .add_prefix("plans_").reset_index()
 
 def utilization_kpis(time_log: pd.DataFrame) -> pd.DataFrame:
     """ratio-of-sums monthly utilization. Target: v_productivity_metrics."""

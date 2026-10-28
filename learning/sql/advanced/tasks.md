@@ -201,7 +201,7 @@ New tools:    LAG/LEAD state machines, cohort windows, view-vs-raw reconciliatio
 ## Task 9 — Point-in-time team attribution (SCD2)
 📥 **Inbox:** From Workforce Analyst · Wed 12:30 · "July transfer fairness question"
 
-> "Six collectors switched teams on July 1. Their July calls must credit the RECEIVING team; June calls stay with the old one. The employee table is 'current state' only — build point-in-time attribution from history and show which teams' July numbers move versus the naive current-state join."
+> "Up to six collectors changed supervisor on July 1 (some may stay in the same team). Their July calls must credit the RECEIVING org; June calls stay with the old one. The employee table is 'current state' only — build point-in-time attribution from history and show which teams' July numbers move versus the naive current-state join."
 
 **Background:** `dim_employee_history` versions org attributes (`valid_from`, `valid_to`, `is_current`). Naive joins silently rewrite history.
 
@@ -212,7 +212,7 @@ New tools:    LAG/LEAD state machines, cohort windows, view-vs-raw reconciliatio
 
 **Guiding questions:** How do you handle the open-ended row (`valid_to = 9999-12-31`)? Which business questions legitimately want current-state instead?
 
-**Data pointers:** dictionary → dim_employee_history; confirm six transfers effective Jul 1.
+**Data pointers:** dictionary → dim_employee_history; confirm the transfer count effective Jul 1 and separate supervisor moves from true team moves.
 
 **Done when:**
 - [ ] History-driven attribution query

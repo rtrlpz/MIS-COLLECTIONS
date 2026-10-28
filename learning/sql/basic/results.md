@@ -48,7 +48,7 @@ ORDER BY fact_table, key_column;
 
 **Why each part:** the catalog queries survive schema changes — a typed list rots the day someone adds a table. The UNION-ALL counts are dumb on purpose: one result set, zero cleverness. The FK query answers "what connects to what" with authority instead of guessing.
 
-**Verify yourself:** facts should number seven and dwarf every dim except `dim_calendar`; `dim_writeoffs`… doesn't exist — if your list shows something `_reference/data_dictionary.md` doesn't, that's a finding to write down.
+**Verify yourself:** facts should number seven; `dim_writeoffs`… doesn't exist — if your list shows something `_reference/data_dictionary.md` doesn't, that's a finding to write down. Don't expect every fact to out-count every dim: the big facts (interactions, payments, PTP, EOM) do, but `fact_writeoffs` (~441) and `fact_recoveries` (~323) are smaller than `dim_clients` (10,000) and `dim_accounts` (~15,480). Table type comes from its grain, not its row count.
 
 **Traps & alternatives:** `\dt` (psql) only shows your search_path; `information_schema` is portable and explicit. Don't classify by row count alone — `fact_recoveries` is tiny because write-offs take months to age in, not because it's a dimension.
 

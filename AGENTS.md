@@ -142,7 +142,7 @@ If asked about a task/skill material at `learning/`, follow these contracts (see
 - **Reproduce-from-scratch ethos:** learners re-derive the project's `v_*` KPI views in SQL/Python and audit against them; divergence = finding, not failure
 - **House rules practiced in the track:** never commit `.env`/credentials, never edit generated CSVs, DAX measures CSV-first, RAG/targets from `_reference/kpi_glossary.md`
 - **Ignored:** `learning/**/work/*` (keeps `.gitkeep`), `**/.ipynb_checkpoints/`; all `.md` tracked
-- **Refactor (Aug 2026):** 7-phase rewrite per REFACTOR_PLAN.md (~95 JD-aligned tasks); phases land track-by-track with one commit each
+- **Refactor (Aug 2026):** 7-phase rewrite per REFACTOR_PLAN.md (111 JD-aligned tasks); phases land track-by-track with one commit each
 
 ## DAX v3.2 (148 active measures across 5 measure tables + 1 CG; 118 legacy TI retired)
 - **Base measures (117)**: `_Outreach & Activity` (22), `_Promise & Recovery` (30), `_Portfolio Health` (34), `_Goals & Targets` (31)
