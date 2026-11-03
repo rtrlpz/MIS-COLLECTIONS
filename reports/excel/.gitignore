@@ -1,0 +1,12 @@
+# Extracts are point-in-time; regenerate them, do not commit them.
+data/*.csv
+data/*.xlsx
+
+# The workbook is a local build artefact.
+work/*.xlsx
+work/*.xlsm
+work/*.xlsb
+
+# Excel lock/temp files
+~$*
+*.tmp
